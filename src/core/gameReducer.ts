@@ -300,24 +300,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // Player lands on unowned property and exercises the right NOT to buy (Không mua đất)
+      // Trigger MANDATORY AUTO-AUCTION for unowned property
       const currentPlayer = state.players[state.currentPlayerIndex];
       const tile = HOGWARTS_TILES[currentPlayer.position];
-      if (!tile || state.propertyOwnership[tile.id]) return state;
-
-      return {
-        ...state,
-        turnPhase: 'END_TURN',
-        events: [
-          createEvent(`🚫 ${currentPlayer.name} quyết định KHÔNG MUA "${tile.name}". Ô đất vẫn giữ nguyên chưa ai sở hữu!`, 'info', currentPlayer.id),
-          ...state.events,
-        ],
-      };
-    }
-
-    case 'AUCTION_PROPERTY': {
-      const currentPlayer = state.players[state.currentPlayerIndex];
-      const tile = (action.propertyId ? HOGWARTS_TILES.find((t) => t.id === action.propertyId) : null) || HOGWARTS_TILES[currentPlayer.position];
       if (!tile || state.propertyOwnership[tile.id]) return state;
 
       const activeBidders = state.players.filter((p) => !p.isBankrupt).map((p) => p.id);
@@ -337,7 +322,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         auction,
         turnPhase: 'AUCTION',
         events: [
-          createEvent(`📢 ${currentPlayer.name} mở phiên ĐẤU GIÁ CÔNG KHAI cho ô đất "${tile.name}"!`, 'warning'),
+          createEvent(`📢 ${currentPlayer.name} bỏ qua "${tile.name}". BẮT ĐẦU ĐẤU GIÁ CÔNG KHAI!`, 'warning'),
           ...state.events,
         ],
       };

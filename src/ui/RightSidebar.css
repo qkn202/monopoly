@@ -413,12 +413,6 @@
   gap: 8px;
 }
 
-.decision-button-row-unowned {
-  display: grid;
-  grid-template-columns: 1.15fr 1.05fr 0.9fr;
-  gap: 6px;
-}
-
 .btn-buy {
   padding: 10px;
   background: linear-gradient(135deg, #059669 0%, #10b981 100%);
@@ -433,30 +427,6 @@
 .btn-buy:hover {
   box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
   transform: translateY(-1px);
-}
-
-.btn-pass-skip {
-  padding: 10px;
-  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
-  color: #e2e8f0;
-  font-weight: 700;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  font-size: 0.84rem;
-}
-.btn-pass-skip:hover:not(:disabled) {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%);
-  box-shadow: 0 0 14px rgba(148, 163, 184, 0.35);
-  transform: translateY(-1px);
-  color: #ffffff;
-}
-.btn-pass-skip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(0.6);
 }
 
 /* Property Upgrade Box Styling */
@@ -944,10 +914,9 @@
   }
 
   .mobile-action-controls-box .btn-buy,
-  .mobile-action-controls-box .btn-pass-skip,
   .mobile-action-controls-box .btn-pass-auction {
     min-height: 44px;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
   }
 
   .mobile-action-controls-box .landed-decision-box {

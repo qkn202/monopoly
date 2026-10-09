@@ -307,7 +307,7 @@ export function App() {
         } else if (gameState.turnPhase === 'END_TURN') {
           e.preventDefault();
           dispatch({ type: 'END_TURN' });
-        } else if (gameState.turnPhase === 'ACTION') {
+        } else if (gameState.turnPhase === 'ACTION' && (gameState.takeoverCandidate || gameState.upgradeCandidate)) {
           e.preventDefault();
           dispatch({ type: 'PASS_PROPERTY' });
         }
@@ -336,19 +336,10 @@ export function App() {
         }
       }
 
-      // 'P' or 'p' -> Quick Pass / Don't buy
+      // 'P' or 'p' -> Quick Pass (to Auction if unowned, or to END_TURN if takeover)
       if (e.code === 'KeyP' && gameState.turnPhase === 'ACTION') {
         e.preventDefault();
         dispatch({ type: 'PASS_PROPERTY' });
-      }
-
-      // 'A' or 'a' -> Open Public Auction for unowned property
-      if (e.code === 'KeyA' && gameState.turnPhase === 'ACTION' && !gameState.takeoverCandidate && !gameState.upgradeCandidate) {
-        const tile = HOGWARTS_TILES[curP.position];
-        if (tile && !gameState.propertyOwnership[tile.id]) {
-          e.preventDefault();
-          dispatch({ type: 'AUCTION_PROPERTY' });
-        }
       }
     };
 
