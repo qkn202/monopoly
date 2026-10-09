@@ -133,6 +133,14 @@ export interface TakeoverCandidate {
   ownerName: string;
 }
 
+export interface UpgradeCandidate {
+  propertyId: string;
+  cost: number;
+  currentHouses: number;
+  hasHotel: boolean;
+  isHotelUpgrade: boolean;
+}
+
 export interface GameState {
   players: Player[];
   currentPlayerIndex: number;
@@ -160,6 +168,7 @@ export interface GameState {
   maxRentMultiplier: number; // Cap (default 2)
   activeEscalationEvent?: EscalationEvent | null;
   takeoverCandidate?: TakeoverCandidate | null;
+  upgradeCandidate?: UpgradeCandidate | null;
 }
 
 export interface EscalationEvent {
@@ -178,9 +187,9 @@ export type GameAction =
   | { type: 'PLACE_BID'; playerId: string; amount: number }
   | { type: 'FOLD_AUCTION'; playerId: string }
   | { type: 'AUCTION_TICK' }
-  | { type: 'BUILD_HOUSE'; propertyId: string }
-  | { type: 'BUILD_HOTEL'; propertyId: string }
-  | { type: 'SELL_HOUSE'; propertyId: string }
+  | { type: 'BUILD_HOUSE'; propertyId: string; playerId?: string }
+  | { type: 'BUILD_HOTEL'; propertyId: string; playerId?: string }
+  | { type: 'SELL_HOUSE'; propertyId: string; playerId?: string }
   | { type: 'MORTGAGE_PROPERTY'; propertyId: string }
   | { type: 'UNMORTGAGE_PROPERTY'; propertyId: string }
   | { type: 'PAY_JAIL_FINE' }

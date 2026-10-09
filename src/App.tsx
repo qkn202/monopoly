@@ -307,16 +307,25 @@ export function App() {
         } else if (gameState.turnPhase === 'END_TURN') {
           e.preventDefault();
           dispatch({ type: 'END_TURN' });
-        } else if (gameState.turnPhase === 'ACTION' && gameState.takeoverCandidate) {
+        } else if (gameState.turnPhase === 'ACTION' && (gameState.takeoverCandidate || gameState.upgradeCandidate)) {
           e.preventDefault();
           dispatch({ type: 'PASS_PROPERTY' });
         }
       }
 
-      // 'B' or 'b' -> Quick Buy or Hostile Takeover Property
+      // 'B' or 'b' -> Quick Buy, Hostile Takeover, or Upgrade Owned Property
       if (e.code === 'KeyB' && gameState.turnPhase === 'ACTION') {
         const tile = HOGWARTS_TILES[curP.position];
-        if (gameState.takeoverCandidate && tile && tile.id === gameState.takeoverCandidate.propertyId) {
+        if (gameState.upgradeCandidate && tile && tile.id === gameState.upgradeCandidate.propertyId) {
+          if (curP.balance >= gameState.upgradeCandidate.cost) {
+            e.preventDefault();
+            if (gameState.upgradeCandidate.isHotelUpgrade) {
+              dispatch({ type: 'BUILD_HOTEL', propertyId: tile.id, playerId: curP.id });
+            } else {
+              dispatch({ type: 'BUILD_HOUSE', propertyId: tile.id, playerId: curP.id });
+            }
+          }
+        } else if (gameState.takeoverCandidate && tile && tile.id === gameState.takeoverCandidate.propertyId) {
           if (curP.balance >= gameState.takeoverCandidate.cost) {
             e.preventDefault();
             dispatch({ type: 'TAKEOVER_PROPERTY', propertyId: tile.id });

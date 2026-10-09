@@ -61,6 +61,7 @@ export function createInitialState(
     maxRentMultiplier: 2,
     activeEscalationEvent: null,
     takeoverCandidate: null,
+    upgradeCandidate: null,
   };
 }
 
@@ -281,6 +282,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'PASS_PROPERTY': {
+      if (state.upgradeCandidate) {
+        // Player declined building or upgrading owned property -> advance to END_TURN
+        return {
+          ...state,
+          upgradeCandidate: null,
+          turnPhase: 'END_TURN',
+        };
+      }
+
       if (state.takeoverCandidate) {
         // Player declined hostile takeover -> advance to END_TURN
         return {
@@ -458,8 +468,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BUILD_HOUSE': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
-      const player = state.players[state.currentPlayerIndex];
-      if (!tile || !tile.houseCost) return state;
+      const ownerId = action.playerId || (tile ? state.propertyOwnership[tile.id] : undefined) || state.players[state.currentPlayerIndex].id;
+      const player = state.players.find((p) => p.id === ownerId);
+      if (!tile || !tile.houseCost || !player) return state;
 
       const check = canBuildHouse(player, tile.id, state);
       if (!check.allowed) return state;
@@ -471,9 +482,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         houses: { ...player.houses, [tile.id]: currentCount + 1 },
       };
 
+      const isLandedUpgrade = state.turnPhase === 'ACTION' && state.upgradeCandidate?.propertyId === tile.id;
+
       return refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
+        turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
+        upgradeCandidate: isLandedUpgrade ? null : state.upgradeCandidate,
         events: [
           createEvent(`🛖 ${player.name} xây thêm 1 Túp Lều tại "${tile.name}" (-${tile.houseCost}G)`, 'success', player.id),
           ...state.events,
@@ -483,8 +498,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BUILD_HOTEL': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
-      const player = state.players[state.currentPlayerIndex];
-      if (!tile || !tile.houseCost) return state;
+      const ownerId = action.playerId || (tile ? state.propertyOwnership[tile.id] : undefined) || state.players[state.currentPlayerIndex].id;
+      const player = state.players.find((p) => p.id === ownerId);
+      if (!tile || !tile.houseCost || !player) return state;
 
       const check = canBuildHotel(player, tile.id, state);
       if (!check.allowed) return state;
@@ -496,9 +512,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         hotels: { ...player.hotels, [tile.id]: 1 },
       };
 
+      const isLandedUpgrade = state.turnPhase === 'ACTION' && state.upgradeCandidate?.propertyId === tile.id;
+
       return refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
+        turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
+        upgradeCandidate: isLandedUpgrade ? null : state.upgradeCandidate,
         events: [
           createEvent(`🏰 ${player.name} nâng cấp lên Lâu Đài Hogwarts tại "${tile.name}" (-${tile.houseCost}G)`, 'success', player.id),
           ...state.events,
@@ -509,10 +529,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SELL_HOUSE': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
       if (!tile || !tile.houseCost) return state;
-      const ownerId = state.propertyOwnership[tile.id];
-      const currentPlayer = state.players[state.currentPlayerIndex];
-      if (!ownerId || ownerId !== currentPlayer.id) return state;
-      const player = currentPlayer;
+      const ownerId = action.playerId || state.propertyOwnership[tile.id] || state.players[state.currentPlayerIndex].id;
+      const player = state.players.find((p) => p.id === ownerId);
+      if (!player) return state;
 
       const hasHotel = (player.hotels[tile.id] || 0) > 0;
       const currentHouses = player.houses[tile.id] || 0;
@@ -808,20 +827,55 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
         return refreshAllNetWorth({
           ...state,
           turnPhase: 'ACTION',
+          takeoverCandidate: null,
+          upgradeCandidate: null,
         });
       }
 
       if (ownerId === player.id) {
+        // Check if property can be upgraded (houses or castle)
+        if (tile.type === 'PROPERTY' && tile.houseCost && !state.mortgagedProperties[tile.id]) {
+          const currentHouses = player.houses[tile.id] || 0;
+          const currentHotels = player.hotels[tile.id] || 0;
+          if (currentHotels === 0) {
+            const isHotelUpgrade = currentHouses >= 4;
+            return refreshAllNetWorth({
+              ...state,
+              turnPhase: 'ACTION',
+              takeoverCandidate: null,
+              upgradeCandidate: {
+                propertyId: tile.id,
+                cost: tile.houseCost,
+                currentHouses,
+                hasHotel: false,
+                isHotelUpgrade,
+              },
+              events: [
+                createEvent(
+                  `🏡 ${player.name} trở về dinh thự của mình: "${tile.name}". Bạn có thể nâng cấp thêm ${
+                    isHotelUpgrade ? 'Lâu Đài Hogwarts (Cấp tối đa)' : 'Túp Lều'
+                  } với giá ${tile.houseCost}G!`,
+                  'info',
+                  player.id
+                ),
+                ...state.events,
+              ],
+            });
+          }
+        }
+
         return refreshAllNetWorth({
           ...state,
           turnPhase: 'END_TURN',
+          upgradeCandidate: null,
+          takeoverCandidate: null,
         });
       }
 
       // Rent owed to another player!
       const owner = state.players.find((p) => p.id === ownerId);
       if (!owner || owner.isBankrupt) {
-        return refreshAllNetWorth({ ...state, turnPhase: 'END_TURN' });
+        return refreshAllNetWorth({ ...state, turnPhase: 'END_TURN', upgradeCandidate: null, takeoverCandidate: null });
       }
 
       const rent = calculateRent(tile, owner, diceTotal, state);
@@ -829,6 +883,8 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
         return refreshAllNetWorth({
           ...state,
           turnPhase: 'END_TURN',
+          upgradeCandidate: null,
+          takeoverCandidate: null,
           events: [
             createEvent(`"${tile.name}" đang bị thế chấp. ${player.name} được miễn tiền thuê!`, 'info', player.id),
             ...state.events,
@@ -861,6 +917,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
         ...debtRes.state,
         turnPhase: nextTurnPhase,
         takeoverCandidate,
+        upgradeCandidate: null,
         lastRentPayment: {
           debtorId: player.id,
           creditorId: owner.id,
@@ -939,6 +996,7 @@ function advanceTurn(state: GameState): GameState {
       auction: null,
       activeCard: null,
       takeoverCandidate: null,
+      upgradeCandidate: null,
       lastRentPayment: null,
       turnSecondsRemaining: state.maxTurnSeconds || 60,
       events: [
@@ -989,6 +1047,7 @@ function advanceTurn(state: GameState): GameState {
     auction: null,
     activeCard: null,
     takeoverCandidate: null,
+    upgradeCandidate: null,
     lastRentPayment: null,
     turnSecondsRemaining: state.maxTurnSeconds || 60,
     rentMultiplier,

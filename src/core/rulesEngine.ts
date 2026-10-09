@@ -86,7 +86,7 @@ export function canBuildHouse(
   state: GameState
 ): { allowed: boolean; reason?: string } {
   const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
-  if (!tile || tile.type !== 'PROPERTY' || !tile.colorGroup) {
+  if (!tile || tile.type !== 'PROPERTY' || !tile.houseCost) {
     return { allowed: false, reason: 'Không phải là ô đất có thể xây dựng' };
   }
 
@@ -94,38 +94,23 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Bạn không sở hữu ô đất này' };
   }
 
-  if (!ownsFullColorSet(player, tile.colorGroup, state)) {
-    return { allowed: false, reason: 'Bạn cần sở hữu đủ toàn bộ bộ màu này' };
+  if (state.mortgagedProperties[tile.id]) {
+    return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
   }
 
-  // Any mortgaged in group blocks building
-  const groupTiles = HOGWARTS_TILES.filter((t) => t.colorGroup === tile.colorGroup);
-  const anyMortgaged = groupTiles.some((t) => state.mortgagedProperties[t.id]);
-  if (anyMortgaged) {
-    return { allowed: false, reason: 'Không thể xây dựng khi có bất động sản cùng nhóm đang thế chấp' };
-  }
-
-  const currentHouses = player.houses[tile.id] || 0;
   const currentHotels = player.hotels[tile.id] || 0;
-
   if (currentHotels > 0) {
     return { allowed: false, reason: 'Đã xây dựng Lâu Đài tối đa' };
   }
 
+  const currentHouses = player.houses[tile.id] || 0;
   if (currentHouses >= 4) {
     return { allowed: false, reason: 'Đã có 4 Túp Lều, cần nâng cấp lên Lâu Đài' };
   }
 
-  const cost = tile.houseCost || 50;
+  const cost = tile.houseCost;
   if (player.balance < cost) {
     return { allowed: false, reason: `Không đủ tiền (Cần ${cost} Galleons)` };
-  }
-
-  // Even building rule: Cannot build if current property has more houses than any other in group
-  const houseCountsInGroup = groupTiles.map((t) => player.houses[t.id] || 0);
-  const minHouses = Math.min(...houseCountsInGroup);
-  if (currentHouses > minHouses) {
-    return { allowed: false, reason: 'Quy tắc xây đều: Phải xây dựng đồng đều các ô trong nhóm' };
   }
 
   return { allowed: true };
@@ -137,35 +122,31 @@ export function canBuildHotel(
   state: GameState
 ): { allowed: boolean; reason?: string } {
   const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
-  if (!tile || tile.type !== 'PROPERTY' || !tile.colorGroup) {
+  if (!tile || tile.type !== 'PROPERTY' || !tile.houseCost) {
     return { allowed: false, reason: 'Không thể xây Lâu Đài' };
   }
 
   if (state.propertyOwnership[tile.id] !== player.id) {
-    return { allowed: false, reason: 'Không sở hữu' };
+    return { allowed: false, reason: 'Bạn không sở hữu ô đất này' };
+  }
+
+  if (state.mortgagedProperties[tile.id]) {
+    return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
+  }
+
+  const currentHotels = player.hotels[tile.id] || 0;
+  if (currentHotels > 0) {
+    return { allowed: false, reason: 'Đã có Lâu Đài tối đa' };
   }
 
   const currentHouses = player.houses[tile.id] || 0;
-  const currentHotels = player.hotels[tile.id] || 0;
-
-  if (currentHotels > 0) {
-    return { allowed: false, reason: 'Đã có Lâu Đài' };
-  }
-
   if (currentHouses < 4) {
-    return { allowed: false, reason: 'Cần có đủ 4 Túp Lều trước khi nâng cấp Lâu Đài' };
+    return { allowed: false, reason: 'Cần có đủ 4 Túp Lều trước khi nâng cấp lên Lâu Đài' };
   }
 
-  const cost = tile.houseCost || 100;
+  const cost = tile.houseCost;
   if (player.balance < cost) {
     return { allowed: false, reason: `Không đủ tiền (Cần ${cost} Galleons)` };
-  }
-
-  // Even building rule: All properties in group must have at least 4 houses
-  const groupTiles = HOGWARTS_TILES.filter((t) => t.colorGroup === tile.colorGroup);
-  const allHave4 = groupTiles.every((t) => (player.houses[t.id] || 0) >= 4 || (player.hotels[t.id] || 0) >= 1);
-  if (!allHave4) {
-    return { allowed: false, reason: 'Tất cả các ô trong nhóm màu phải đạt 4 Túp Lều trước' };
   }
 
   return { allowed: true };

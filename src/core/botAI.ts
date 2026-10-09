@@ -87,7 +87,20 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
       return { type: 'PASS_PROPERTY' };
     }
 
-    // 4b. Unowned property purchase
+    // 4b. Upgrade own property opportunity
+    if (state.upgradeCandidate) {
+      const candidate = state.upgradeCandidate;
+      if (bot.balance >= candidate.cost + 250) {
+        if (candidate.isHotelUpgrade) {
+          return { type: 'BUILD_HOTEL', propertyId: candidate.propertyId, playerId: bot.id };
+        } else {
+          return { type: 'BUILD_HOUSE', propertyId: candidate.propertyId, playerId: bot.id };
+        }
+      }
+      return { type: 'PASS_PROPERTY' };
+    }
+
+    // 4c. Unowned property purchase
     const tile = HOGWARTS_TILES[bot.position];
     if (tile && tile.price && !state.propertyOwnership[tile.id]) {
       // Reserve at least 180G for safety

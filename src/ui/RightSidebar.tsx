@@ -190,7 +190,100 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         )}
 
-        {gameState.turnPhase === 'ACTION' && !gameState.takeoverCandidate && landedTile && (
+        {gameState.turnPhase === 'ACTION' && gameState.upgradeCandidate && landedTile && (
+          <div className="landed-decision-box magical-decision-box upgrade-decision-box">
+            <div className="decision-corner tl" />
+            <div className="decision-corner tr" />
+            <div className="decision-corner bl" />
+            <div className="decision-corner br" />
+
+            <div className="decision-card-row">
+              <div className="decision-card-thumb-wrap">
+                <img
+                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                  alt={landedTile.name}
+                  className="decision-card-thumb-img"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+                <div className="decision-thumb-seal">{gameState.upgradeCandidate.isHotelUpgrade ? '🏰' : '🛖'}</div>
+              </div>
+
+              <div className="decision-card-text">
+                <div className="decision-tag upgrade-tag">
+                  <span className="tag-runes">ᛟ ✦</span> NÂNG CẤP BẤT ĐỘNG SẢN <span className="tag-runes">✦ ᛟ</span>
+                </div>
+                <div className="landed-tile-title">
+                  {landedTile.name}
+                </div>
+                <div className="landed-tile-price">
+                  {gameState.upgradeCandidate.isHotelUpgrade ? (
+                    <>
+                      Đang có: <strong style={{ color: '#38bdf8' }}>4 Túp Lều</strong>
+                      <br />
+                      Lên cấp: <strong style={{ color: '#ffd700' }}>🏰 Lâu Đài Hogwarts (Tối Đa)</strong>
+                    </>
+                  ) : (
+                    <>
+                      Đang có:{' '}
+                      <strong style={{ color: '#38bdf8' }}>
+                        {gameState.upgradeCandidate.currentHouses > 0
+                          ? `${gameState.upgradeCandidate.currentHouses} Túp Lều`
+                          : 'Chưa có nhà'}
+                      </strong>
+                      <br />
+                      Xây thêm: <strong style={{ color: '#ffd700' }}>🛖 Túp Lều thứ {gameState.upgradeCandidate.currentHouses + 1} / 4</strong>
+                    </>
+                  )}
+                  <br />
+                  Chi phí: <strong style={{ color: '#ffd700' }}>{gameState.upgradeCandidate.cost} Galleons</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="decision-button-row">
+              {gameState.upgradeCandidate.isHotelUpgrade ? (
+                <button
+                  className="btn-upgrade-hotel"
+                  disabled={!isMyTurn || currentPlayer.balance < gameState.upgradeCandidate.cost}
+                  onClick={() =>
+                    dispatch({
+                      type: 'BUILD_HOTEL',
+                      propertyId: landedTile.id,
+                      playerId: currentPlayer.id,
+                    })
+                  }
+                >
+                  🏰 Lên Lâu Đài ({gameState.upgradeCandidate.cost}G) [B]
+                </button>
+              ) : (
+                <button
+                  className="btn-buy"
+                  disabled={!isMyTurn || currentPlayer.balance < gameState.upgradeCandidate.cost}
+                  onClick={() =>
+                    dispatch({
+                      type: 'BUILD_HOUSE',
+                      propertyId: landedTile.id,
+                      playerId: currentPlayer.id,
+                    })
+                  }
+                >
+                  🛖 Xây Lều ({gameState.upgradeCandidate.cost}G) [B]
+                </button>
+              )}
+              <button
+                className="btn-pass-auction"
+                disabled={!isMyTurn}
+                onClick={() => dispatch({ type: 'PASS_PROPERTY' })}
+              >
+                Bỏ Qua [P / Space]
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameState.turnPhase === 'ACTION' && !gameState.takeoverCandidate && !gameState.upgradeCandidate && landedTile && !ownerId && (
           <div className="landed-decision-box magical-decision-box">
             <div className="decision-corner tl" />
             <div className="decision-corner tr" />
@@ -668,7 +761,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             className="btn-fold"
                             style={{ flex: 1 }}
                             disabled={!isMyTurn || !isControllingViewingPlayer}
-                            onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id })}
+                            onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                             title="Hạ cấp Lâu Đài về 4 Túp lều"
                           >
                             Hạ cấp Lâu Đài (+{Math.floor((tile.houseCost || 100) / 2)}G)
@@ -679,7 +772,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               className="btn-bid"
                               style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)' }}
                               disabled={!isMyTurn || !isControllingViewingPlayer || !hotelCheck.allowed}
-                              onClick={() => dispatch({ type: 'BUILD_HOTEL', propertyId: tile.id })}
+                              onClick={() => dispatch({ type: 'BUILD_HOTEL', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title={hotelCheck.reason || 'Nâng cấp lên Lâu Đài Hogwarts'}
                             >
                               🏰 Lâu Đài ({tile.houseCost}G)
@@ -688,7 +781,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               className="btn-fold"
                               style={{ flex: 1 }}
                               disabled={!isMyTurn || !isControllingViewingPlayer}
-                              onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id })}
+                              onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title="Dỡ 1 Túp lều"
                             >
                               Dỡ lều (+{Math.floor((tile.houseCost || 50) / 2)}G)
@@ -700,7 +793,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               className="btn-bid"
                               style={{ flex: 1 }}
                               disabled={!isMyTurn || !isControllingViewingPlayer || !houseCheck.allowed}
-                              onClick={() => dispatch({ type: 'BUILD_HOUSE', propertyId: tile.id })}
+                              onClick={() => dispatch({ type: 'BUILD_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title={houseCheck.reason || 'Xây 1 Túp lều'}
                             >
                               Xây lều ({tile.houseCost}G)
@@ -710,7 +803,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                 className="btn-fold"
                                 style={{ flex: 1 }}
                                 disabled={!isMyTurn || !isControllingViewingPlayer}
-                                onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id })}
+                                onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                                 title="Dỡ 1 Túp lều"
                               >
                                 Dỡ lều (+{Math.floor((tile.houseCost || 50) / 2)}G)
