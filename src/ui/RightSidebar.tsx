@@ -326,7 +326,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </div>
             </div>
 
-            <div className="decision-button-row">
+            <div className="decision-button-row-unowned">
               <button
                 className="btn-buy"
                 disabled={!isMyTurn || currentPlayer.balance < (landedTile.price || 0)}
@@ -335,11 +335,20 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 📜 Mua ({landedTile.price}G) [B]
               </button>
               <button
-                className="btn-pass-auction"
+                className="btn-pass-skip"
                 disabled={!isMyTurn}
                 onClick={() => dispatch({ type: 'PASS_PROPERTY' })}
+                title="Quyền không mua: Bỏ qua và kết thúc lượt, ô đất vẫn chưa ai sở hữu"
               >
-                🔨 Đấu Giá [P]
+                🚫 Không Mua [P / Space]
+              </button>
+              <button
+                className="btn-pass-auction"
+                disabled={!isMyTurn}
+                onClick={() => dispatch({ type: 'AUCTION_PROPERTY' })}
+                title="Đưa ô đất ra đấu giá công khai cho tất cả người chơi tranh mua"
+              >
+                🔨 Đấu Giá [A]
               </button>
             </div>
           </div>

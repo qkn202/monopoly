@@ -124,12 +124,55 @@ function runTests() {
     },
     { type: 'PASS_PROPERTY' }
   );
-  console.log('After PASS_PROPERTY: turnPhase =', passState.turnPhase, ', upgradeCandidate =', passState.upgradeCandidate);
+  console.log('After PASS_PROPERTY on upgrade: turnPhase =', passState.turnPhase, ', upgradeCandidate =', passState.upgradeCandidate);
   if (passState.turnPhase !== 'END_TURN' || passState.upgradeCandidate !== null) {
     throw new Error('FAIL: Passing upgrade should advance to END_TURN and clear upgradeCandidate');
   }
 
-  console.log('✅ ALL TESTS PASSED SUCCESSFULLY!');
+  // 4. Test right NOT to buy unowned property (PASS_PROPERTY)
+  console.log('\n--- Testing Right NOT to Buy Unowned Property ---');
+  const unownedTile = HOGWARTS_TILES[1]; // Borgin & Burkes
+  const unownedState = gameReducer(
+    {
+      ...createInitialState([
+        { name: 'Harry', house: 'Gryffindor', isAI: false },
+        { name: 'Draco', house: 'Slytherin', isAI: false },
+      ]),
+      turnPhase: 'ACTION',
+    },
+    { type: 'PASS_PROPERTY' }
+  );
+  console.log('After declining unowned property: turnPhase =', unownedState.turnPhase, ', auction =', unownedState.auction);
+  if (unownedState.turnPhase !== 'END_TURN') {
+    throw new Error('FAIL: Declining to buy unowned property should transition to END_TURN');
+  }
+  if (unownedState.auction !== null) {
+    throw new Error('FAIL: Declining to buy should NOT force an auction!');
+  }
+  if (unownedState.propertyOwnership[unownedTile.id]) {
+    throw new Error('FAIL: Property must remain unowned');
+  }
+  console.log('✅ Player successfully exercised right NOT to buy land (no auction forced, turn ends).');
+
+  // 5. Test explicit AUCTION_PROPERTY
+  console.log('\n--- Testing Explicit AUCTION_PROPERTY ---');
+  const auctionState = gameReducer(
+    {
+      ...createInitialState([
+        { name: 'Harry', house: 'Gryffindor', isAI: false },
+        { name: 'Draco', house: 'Slytherin', isAI: false },
+      ]),
+      turnPhase: 'ACTION',
+    },
+    { type: 'AUCTION_PROPERTY' }
+  );
+  console.log('After AUCTION_PROPERTY: turnPhase =', auctionState.turnPhase, ', auction.active =', auctionState.auction?.active);
+  if (auctionState.turnPhase !== 'AUCTION' || !auctionState.auction?.active) {
+    throw new Error('FAIL: AUCTION_PROPERTY must initiate active public auction');
+  }
+  console.log('✅ Explicit AUCTION_PROPERTY correctly initiates public auction.');
+
+  console.log('\n🎉 ALL TESTS PASSED SUCCESSFULLY!');
 }
 
 runTests();

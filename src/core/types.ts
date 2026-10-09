@@ -183,6 +183,7 @@ export type GameAction =
   | { type: 'ROLL_DICE' }
   | { type: 'BUY_PROPERTY'; propertyId: string }
   | { type: 'PASS_PROPERTY' }
+  | { type: 'AUCTION_PROPERTY'; propertyId?: string }
   | { type: 'TAKEOVER_PROPERTY'; propertyId: string }
   | { type: 'PLACE_BID'; playerId: string; amount: number }
   | { type: 'FOLD_AUCTION'; playerId: string }
