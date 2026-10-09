@@ -1,0 +1,515 @@
+.three-board-wrapper {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #0f172a 0%, #050811 100%);
+}
+
+.three-canvas-container {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.three-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 15, 29, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 50;
+  color: #e2e8f0;
+  font-family: inherit;
+  gap: 1.2rem;
+}
+
+.magical-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(0, 242, 254, 0.15);
+  border-top-color: #00f2fe;
+  border-bottom-color: #ffd700;
+  border-radius: 50%;
+  animation: magicSpin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+}
+
+@keyframes magicSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Floating 3D Camera Controls Bar */
+.three-controls-bar {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  padding: 0.4rem 0.6rem;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 242, 254, 0.1);
+  z-index: 30;
+}
+
+.control-pill {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.control-pill:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.control-pill.active {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25) 0%, rgba(255, 215, 0, 0.2) 100%);
+  color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+.control-pill.toggle-css {
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  margin-left: 0.2rem;
+  color: #38bdf8;
+}
+
+/* Grand Hogwarts Property Claimed & Rent Announcement Banners */
+.magical-scroll-banner {
+  position: absolute;
+  top: 4.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: radial-gradient(circle at 50% 10%, rgba(28, 22, 38, 0.97) 0%, rgba(10, 8, 18, 0.99) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 12px 22px 12px 16px;
+  border-radius: 14px;
+  border: 2px solid #ffd700;
+  cursor: pointer;
+  z-index: 120;
+  animation: announcementSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  max-width: 92vw;
+}
+
+.magical-scroll-banner:hover {
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.magical-scroll-banner::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed rgba(255, 215, 0, 0.25);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* Gilded Corner Filigrees */
+.banner-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: #ffd700;
+  pointer-events: none;
+}
+.banner-corner.tl {
+  top: -2px;
+  left: -2px;
+  border-top: 3px solid;
+  border-left: 3px solid;
+  border-top-left-radius: 10px;
+}
+.banner-corner.tr {
+  top: -2px;
+  right: -2px;
+  border-top: 3px solid;
+  border-right: 3px solid;
+  border-top-right-radius: 10px;
+}
+.banner-corner.bl {
+  bottom: -2px;
+  left: -2px;
+  border-bottom: 3px solid;
+  border-left: 3px solid;
+  border-bottom-left-radius: 10px;
+}
+.banner-corner.br {
+  bottom: -2px;
+  right: -2px;
+  border-bottom: 3px solid;
+  border-right: 3px solid;
+  border-bottom-right-radius: 10px;
+}
+
+/* Miniature Property Card Artwork Vignette */
+.banner-card-thumb-box {
+  position: relative;
+  width: 58px;
+  height: 74px;
+  border-radius: 8px 8px 6px 6px;
+  border: 2px solid #ffd700;
+  overflow: visible;
+  flex-shrink: 0;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 16px rgba(255, 215, 0, 0.35);
+  background: #000;
+}
+
+.banner-card-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px 6px 4px 4px;
+  display: block;
+}
+
+.thumb-gold-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.thumb-house-crest {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #ffd700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(255, 215, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  z-index: 2;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}
+
+/* Rent Notice Specific Background */
+.rent-announcement-banner.is-rent {
+  background: radial-gradient(circle at 50% 10%, rgba(42, 14, 22, 0.97) 0%, rgba(16, 6, 12, 0.99) 100%);
+}
+
+.rent-announcement-banner.is-tax {
+  background: radial-gradient(circle at 50% 10%, rgba(36, 12, 48, 0.97) 0%, rgba(14, 6, 22, 0.99) 100%);
+  border-color: #c084fc;
+}
+.rent-announcement-banner.is-tax::before {
+  border-color: rgba(192, 132, 252, 0.35);
+}
+
+/* Hostile Takeover Announcement Banner Styling */
+.purchase-announcement-banner.is-takeover {
+  background: radial-gradient(circle at 50% 10%, rgba(55, 30, 8, 0.98) 0%, rgba(20, 10, 3, 0.99) 100%);
+  border-color: #f59e0b;
+}
+.purchase-announcement-banner.is-takeover::before {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+.purchase-announcement-banner.is-takeover .announcement-tag {
+  color: #fbbf24;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+}
+
+.announcement-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.announcement-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffd700;
+  font-family: 'Cinzel', serif;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.tag-runes {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  opacity: 0.9;
+}
+
+.announcement-title {
+  font-size: 0.96rem;
+  color: #f8fafc;
+  font-weight: 500;
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  line-height: 1.35;
+}
+
+.announcement-house-tag {
+  color: #cbd5e1;
+  font-size: 0.88rem;
+}
+
+.announcement-prop-name {
+  color: #38bdf8;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+  letter-spacing: 0.3px;
+}
+
+.announcement-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.meta-pill {
+  font-size: 0.76rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-pill.price {
+  background: rgba(255, 215, 0, 0.12);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
+}
+
+.meta-pill.rent {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.meta-pill.rent-deduct {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.meta-curse-tag {
+  color: #ef4444;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.announcement-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #cbd5e1;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 8px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.announcement-close-btn:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: #ef4444;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+@keyframes announcementSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+/* Hovered Tile Tooltip Badge */
+.three-tile-tooltip {
+  position: absolute;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  padding: 0.5rem 1.2rem;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.25);
+  color: #f8fafc;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: fadeInDown 0.2s ease;
+  z-index: 30;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.three-tile-tooltip.is-owned {
+  background: linear-gradient(135deg, rgba(20, 15, 35, 0.94) 0%, rgba(10, 15, 28, 0.95) 100%);
+}
+
+.tooltip-icon {
+  color: #ffd700;
+  font-size: 1rem;
+}
+
+.tooltip-name {
+  color: #e0f2fe;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+}
+
+.tooltip-owner-status {
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.tooltip-unowned-status {
+  color: #4ade80;
+  font-weight: 500;
+  font-size: 0.86rem;
+}
+
+.tooltip-hint {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* Bottom Interaction Hint */
+.three-interaction-hint {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 0.25rem 0.85rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 0.72rem;
+  pointer-events: none;
+  z-index: 20;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 900px), (orientation: portrait) {
+  .three-controls-bar {
+    top: max(52px, calc(env(safe-area-inset-top) + 48px));
+    right: 8px;
+    padding: 0.25rem 0.4rem;
+    gap: 0.25rem;
+    background: rgba(10, 15, 29, 0.8);
+    transform: scale(0.9);
+    transform-origin: top right;
+  }
+  .control-pill {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.72rem;
+  }
+  .three-interaction-hint {
+    display: none;
+  }
+  .magical-scroll-banner {
+    top: max(60px, calc(env(safe-area-inset-top) + 54px));
+    width: calc(100vw - 16px);
+    max-width: 440px;
+    padding: 8px 12px 8px 10px;
+    gap: 10px;
+  }
+  .banner-card-thumb-box {
+    width: 46px;
+    height: 60px;
+  }
+  .thumb-house-crest {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    bottom: -4px;
+    right: -6px;
+  }
+  .announcement-tag {
+    font-size: 0.65rem;
+    letter-spacing: 0.8px;
+  }
+  .announcement-title {
+    font-size: 0.80rem;
+    line-height: 1.25;
+  }
+  .announcement-meta {
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .meta-pill {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+  .announcement-close-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+    margin-left: 2px;
+  }
+  .three-tile-tooltip {
+    top: max(60px, calc(env(safe-area-inset-top) + 54px));
+    font-size: 0.76rem;
+    padding: 0.35rem 0.75rem;
+    max-width: 92vw;
+    white-space: normal;
+    text-align: center;
+  }
+}

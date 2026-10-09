@@ -1,0 +1,515 @@
+/* 3D Card Inspection Modal Styles */
+.card-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(3, 7, 18, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.card-modal-container {
+  position: relative;
+  width: 900px;
+  max-width: 95vw;
+  max-height: 90vh;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%);
+  border: 1.5px solid rgba(0, 242, 254, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 242, 254, 0.15);
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.card-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.card-modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+
+/* 3D Stage on Left */
+.card-modal-3d-stage {
+  flex: 0 0 380px;
+  padding: 36px 28px 24px;
+  background: radial-gradient(circle at center, rgba(14, 21, 37, 0.8) 0%, rgba(4, 7, 14, 0.95) 100%);
+  border-right: 1px solid rgba(0, 242, 254, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+
+.card-3d-slab {
+  position: relative;
+  width: 300px;
+  height: 480px;
+  border-radius: 18px;
+  background: #090e18;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 242, 254, 0.25);
+  cursor: grab;
+  transition: transform 0.1s ease-out;
+  transform-style: preserve-3d;
+  overflow: hidden;
+}
+
+.card-holographic-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  mix-blend-mode: screen;
+  transition: background 0.05s ease-out;
+}
+
+.card-neon-perimeter {
+  position: absolute;
+  inset: 7px;
+  border: 2px solid #00f2fe;
+  border-radius: 12px;
+  box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.5), 0 0 12px rgba(0, 242, 254, 0.6);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.card-face-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Procedural Fallback */
+.card-procedural-layout {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #151f33 0%, #080c16 100%);
+  z-index: 1;
+}
+
+.card-procedural-header {
+  border-left: 4px solid #ffd700;
+  padding-left: 10px;
+  margin-top: 10px;
+}
+
+.card-proc-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 1px;
+}
+
+.card-proc-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: #ffffff;
+  font-family: 'Cinzel', serif;
+}
+
+.card-proc-arch {
+  flex: 1;
+  margin: 16px 0;
+  border-radius: 100px 100px 10px 10px;
+  border: 1.5px solid rgba(0, 242, 254, 0.4);
+  background: rgba(3, 7, 18, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-proc-icon {
+  font-size: 54px;
+  filter: drop-shadow(0 0 15px rgba(0, 242, 254, 0.6));
+}
+
+.card-proc-price-plaque {
+  background: linear-gradient(180deg, #d97706 0%, #78350f 100%);
+  border: 1px solid #ffd700;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.price-val {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.card-3d-hint {
+  margin-top: 14px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+  letter-spacing: 0.5px;
+}
+
+/* Right Column: Dossier */
+.card-modal-dossier {
+  flex: 1;
+  padding: 32px 36px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dossier-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.dossier-group-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.dossier-type-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+
+.dossier-title {
+  margin: 0;
+  font-size: 26px;
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+}
+
+.dossier-desc {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Owner Banner */
+.dossier-owner-banner {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  transition: all 0.25s ease;
+}
+
+.dossier-owner-banner.is-claimed {
+  background: linear-gradient(135deg, rgba(20, 16, 35, 0.9) 0%, rgba(10, 15, 28, 0.95) 100%);
+}
+
+.owner-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.owner-label {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-family: 'Cinzel', serif;
+}
+
+.owner-badge-tag {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.owner-badge-tag.unowned {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  color: #4ade80;
+}
+
+.owner-badge-tag.public {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #94a3b8;
+}
+
+.owner-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.owner-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-family: 'Cinzel', serif;
+}
+
+.owner-token-icon {
+  font-size: 20px;
+}
+
+.owner-rent-warning {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.owner-rent-warning strong {
+  color: #ffffff;
+}
+
+.unowned-info-body p,
+.public-info-body p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.unowned-buy-hint {
+  display: block;
+  margin-top: 4px;
+  color: #ffd700;
+  font-size: 12px;
+}
+
+/* Rent Grid */
+.dossier-rent-table {
+  background: rgba(3, 7, 18, 0.6);
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.rent-table-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #ffd700;
+  font-family: 'Cinzel', serif;
+}
+
+.rent-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rent-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rent-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.rent-row.highlight-castle {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.rent-label {
+  color: #cbd5e1;
+}
+
+.rent-num {
+  font-weight: 700;
+  color: #f1f5f9;
+  font-family: 'Cinzel', monospace;
+}
+
+.rent-num.gold {
+  color: #fde047;
+  font-size: 15px;
+}
+
+.dossier-costs-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 20px;
+}
+
+.cost-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cost-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.cost-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* Actions */
+.dossier-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dossier-close-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 1px solid #38bdf8;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+}
+
+.dossier-close-btn:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+}
+
+@media (max-width: 768px), (orientation: portrait) and (max-width: 900px) {
+  .card-modal-backdrop {
+    padding: 12px;
+  }
+
+  .card-modal-container {
+    flex-direction: column;
+    width: 95vw;
+    max-height: 88dvh;
+    max-height: 88vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .card-modal-3d-stage {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 24px 16px 14px;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+  }
+
+  .card-3d-slab {
+    width: 190px;
+    height: 300px;
+    border-radius: 12px;
+  }
+
+  .card-dossier {
+    flex: 1 1 auto;
+    padding: 16px 14px;
+  }
+
+  .dossier-header {
+    gap: 8px;
+  }
+
+  .dossier-title {
+    font-size: 1.15rem;
+  }
+
+  .dossier-costs-footer {
+    gap: 12px;
+  }
+
+  .dossier-actions {
+    margin-top: 16px;
+  }
+
+  .dossier-close-btn {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+  }
+}
+

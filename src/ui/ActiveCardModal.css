@@ -1,0 +1,459 @@
+/* Active Card 3D Flip Modal Styling */
+
+.active-card-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(10, 15, 29, 0.88) 0%, rgba(3, 5, 12, 0.96) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: modalFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.magic-particles-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, #ffd700, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 40px 70px, #38bdf8, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 160px 120px, #10b981, rgba(0,0,0,0));
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  opacity: 0.25;
+  animation: particleDrift 20s linear infinite;
+}
+
+@keyframes particleDrift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 200px 400px;
+  }
+}
+
+.active-card-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+  max-width: 90vw;
+  animation: cardPopupZoom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes cardPopupZoom {
+  from {
+    transform: scale(0.8) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Announcement Banner */
+.active-card-announcement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.announcement-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.theme-charms .announcement-pill {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.3);
+}
+
+.theme-potions .announcement-pill {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+}
+
+.pill-sparkle {
+  font-size: 1rem;
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
+}
+
+.pill-title {
+  font-family: 'Cinzel', serif, system-ui;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #f8fafc;
+  text-transform: uppercase;
+}
+
+.theme-charms .pill-title {
+  color: #7dd3fc;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.theme-potions .pill-title {
+  color: #6ee7b7;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+}
+
+.announcement-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.player-badge {
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.player-sub {
+  color: #94a3b8;
+}
+
+/* 3D Scene & Flipper */
+.active-card-3d-scene {
+  perspective: 1200px;
+  width: min(290px, 80vw);
+  height: min(420px, 66vh);
+  cursor: pointer;
+  user-select: none;
+}
+
+.active-card-flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 35px rgba(255, 215, 0, 0.2);
+}
+
+.card-specular-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 20;
+  transition: background 0.1s ease;
+  mix-blend-mode: screen;
+}
+
+/* Card Faces */
+.active-card-side {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Back Face */
+.card-back-face {
+  transform: rotateY(0deg);
+  border: 2px solid rgba(255, 215, 0, 0.4);
+  background: #090d16;
+}
+
+.card-back-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-back-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 5;
+}
+
+.hint-pulse {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+  animation: pulseGold 2s infinite ease-in-out;
+}
+
+@keyframes pulseGold {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+}
+
+/* Front Face */
+.card-front-face {
+  transform: rotateY(180deg);
+  background: linear-gradient(145deg, #0b1120 0%, #030712 100%);
+  border: 2px solid #ffd700;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.front-charms {
+  border-color: #38bdf8;
+  box-shadow: inset 0 0 25px rgba(56, 189, 248, 0.25);
+}
+
+.front-potions {
+  border-color: #10b981;
+  box-shadow: inset 0 0 25px rgba(16, 185, 129, 0.25);
+}
+
+.card-front-inner-frame {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 10px;
+  padding: 12px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at top center, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+}
+
+.card-front-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.25);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.card-front-tag {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.front-charms .card-front-tag {
+  color: #7dd3fc;
+}
+
+.front-potions .card-front-tag {
+  color: #6ee7b7;
+}
+
+.card-front-icon {
+  font-size: 0.95rem;
+}
+
+/* Art Vignette Box */
+.card-front-art-box {
+  position: relative;
+  width: 100%;
+  height: 125px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  margin-bottom: 8px;
+}
+
+.card-front-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.art-box-frame {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+/* Typography */
+.card-front-title {
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffd700;
+  text-align: center;
+  margin: 0 0 6px 0;
+  letter-spacing: 0.5px;
+  line-height: 1.25;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.card-front-desc {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  text-align: center;
+  line-height: 1.35;
+  margin: 0 0 8px 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Action Badges */
+.card-front-action-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.badge-pos {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.45) 100%);
+  border: 1px solid #10b981;
+  color: #6ee7b7;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.badge-neg {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(185, 28, 28, 0.45) 100%);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.badge-move {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(2, 132, 199, 0.45) 100%);
+  border: 1px solid #38bdf8;
+  color: #7dd3fc;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
+.badge-jail {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(126, 34, 206, 0.45) 100%);
+  border: 1px solid #a855f7;
+  color: #d8b4fe;
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+}
+
+.badge-gold {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.45) 100%);
+  border: 1px solid #ffd700;
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+.badge-neutral {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid #94a3b8;
+  color: #e2e8f0;
+}
+
+/* Footer Actions Button */
+.active-card-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn-active-card-dismiss {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.human-btn {
+  background: linear-gradient(135deg, #ffd700 0%, #d97706 100%);
+  color: #0b0f19;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.human-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+}
+
+.ai-btn {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+}
+
+.ai-btn:hover {
+  background: rgba(51, 65, 85, 0.95);
+  color: #f8fafc;
+}
+
+@media (max-width: 768px), (orientation: portrait) and (max-width: 900px) {
+  .active-card-container {
+    gap: 10px;
+    max-width: 94vw;
+  }
+  .active-card-3d-scene {
+    width: min(250px, 75vw);
+    height: min(360px, 50vh);
+  }
+  .card-story-text {
+    font-size: 0.82rem;
+  }
+  .btn-active-card-dismiss {
+    min-height: 44px;
+    padding: 10px 24px;
+    font-size: 0.92rem;
+  }
+}
+

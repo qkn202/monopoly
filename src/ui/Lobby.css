@@ -1,0 +1,215 @@
+/* Hogwarts Monopoly Lobby Styling */
+
+.lobby-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.92) 0%, rgba(2, 6, 23, 0.98) 100%);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-family: 'Cinzel', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #f8fafc;
+}
+
+.lobby-modal-card {
+  width: 580px;
+  max-width: 92vw;
+  max-height: 92vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  background: rgba(15, 23, 42, 0.92);
+  border: 2px solid rgba(0, 242, 254, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.2);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lobby-modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+.lobby-modal-card::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+.lobby-modal-card::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.35);
+  border-radius: 4px;
+}
+
+.lobby-header-center {
+  text-align: center;
+}
+
+.lobby-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  margin-bottom: 6px;
+}
+
+.lobby-subtitle {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* Mode Selection Pills */
+.mode-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.mode-card-pill {
+  padding: 16px 12px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mode-card-pill:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: #00f2fe;
+}
+.mode-card-pill.active {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: #00f2fe;
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+}
+
+.mode-icon {
+  font-size: 1.6rem;
+}
+
+.mode-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+/* Input Fields */
+.lobby-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.lobby-text-input {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(2, 6, 23, 0.8);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.lobby-text-input:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+/* House Selector */
+.house-grid-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.house-pick-item {
+  padding: 10px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+.house-pick-item.selected {
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+}
+
+.btn-launch-game {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #ffd700 0%, #f59e0b 100%);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 25px rgba(255, 215, 0, 0.4);
+  transition: all 0.2s ease;
+}
+.btn-launch-game:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(255, 215, 0, 0.6);
+}
+
+@media (max-width: 640px) {
+  .lobby-modal-card {
+    padding: 16px 14px;
+    max-height: 94dvh;
+    max-height: 94vh;
+    gap: 12px;
+  }
+  .lobby-title {
+    font-size: 1.4rem;
+  }
+  .lobby-subtitle {
+    font-size: 0.78rem;
+  }
+  .mode-selector-grid {
+    gap: 8px;
+  }
+  .mode-card-pill {
+    padding: 10px 6px;
+  }
+  .mode-icon {
+    font-size: 1.3rem;
+  }
+  .mode-name {
+    font-size: 0.75rem;
+  }
+  .lobby-text-input {
+    font-size: 16px; /* Prevents auto zoom on iOS */
+    padding: 10px 14px;
+  }
+  .house-grid-picker {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .house-pick-item {
+    padding: 8px 4px;
+    font-size: 0.72rem;
+  }
+  .btn-launch-game {
+    padding: 14px;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+}
+
