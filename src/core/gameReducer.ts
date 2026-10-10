@@ -88,16 +88,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           timer: { ...state.timer, remainingSeconds: 0, isExpired: true },
           turnPhase: 'GAME_OVER',
           winner,
-          events: [
+          events: limitEvents([
             createEvent(`⌛ HẾT THỜI GIAN 30 PHÚT! Trận đấu kết thúc!`, 'warning'),
             createEvent(`🏆 ${winner?.name} giành chức VÔ ĐỊCH với Tổng tài sản ${winner?.netWorth} Galleons!`, 'success'),
             ...state.events,
-          ],
+          ]),
         };
       }
 
       // Check Turn Timer (1 minute = 60s limit per turn)
-      // When in AUCTION, auction has its own 10s countdown
+      // When in AUCTION, auction has its own countdown - only tick global timer
       if (state.turnPhase === 'AUCTION') {
         return {
           ...state,
@@ -107,10 +107,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const nextTurnSec = (state.turnSecondsRemaining ?? 60) - 1;
       if (nextTurnSec <= 0) {
-        // Auto-handle turn timeout!
+        // Auto-handle turn timeout! Only reset turn timer, keep global timer intact
         return handleTurnTimeout({
           ...state,
-          timer: { ...state.timer, remainingSeconds: nextRemaining },
           turnSecondsRemaining: state.maxTurnSeconds || 60,
         });
       }
@@ -196,7 +195,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             if (debtRes.isBankrupt) {
               return {
                 ...debtRes.state,
-                dice: { die1: d1, die2: d2, total, isDouble },
+                dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
+                consecutiveDoubles: 0, // Reset doubles - this was not a regular roll
                 freeParkingPot: debtRes.state.freeParkingPot + Math.min(150, currentPlayer.balance),
                 turnPhase: 'END_TURN',
               };
@@ -209,7 +209,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             return resolveLanding({
               ...debtRes.state,
               players: debtRes.state.players.map((p) => (p.id === currentPlayer.id ? movedPlayer : p)),
-              dice: { die1: d1, die2: d2, total, isDouble },
+              dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
+              consecutiveDoubles: 0, // Reset doubles - this was not a regular roll
               freeParkingPot: debtRes.state.freeParkingPot + 150,
               events: [
                 createEvent(`${currentPlayer.name} hết hạn giam, nộp 150G tiền phạt và di chuyển ${total} ô.`, 'info', currentPlayer.id),
@@ -222,6 +223,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               ...state,
               players: state.players.map((p) => (p.id === currentPlayer.id ? pStay : p)),
               dice: { die1: d1, die2: d2, total, isDouble },
+              consecutiveDoubles: 0, // Reset doubles when staying in jail
               turnPhase: 'END_TURN',
               events: [
                 createEvent(`${currentPlayer.name} tung ${d1}-${d2} (không đôi), tiếp tục ở lại Azkaban (${turnsLeft} lượt nữa).`, 'info', currentPlayer.id),
@@ -310,7 +312,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const auction: AuctionState = {
         active: true,
         propertyId: tile.id,
-        currentBid: 25,
+        currentBid: Math.max(25, Math.floor((tile.price || 100) * 0.1)), // Minimum 10% of property price or 25G
         highBidderId: null,
         activeBidders,
         currentBidderIndex: 0,
@@ -648,7 +650,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         balance: player.balance - 150,
       };
 
-      return refreshAllNetWorth({
+      const stateAfterPayment: GameState = {
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         freeParkingPot: state.freeParkingPot + 150,
@@ -656,7 +658,38 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`${player.name} nộp 150G tiền bảo lãnh rời khỏi Ngục Azkaban!`, 'success', player.id),
           ...state.events,
         ],
-      });
+      };
+
+      // Player paid bail and is freed - they can now roll and move in the same turn
+      // Auto-roll dice for them (similar to when rolling doubles in jail)
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      const isDouble = d1 === d2;
+
+      const newPos = (updatedPlayer.position + total) % 40;
+      const freedPlayer: Player = {
+        ...updatedPlayer,
+        position: newPos,
+      };
+
+      // If passed GO while exiting jail, still award 500G
+      if (newPos < updatedPlayer.position) {
+        freedPlayer.balance += 500;
+      }
+
+      const stateWithMove: GameState = {
+        ...stateAfterPayment,
+        players: stateAfterPayment.players.map((p) => (p.id === player.id ? freedPlayer : p)),
+        dice: { die1: d1, die2: d2, total, isDouble },
+        consecutiveDoubles: isDouble ? 1 : 0,
+        events: [
+          createEvent(`🎲 ${player.name} trả tiền bảo lãnh và tự động gieo xúc xắc (${d1}-${d2}) di chuyển ${total} ô!`, 'info', player.id),
+          ...stateAfterPayment.events,
+        ],
+      };
+
+      return resolveLanding(stateWithMove, freedPlayer, total);
     }
 
     case 'USE_JAIL_CARD': {
@@ -670,14 +703,45 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         getOutOfJailCards: player.getOutOfJailCards - 1,
       };
 
-      return refreshAllNetWorth({
+      const stateAfterCard: GameState = {
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         events: [
           createEvent(`✨ ${player.name} sử dụng Thẻ Miễn Giam và rời khỏi Azkaban!`, 'success', player.id),
           ...state.events,
         ],
-      });
+      };
+
+      // Player used jail card and is freed - they can now roll and move in the same turn
+      // Auto-roll dice for them
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const total = d1 + d2;
+      const isDouble = d1 === d2;
+
+      const newPos = (updatedPlayer.position + total) % 40;
+      const freedPlayer: Player = {
+        ...updatedPlayer,
+        position: newPos,
+      };
+
+      // If passed GO while exiting jail, still award 500G
+      if (newPos < updatedPlayer.position) {
+        freedPlayer.balance += 500;
+      }
+
+      const stateWithMove: GameState = {
+        ...stateAfterCard,
+        players: stateAfterCard.players.map((p) => (p.id === player.id ? freedPlayer : p)),
+        dice: { die1: d1, die2: d2, total, isDouble },
+        consecutiveDoubles: isDouble ? 1 : 0,
+        events: [
+          createEvent(`🎲 ${player.name} thoát Azkaban và tự động gieo xúc xắc (${d1}-${d2}) di chuyển ${total} ô!`, 'info', player.id),
+          ...stateAfterCard.events,
+        ],
+      };
+
+      return resolveLanding(stateWithMove, freedPlayer, total);
     }
 
     case 'DISMISS_CARD': {
@@ -978,11 +1042,30 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
 
 function advanceTurn(state: GameState): GameState {
   const activePlayers = state.players.filter((p) => !p.isBankrupt);
-  if (activePlayers.length <= 1) {
+
+  // Edge case: No active players remaining - game ends with no winner
+  if (activePlayers.length === 0) {
     return {
       ...state,
       turnPhase: 'GAME_OVER',
-      winner: activePlayers[0] || null,
+      winner: null,
+      events: [
+        createEvent('💀 Tất cả người chơi đã phá sản! Không có người chiến thắng!', 'error'),
+        ...state.events,
+      ],
+    };
+  }
+
+  // Only 1 active player remaining - they win!
+  if (activePlayers.length === 1) {
+    return {
+      ...state,
+      turnPhase: 'GAME_OVER',
+      winner: activePlayers[0],
+      events: [
+        createEvent(`🏆 ${activePlayers[0].name} là người chiến thắng duy nhất còn lại!`, 'success'),
+        ...state.events,
+      ],
     };
   }
 
@@ -1063,6 +1146,14 @@ function advanceTurn(state: GameState): GameState {
  * Auto-rolls dice, auto-decides properties, auto-dismisses cards, and ends turns
  * to guarantee the game never hangs or stalls.
  */
+/**
+ * Limits the event log to the most recent MAX_EVENTS entries.
+ */
+function limitEvents(events: GameEvent[]): GameEvent[] {
+  const MAX_EVENTS = 100;
+  return events.slice(0, MAX_EVENTS);
+}
+
 export function handleTurnTimeout(state: GameState): GameState {
   if (state.turnPhase === 'GAME_OVER') return state;
 

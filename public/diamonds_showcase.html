@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Hogwarts 8 Unique Gemstones Showcase</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #020617;
+      color: #ffd700;
+      font-family: 'Cinzel', serif, Georgia, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .hud-overlay {
+      position: absolute;
+      top: 15px;
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      text-align: center;
+    }
+    .title-banner {
+      background: radial-gradient(circle, rgba(20, 15, 38, 0.95) 0%, rgba(5, 10, 25, 0.98) 100%);
+      border: 1.5px solid #ffd700;
+      padding: 10px 28px;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), 0 0 24px rgba(255, 215, 0, 0.3);
+    }
+    h1 {
+      font-size: 1.45rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 14px rgba(255, 215, 0, 0.7);
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+    .labels-row {
+      position: absolute;
+      bottom: 14px;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      padding: 0 1.5%;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .gem-card {
+      background: rgba(10, 15, 30, 0.92);
+      border: 1.5px solid rgba(255, 215, 0, 0.4);
+      border-radius: 8px;
+      padding: 8px 4px;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+    }
+    .gem-name {
+      font-weight: 800;
+      font-size: 0.72rem;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .gem-cut {
+      font-size: 0.62rem;
+      color: #ffd700;
+      font-weight: 600;
+      margin-bottom: 2px;
+      line-height: 1.1;
+    }
+    .gem-house {
+      font-size: 0.60rem;
+      color: #94a3b8;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="canvas-container">
+    <div class="hud-overlay">
+      <div class="title-banner">
+        <h1>✨ BỘ 8 QUÂN CỜ — 8 VIÊN ĐÁ QUÝ ĐẶC TRƯNG HOGWARTS ✨</h1>
+        <div class="subtitle">Được vẽ trực tiếp từ Engine Three.js của game — 8 Loại Đá Quý & 8 Giác Cắt Độc Bản (Không Bệ Đỡ)</div>
+      </div>
+    </div>
+
+    <div class="labels-row">
+      <div class="gem-card" style="border-color: #ef4444;">
+        <div class="gem-name" style="color: #ef4444;">🔴 RUBY</div>
+        <div class="gem-cut">Marquise Flame</div>
+        <div class="gem-house">Gryffindor</div>
+      </div>
+      <div class="gem-card" style="border-color: #10b981;">
+        <div class="gem-name" style="color: #10b981;">🟢 EMERALD</div>
+        <div class="gem-cut">Octagonal Step</div>
+        <div class="gem-house">Slytherin</div>
+      </div>
+      <div class="gem-card" style="border-color: #3b82f6;">
+        <div class="gem-name" style="color: #3b82f6;">🔵 SAPPHIRE</div>
+        <div class="gem-cut">12-Facet Brilliant</div>
+        <div class="gem-house">Ravenclaw</div>
+      </div>
+      <div class="gem-card" style="border-color: #f59e0b;">
+        <div class="gem-name" style="color: #f59e0b;">🟡 TOPAZ</div>
+        <div class="gem-cut">Briolette Drop</div>
+        <div class="gem-house">Hufflepuff</div>
+      </div>
+      <div class="gem-card" style="border-color: #a855f7;">
+        <div class="gem-name" style="color: #a855f7;">🟣 AMETHYST</div>
+        <div class="gem-cut">Quartz Obelisk</div>
+        <div class="gem-house">Thần Sáng</div>
+      </div>
+      <div class="gem-card" style="border-color: #94a3b8;">
+        <div class="gem-name" style="color: #e2e8f0;">⚫ BLACK ONYX</div>
+        <div class="gem-cut">Trilliant Spire</div>
+        <div class="gem-house">Tử Thần</div>
+      </div>
+      <div class="gem-card" style="border-color: #f97316;">
+        <div class="gem-name" style="color: #f97316;">🟠 FIRE OPAL</div>
+        <div class="gem-cut">Rhombic Kite</div>
+        <div class="gem-house">Phượng Hoàng</div>
+      </div>
+      <div class="gem-card" style="border-color: #06b6d4;">
+        <div class="gem-name" style="color: #06b6d4;">🔷 AQUAMARINE</div>
+        <div class="gem-cut">Ice Cushion Column</div>
+        <div class="gem-house">Bộ Pháp Thuật</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    camera.up.set(0, 0, 1);
+    camera.position.set(0, -4.9, 1.8);
+    camera.lookAt(0, 0, 0.32);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    container.appendChild(renderer.domElement);
+
+    // REFINED ENGINE LIGHTING
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    scene.add(ambientLight);
+
+    const sun = new THREE.DirectionalLight(0xfff7ed, 2.2);
+    sun.position.set(10, -10, 15);
+    scene.add(sun);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    rimLight.position.set(-10, 10, 8);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.PointLight(0xffffff, 1.2, 25);
+    fillLight.position.set(0, -3, 5);
+    scene.add(fillLight);
+
+    // Grid Floor
+    const grid = new THREE.GridHelper(16, 32, 0xffd700, 0x1e293b);
+    grid.rotation.x = Math.PI / 2;
+    grid.position.z = -0.01;
+    scene.add(grid);
+
+    // --- GEOMETRY HELPERS (Z-UP ORIENTED) ---
+    function makeCylinderZ(rTop, rBot, h, segs = 16) {
+      const g = new THREE.CylinderGeometry(rTop, rBot, h, segs);
+      g.rotateX(Math.PI / 2);
+      return g;
+    }
+    function makeConeZ(radius, h, segs = 16) {
+      const g = new THREE.ConeGeometry(radius, h, segs);
+      g.rotateX(Math.PI / 2);
+      return g;
+    }
+    function makeTorusZ(radius, tube, radialSegs = 8, tubularSegs = 24) {
+      return new THREE.TorusGeometry(radius, tube, radialSegs, tubularSegs);
+    }
+
+    // --- 8 UNIQUE GEMSTONE GENERATOR ---
+    function createGemstoneToken(shape, gemColorHex, accentColorHex, coreColorHex) {
+      const group = new THREE.Group();
+      const innerFireColor = coreColorHex || gemColorHex;
+
+      // 1. Spinning Runic Aura Floor Halo (ground level z = 0.005)
+      const runeGeom = new THREE.RingGeometry(0.16, 0.28, 32);
+      const runeMat = new THREE.MeshBasicMaterial({
+        color: innerFireColor,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+      });
+      const runeRing = new THREE.Mesh(runeGeom, runeMat);
+      runeRing.position.z = 0.005;
+      group.add(runeRing);
+
+      // 2. The Floating Gemstone Crystal Group
+      const gemGroup = new THREE.Group();
+      gemGroup.name = `Gem_${shape}`;
+      gemGroup.position.set(0, 0, 0);
+
+      const diamondMat = new THREE.MeshStandardMaterial({
+        color: gemColorHex,
+        roughness: shape === 'TRILLIANT_SPIRE' ? 0.08 : 0.12,
+        metalness: shape === 'TRILLIANT_SPIRE' ? 0.85 : 0.08,
+        emissive: gemColorHex,
+        emissiveIntensity: shape === 'TRILLIANT_SPIRE' ? 0.15 : 0.32,
+        flatShading: true,
+      });
+
+      const metalMat = new THREE.MeshStandardMaterial({
+        color: accentColorHex,
+        roughness: 0.20,
+        metalness: 0.95,
+      });
+
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: innerFireColor,
+        emissiveIntensity: 4.2,
+        roughness: 0.04,
+        metalness: 0.95,
+        flatShading: true,
+      });
+
+      // Distinct 3D Gemstone Geometry Cut
+      switch (shape) {
+        case 'MARQUISE_FLAME': {
+          // 1. Ruby - Marquise Flame Cut (Almond-shaped pointed crystal)
+          const upper = new THREE.Mesh(makeCylinderZ(0.001, 0.20, 0.42, 8), diamondMat);
+          upper.position.z = 0.55;
+          gemGroup.add(upper);
+
+          const lower = new THREE.Mesh(makeCylinderZ(0.20, 0.001, 0.28, 8), diamondMat);
+          lower.position.z = 0.20;
+          gemGroup.add(lower);
+
+          const girdle = new THREE.Mesh(makeCylinderZ(0.204, 0.204, 0.03, 8), diamondMat);
+          girdle.position.z = 0.34;
+          gemGroup.add(girdle);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.206, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.34;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.08, 0.34, 8), coreMat);
+          core.position.z = 0.38;
+          gemGroup.add(core);
+
+          gemGroup.scale.set(1.42, 0.76, 1.0);
+          break;
+        }
+
+        case 'EMERALD_STEP': {
+          // 2. Emerald - Classic Octagonal Step Cut
+          const girdle = new THREE.Mesh(makeCylinderZ(0.20, 0.20, 0.16, 8), diamondMat);
+          girdle.position.z = 0.34;
+          gemGroup.add(girdle);
+
+          const crown = new THREE.Mesh(makeCylinderZ(0.13, 0.20, 0.18, 8), diamondMat);
+          crown.position.z = 0.51;
+          gemGroup.add(crown);
+
+          const table = new THREE.Mesh(makeCylinderZ(0.13, 0.13, 0.015, 8), diamondMat);
+          table.position.z = 0.60;
+          gemGroup.add(table);
+
+          const pavilion = new THREE.Mesh(makeCylinderZ(0.20, 0.05, 0.24, 8), diamondMat);
+          pavilion.position.z = 0.14;
+          gemGroup.add(pavilion);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.206, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.34;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.07, 0.09, 0.30, 8), coreMat);
+          core.position.z = 0.34;
+          gemGroup.add(core);
+
+          gemGroup.scale.set(1.36, 0.88, 1.0);
+          break;
+        }
+
+        case 'ROYAL_BRILLIANT': {
+          // 3. Sapphire - 12-sided Royal Brilliant Diamond Cut
+          const crown = new THREE.Mesh(makeCylinderZ(0.12, 0.21, 0.16, 12), diamondMat);
+          crown.position.z = 0.42;
+          gemGroup.add(crown);
+
+          const table = new THREE.Mesh(makeCylinderZ(0.12, 0.12, 0.015, 12), diamondMat);
+          table.position.z = 0.50;
+          gemGroup.add(table);
+
+          const pavilion = new THREE.Mesh(makeCylinderZ(0.21, 0.001, 0.32, 12), diamondMat);
+          pavilion.position.z = 0.18;
+          gemGroup.add(pavilion);
+
+          const girdle = new THREE.Mesh(makeCylinderZ(0.212, 0.212, 0.025, 12), diamondMat);
+          girdle.position.z = 0.34;
+          gemGroup.add(girdle);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.214, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.34;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.09, 0.30, 12), coreMat);
+          core.position.z = 0.32;
+          gemGroup.add(core);
+          break;
+        }
+
+        case 'BRIOLETTE_DROP': {
+          // 4. Topaz - Hexagonal Briolette Teardrop Drop
+          const dropBase = new THREE.Mesh(makeCylinderZ(0.21, 0.10, 0.18, 6), diamondMat);
+          dropBase.position.z = 0.15;
+          gemGroup.add(dropBase);
+
+          const dropDome = new THREE.Mesh(makeCylinderZ(0.10, 0.02, 0.08, 6), diamondMat);
+          dropDome.position.z = 0.04;
+          gemGroup.add(dropDome);
+
+          const dropSpire = new THREE.Mesh(makeCylinderZ(0.001, 0.21, 0.40, 6), diamondMat);
+          dropSpire.position.z = 0.44;
+          gemGroup.add(dropSpire);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.214, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.24;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.09, 0.36, 6), coreMat);
+          core.position.z = 0.32;
+          gemGroup.add(core);
+          break;
+        }
+
+        case 'QUARTZ_OBELISK': {
+          // 5. Amethyst - Natural 6-sided Terminated Quartz Crystal Pillar
+          const shaft = new THREE.Mesh(makeCylinderZ(0.18, 0.18, 0.38, 6), diamondMat);
+          shaft.position.z = 0.32;
+          gemGroup.add(shaft);
+
+          const termination = new THREE.Mesh(makeConeZ(0.18, 0.26, 6), diamondMat);
+          termination.position.z = 0.64;
+          gemGroup.add(termination);
+
+          const root = new THREE.Mesh(makeCylinderZ(0.18, 0.08, 0.10, 6), diamondMat);
+          root.position.z = 0.08;
+          gemGroup.add(root);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.184, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.32;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.08, 0.42, 6), coreMat);
+          core.position.z = 0.36;
+          gemGroup.add(core);
+          break;
+        }
+
+        case 'TRILLIANT_SPIRE': {
+          // 6. Black Onyx - 3-sided Gothic Trilliant Dagger Spire
+          const body = new THREE.Mesh(makeCylinderZ(0.19, 0.19, 0.38, 3), diamondMat);
+          body.position.z = 0.32;
+          gemGroup.add(body);
+
+          const spire = new THREE.Mesh(makeConeZ(0.19, 0.32, 3), diamondMat);
+          spire.position.z = 0.67;
+          gemGroup.add(spire);
+
+          const keel = new THREE.Mesh(makeCylinderZ(0.19, 0.001, 0.14, 3), diamondMat);
+          keel.position.z = 0.06;
+          gemGroup.add(keel);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.194, 0.008, 3, 24), metalMat);
+          ring.position.z = 0.32;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.07, 0.40, 3), coreMat);
+          core.position.z = 0.35;
+          gemGroup.add(core);
+          break;
+        }
+
+        case 'RHOMBIC_KITE': {
+          // 7. Fire Opal - Rhombic Kite Sunburst Crystal
+          const upper = new THREE.Mesh(makeCylinderZ(0.001, 0.22, 0.36, 4), diamondMat);
+          upper.position.z = 0.52;
+          upper.rotation.z = Math.PI / 4;
+          gemGroup.add(upper);
+
+          const lower = new THREE.Mesh(makeCylinderZ(0.22, 0.001, 0.28, 4), diamondMat);
+          lower.position.z = 0.20;
+          lower.rotation.z = Math.PI / 4;
+          gemGroup.add(lower);
+
+          const upper2 = new THREE.Mesh(makeCylinderZ(0.001, 0.20, 0.34, 4), diamondMat);
+          upper2.position.z = 0.51;
+          gemGroup.add(upper2);
+
+          const lower2 = new THREE.Mesh(makeCylinderZ(0.20, 0.001, 0.26, 4), diamondMat);
+          lower2.position.z = 0.21;
+          gemGroup.add(lower2);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.224, 0.008, 6, 24), metalMat);
+          ring.position.z = 0.34;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.001, 0.09, 0.30, 8), coreMat);
+          core.position.z = 0.34;
+          gemGroup.add(core);
+
+          gemGroup.scale.set(1.1, 1.1, 1.2);
+          break;
+        }
+
+        case 'ICE_COLUMN':
+        default: {
+          // 8. Aquamarine - Faceted Ice Cushion Column Prism
+          const shaft = new THREE.Mesh(makeCylinderZ(0.17, 0.17, 0.40, 8), diamondMat);
+          shaft.position.z = 0.32;
+          gemGroup.add(shaft);
+
+          const crown = new THREE.Mesh(makeCylinderZ(0.11, 0.17, 0.14, 8), diamondMat);
+          crown.position.z = 0.59;
+          gemGroup.add(crown);
+
+          const table = new THREE.Mesh(makeCylinderZ(0.11, 0.11, 0.015, 8), diamondMat);
+          table.position.z = 0.66;
+          gemGroup.add(table);
+
+          const pavilion = new THREE.Mesh(makeCylinderZ(0.17, 0.07, 0.14, 8), diamondMat);
+          pavilion.position.z = 0.05;
+          gemGroup.add(pavilion);
+
+          const ring = new THREE.Mesh(makeTorusZ(0.176, 0.008, 8, 24), metalMat);
+          ring.position.z = 0.32;
+          gemGroup.add(ring);
+
+          const core = new THREE.Mesh(makeCylinderZ(0.06, 0.06, 0.36, 8), coreMat);
+          core.position.z = 0.32;
+          gemGroup.add(core);
+          break;
+        }
+      }
+
+      // Orbiting Mini Satellites
+      const satellites = [];
+      const satGeom = new THREE.OctahedronGeometry(0.028, 0);
+      const satMat = new THREE.MeshStandardMaterial({
+        color: innerFireColor,
+        emissive: 0xffffff,
+        emissiveIntensity: 2.5,
+        roughness: 0.06,
+        metalness: 0.9,
+        flatShading: true,
+      });
+
+      const sat1 = new THREE.Mesh(satGeom, satMat);
+      sat1.position.set(0.28, 0, 0.34);
+      gemGroup.add(sat1);
+      satellites.push(sat1);
+
+      const sat2 = new THREE.Mesh(satGeom, satMat);
+      sat2.position.set(-0.25, 0.12, 0.32);
+      gemGroup.add(sat2);
+      satellites.push(sat2);
+
+      // Colored Light Aura
+      const auraLight = new THREE.PointLight(innerFireColor, 2.2, 2.8);
+      auraLight.position.set(0, 0, 0.34);
+      group.add(auraLight);
+
+      group.add(gemGroup);
+
+      return { group, gemGroup, runeRing, satellites, auraLight };
+    }
+
+    // THE 8 UNIQUE GEMSTONES CONFIG
+    const GEMSTONES = [
+      { name: 'Gryffindor', gem: 'Ruby', shape: 'MARQUISE_FLAME', color: 0xbe123c, accent: 0xffd700, core: 0xff0033, x: -2.45 },
+      { name: 'Slytherin', gem: 'Emerald', shape: 'EMERALD_STEP', color: 0x047857, accent: 0xe2e8f0, core: 0x00ff88, x: -1.75 },
+      { name: 'Ravenclaw', gem: 'Sapphire', shape: 'ROYAL_BRILLIANT', color: 0x1e40af, accent: 0xcd7f32, core: 0x38bdf8, x: -1.05 },
+      { name: 'Hufflepuff', gem: 'Topaz', shape: 'BRIOLETTE_DROP', color: 0xd97706, accent: 0xffd700, core: 0xfde047, x: -0.35 },
+      { name: 'Auror', gem: 'Amethyst', shape: 'QUARTZ_OBELISK', color: 0x7e22ce, accent: 0xf1f5f9, core: 0xc084fc, x: 0.35 },
+      { name: 'DeathEater', gem: 'Black Onyx', shape: 'TRILLIANT_SPIRE', color: 0x0f172a, accent: 0x94a3b8, core: 0xf8fafc, x: 1.05 },
+      { name: 'OrderOfPhoenix', gem: 'Fire Opal', shape: 'RHOMBIC_KITE', color: 0xc2410c, accent: 0xffd700, core: 0xfb923c, x: 1.75 },
+      { name: 'Ministry', gem: 'Aquamarine', shape: 'ICE_COLUMN', color: 0x0891b2, accent: 0xe2e8f0, core: 0x67e8f9, x: 2.45 }
+    ];
+
+    const tokenItems = [];
+
+    GEMSTONES.forEach(g => {
+      const res = createGemstoneToken(g.shape, g.color, g.accent, g.core);
+      res.group.position.set(g.x, 0, 0);
+      scene.add(res.group);
+      tokenItems.push({
+        group: res.group,
+        gemGroup: res.gemGroup,
+        runeRing: res.runeRing,
+        satellites: res.satellites,
+      });
+    });
+
+    // Preset Camera views
+    window.__setCameraView = (viewName) => {
+      if (viewName === 'lineup_8') {
+        camera.position.set(0, -4.9, 1.8);
+        camera.lookAt(0, 0, 0.32);
+      } else if (viewName === 'group_a') {
+        // First 4: Ruby, Emerald, Sapphire, Topaz
+        camera.position.set(-1.4, -2.5, 1.22);
+        camera.lookAt(-1.4, 0, 0.32);
+      } else if (viewName === 'group_b') {
+        // Next 4: Amethyst, Black Onyx, Fire Opal, Aquamarine
+        camera.position.set(1.4, -2.5, 1.22);
+        camera.lookAt(1.4, 0, 0.32);
+      } else if (viewName === 'single_emerald') {
+        // Macro Closeup of Emerald Step Cut
+        camera.position.set(-1.75, -1.35, 0.58);
+        camera.lookAt(-1.75, 0, 0.33);
+      } else if (viewName === 'single_onyx') {
+        // Macro Closeup of Black Onyx Trilliant Spire
+        camera.position.set(1.05, -1.35, 0.58);
+        camera.lookAt(1.05, 0, 0.33);
+      }
+      renderer.render(scene, camera);
+    };
+
+    window.__getScreenshot = () => {
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL('image/png');
+    };
+
+    // Animation Loop
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = Date.now() * 0.003;
+
+      tokenItems.forEach((t, idx) => {
+        if (t.runeRing) t.runeRing.rotation.z -= delta * 0.8;
+        if (t.gemGroup) {
+          t.gemGroup.position.z = 0.33 + Math.sin(time * 2.5 + idx) * 0.035;
+          t.gemGroup.rotation.z += delta * 0.9;
+        }
+        if (t.satellites) {
+          const st = Date.now() * 0.004;
+          t.satellites.forEach((sat, sIdx) => {
+            const offset = sIdx * Math.PI;
+            sat.position.set(
+              Math.cos(st + offset) * 0.24,
+              Math.sin(st + offset) * 0.24,
+              Math.sin(st * 2 + offset) * 0.03
+            );
+            sat.rotation.z += delta * 2.0;
+            sat.rotation.x += delta * 1.5;
+          });
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

@@ -96,6 +96,9 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
     const camera = new THREE.PerspectiveCamera(44, aspect, 0.1, 100);
     camera.position.set(0, -10.5 * portraitScale, 13.2 * portraitScale);
     cameraRef.current = camera;
+    (window as any).__threeCamera = camera;
+    (window as any).__targetCamPos = targetCamPos;
+    (window as any).__targetLookAt = targetLookAt;
 
     // 3. Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });

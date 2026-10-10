@@ -21,6 +21,8 @@ export function App() {
   const hostSessionRef = useRef<HostSession | null>(null);
   const guestSessionRef = useRef<GuestSession | null>(null);
   const isHostRef = useRef<boolean>(true);
+  // Track guest sender ID to assigned player ID mapping for security
+  const guestToPlayerMapRef = useRef<Record<string, string>>({});
 
   // Central Dispatcher
   const dispatch = useCallback((action: GameAction) => {
@@ -103,6 +105,9 @@ export function App() {
                 netWorth: 5000,
               };
 
+              // Track guest-to-player mapping for security
+              guestToPlayerMapRef.current[conn.id] = newPlayerId;
+
               const updatedState: GameState = {
                 ...prev,
                 players: [...prev.players, guestPlayer],
@@ -120,9 +125,25 @@ export function App() {
               return updatedState;
             });
           },
-          (action) => {
-            // Action from guest
-            dispatch(action);
+          (action: any, senderId: string) => {
+            // Security: Verify guest action is for the correct player
+            const assignedPlayerId = guestToPlayerMapRef.current[senderId];
+            if (assignedPlayerId && gameState) {
+              const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+              // Only dispatch if it's this player's turn and matches sender
+              if (currentPlayer && currentPlayer.id === assignedPlayerId) {
+                // Remove security metadata before dispatching
+                const cleanAction = { ...action };
+                delete cleanAction._verifiedPlayerId;
+                delete cleanAction._senderId;
+                dispatch(cleanAction);
+              } else {
+                console.warn(`[Host] Rejected guest action: sender ${senderId} tried action for player ${assignedPlayerId} but it's ${currentPlayer?.id}'s turn`);
+              }
+            } else {
+              // Should not happen - guest should always have mapping
+              console.warn(`[Host] Received action from unknown guest: ${senderId}`);
+            }
           },
           () => {
             console.log('Guest left');

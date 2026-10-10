@@ -104,7 +104,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         {/* Actions based on turn phase */}
         {gameState.turnPhase === 'ROLL' && (
           <div>
-            {currentPlayer.inJail && (
+            {currentPlayer.inJail && isMyTurn && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
                 <button
                   className="btn-bid"
@@ -120,6 +120,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 >
                   Dùng Thẻ Miễn Giam
                 </button>
+              </div>
+            )}
+            {currentPlayer.inJail && !isMyTurn && (
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                ⏳ Đang chờ {currentPlayer.name} trả tiền bảo lãnh...
               </div>
             )}
             <button
@@ -376,7 +381,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="bid-controls-grid">
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 25}
+                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 25}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',
@@ -389,7 +394,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </button>
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 50}
+                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 50}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',
@@ -402,7 +407,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </button>
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 100}
+                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 100}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',

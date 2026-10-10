@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Hogwarts 3D Wizard's Chess Statues Showcase</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #020617;
+      color: #ffd700;
+      font-family: 'Cinzel', serif, Georgia, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .hud-overlay {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      text-align: center;
+    }
+    .title-banner {
+      background: radial-gradient(circle, rgba(30, 24, 50, 0.92) 0%, rgba(10, 15, 30, 0.95) 100%);
+      border: 1.5px solid #ffd700;
+      padding: 10px 30px;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.25);
+    }
+    h1 {
+      font-size: 1.6rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+    .labels-row {
+      position: absolute;
+      bottom: 25px;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 0 5%;
+      gap: 15px;
+      pointer-events: none;
+    }
+    .statue-card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 215, 0, 0.4);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+    }
+    .statue-name {
+      font-weight: 800;
+      font-size: 0.92rem;
+      margin-bottom: 2px;
+    }
+    .statue-desc {
+      font-size: 0.72rem;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container">
+    <div class="hud-overlay">
+      <div class="title-banner">
+        <h1>✦ TƯỢNG QUÂN CỜ PHÙ THỦY HOGWARTS ✦</h1>
+        <div class="subtitle">Được vẽ trực tiếp từ Engine Three.js của game — 100% Đồng nhất trong ván đấu</div>
+      </div>
+    </div>
+
+    <div class="labels-row">
+      <div class="statue-card" style="border-color: #ef4444;">
+        <div class="statue-name" style="color: #ef4444;">🦁 GRYFFINDOR</div>
+        <div class="statue-desc">Hiệp Sĩ Sư Tử — Bờm vàng, Mũ giáp, Mắt hồng ngọc, Vương miện & Khiên</div>
+      </div>
+      <div class="statue-card" style="border-color: #10b981;">
+        <div class="statue-name" style="color: #10b981;">🐍 SLYTHERIN</div>
+        <div class="statue-desc">Vương Xà Basilisk — Thân cuốn quanh trụ, Bạnh xà hổ mang, Nanh bạc & Mắt ngọc lục</div>
+      </div>
+      <div class="statue-card" style="border-color: #38bdf8;">
+        <div class="statue-name" style="color: #38bdf8;">🦅 RAVENCLAW</div>
+        <div class="statue-desc">Thần Điêu Thông Thái — Đôi cánh giương cao, Mỏ cong vàng, Mắt sapphire & Ngọc lơ lửng</div>
+      </div>
+      <div class="statue-card" style="border-color: #eab308;">
+        <div class="statue-name" style="color: #eab308;">🦡 HUFFLEPUFF</div>
+        <div class="statue-desc">Lửng Chiến Binh — Tháp pháo kiên cố, Mặt sọc vàng đen, Mắt hổ phách & Cúp Vàng</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from '/node_modules/three/build/three.module.js';
+
+    // 1. Scene setup
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050814);
+
+    // 2. Camera setup (Looking at statues on Z-up coordinates or Y-up)
+    // In our game, the board is XY plane and Z is UP!
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    // Camera positioned in front and slightly elevated
+    camera.position.set(0, -3.8, 1.8);
+    camera.up.set(0, 0, 1); // Z is UP
+    camera.lookAt(0, 0, 0.45);
+
+    // 3. WebGL Renderer matching BoardThreeJS.tsx
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    // 4. Exact lighting from BoardThreeJS.tsx
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff1dc, 2.8);
+    sunLight.position.set(6, -8, 10);
+    scene.add(sunLight);
+
+    const rimLight = new THREE.DirectionalLight(0x00e5ff, 2.2);
+    rimLight.position.set(-8, 6, 6);
+    scene.add(rimLight);
+
+    const centerPoint = new THREE.PointLight(0x00f2fe, 3.2, 10);
+    centerPoint.position.set(0, 0, 2.5);
+    scene.add(centerPoint);
+
+    // 5. Studio Floor: Polished dark obsidian marble floor with golden grid
+    const floorGeom = new THREE.PlaneGeometry(16, 10);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x090d16,
+      roughness: 0.18,
+      metalness: 0.85,
+    });
+    const floor = new THREE.Mesh(floorGeom, floorMat);
+    floor.position.set(0, 0, 0);
+    scene.add(floor);
+
+    // Floor golden runes border
+    const floorGrid = new THREE.GridHelper(10, 20, 0xd4af37, 0x1e293b);
+    floorGrid.rotateX(Math.PI / 2);
+    floorGrid.position.set(0, 0, 0.002);
+    scene.add(floorGrid);
+
+    // --- EXACT STATUE BUILDERS FROM BoardTokens.ts ---
+    function makeCylinderZ(rTop, rBot, height, segs = 16) {
+      const g = new THREE.CylinderGeometry(rTop, rBot, height, segs);
+      g.rotateX(Math.PI / 2);
+      return g;
+    }
+    function makeConeZ(radius, height, segs = 16) {
+      const g = new THREE.ConeGeometry(radius, height, segs);
+      g.rotateX(Math.PI / 2);
+      return g;
+    }
+    function makeTorusZ(radius, tube, radialSegs = 8, tubularSegs = 24) {
+      return new THREE.TorusGeometry(radius, tube, radialSegs, tubularSegs);
+    }
+
+    function createChessPedestal(houseColorHex, accentColorHex) {
+      const group = new THREE.Group();
+
+      // Rune Ring
+      const runeGeom = new THREE.RingGeometry(0.20, 0.28, 32);
+      const runeMat = new THREE.MeshBasicMaterial({
+        color: houseColorHex,
+        transparent: true,
+        opacity: 0.65,
+        side: THREE.DoubleSide,
+      });
+      const runeRing = new THREE.Mesh(runeGeom, runeMat);
+      runeRing.position.z = 0.005;
+      group.add(runeRing);
+
+      // Base Level 1: Obsidian
+      const base1Geom = makeCylinderZ(0.18, 0.21, 0.035, 20);
+      const obsidianMat = new THREE.MeshStandardMaterial({ color: 0x12151c, roughness: 0.2, metalness: 0.85 });
+      const base1 = new THREE.Mesh(base1Geom, obsidianMat);
+      base1.position.z = 0.018;
+      group.add(base1);
+
+      // Base Level 2: Gold/Silver rim
+      const base2Geom = makeCylinderZ(0.155, 0.175, 0.025, 20);
+      const accentMat = new THREE.MeshStandardMaterial({ color: accentColorHex, roughness: 0.25, metalness: 0.9 });
+      const base2 = new THREE.Mesh(base2Geom, accentMat);
+      base2.position.z = 0.045;
+      group.add(base2);
+
+      // Torus ring
+      const ringGeom = makeTorusZ(0.16, 0.012, 8, 24);
+      const ringMesh = new THREE.Mesh(ringGeom, accentMat);
+      ringMesh.position.z = 0.058;
+      group.add(ringMesh);
+
+      // Fluted Column Stem
+      const stemGeom = makeCylinderZ(0.105, 0.145, 0.11, 16);
+      const enamelMat = new THREE.MeshStandardMaterial({
+        color: houseColorHex,
+        roughness: 0.18,
+        metalness: 0.75,
+        emissive: houseColorHex,
+        emissiveIntensity: 0.35,
+      });
+      const stem = new THREE.Mesh(stemGeom, enamelMat);
+      stem.position.z = 0.115;
+      group.add(stem);
+
+      // Waist ring
+      const waistRingGeom = makeTorusZ(0.11, 0.01, 8, 20);
+      const waistRing = new THREE.Mesh(waistRingGeom, accentMat);
+      waistRing.position.z = 0.115;
+      group.add(waistRing);
+
+      // Capital collar
+      const capGeom = makeCylinderZ(0.15, 0.105, 0.035, 16);
+      const cap = new THREE.Mesh(capGeom, accentMat);
+      cap.position.z = 0.185;
+      group.add(cap);
+
+      return { pedestalGroup: group, runeRing };
+    }
+
+    // 1. Gryffindor
+    function buildGryffindor() {
+      const g = new THREE.Group();
+      const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.2, metalness: 0.95 });
+      const scarletMat = new THREE.MeshStandardMaterial({ color: 0x990000, roughness: 0.25, metalness: 0.85, emissive: 0x550000, emissiveIntensity: 0.25 });
+      const rubyMat = new THREE.MeshStandardMaterial({ color: 0xff1100, emissive: 0xff1100, emissiveIntensity: 2.8, roughness: 0.1, metalness: 0.9 });
+
+      const chest = new THREE.Mesh(makeCylinderZ(0.125, 0.145, 0.12, 8), scarletMat);
+      chest.position.z = 0.255;
+      g.add(chest);
+
+      const leftPaul = new THREE.Mesh(makeConeZ(0.045, 0.09, 5), goldMat);
+      leftPaul.position.set(-0.13, 0, 0.28);
+      leftPaul.rotation.y = -0.4;
+      g.add(leftPaul);
+      const rightPaul = new THREE.Mesh(makeConeZ(0.045, 0.09, 5), goldMat);
+      rightPaul.position.set(0.13, 0, 0.28);
+      rightPaul.rotation.y = 0.4;
+      g.add(rightPaul);
+
+      const maneMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.115, 0), goldMat);
+      maneMesh.scale.set(1.35, 1.15, 1.25);
+      maneMesh.position.set(0, 0, 0.385);
+      g.add(maneMesh);
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.12), scarletMat);
+      head.position.set(0, 0, 0.40);
+      g.add(head);
+
+      const snout = new THREE.Mesh(makeConeZ(0.045, 0.08, 4), goldMat);
+      snout.position.set(0, -0.08, 0.38);
+      snout.rotation.x = Math.PI / 2;
+      g.add(snout);
+
+      const leftEar = new THREE.Mesh(makeConeZ(0.025, 0.05, 4), goldMat);
+      leftEar.position.set(-0.06, 0.02, 0.48);
+      g.add(leftEar);
+      const rightEar = new THREE.Mesh(makeConeZ(0.025, 0.05, 4), goldMat);
+      rightEar.position.set(0.06, 0.02, 0.48);
+      g.add(rightEar);
+
+      const leftEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.016, 0), rubyMat);
+      leftEye.position.set(-0.035, -0.065, 0.42);
+      g.add(leftEye);
+      const rightEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.016, 0), rubyMat);
+      rightEye.position.set(0.035, -0.065, 0.42);
+      g.add(rightEye);
+
+      const crown = new THREE.Mesh(makeCylinderZ(0.085, 0.07, 0.055, 6), goldMat);
+      crown.position.set(0, 0, 0.50);
+      g.add(crown);
+
+      const shield = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.15), goldMat);
+      shield.position.set(0, -0.11, 0.26);
+      shield.rotation.x = 0.15;
+      g.add(shield);
+      const shieldInlay = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.11), scarletMat);
+      shieldInlay.position.set(0, -0.115, 0.26);
+      shieldInlay.rotation.x = 0.15;
+      g.add(shieldInlay);
+
+      return g;
+    }
+
+    // 2. Slytherin
+    function buildSlytherin() {
+      const g = new THREE.Group();
+      const silverMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.95 });
+      const emeraldMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.18, metalness: 0.9, emissive: 0x022c22, emissiveIntensity: 0.35 });
+      const eyeEmeraldMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 2.8, roughness: 0.1, metalness: 0.9 });
+
+      const spire = new THREE.Mesh(makeCylinderZ(0.05, 0.08, 0.28, 6), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 }));
+      spire.position.set(0, 0, 0.30);
+      g.add(spire);
+
+      const coil1 = new THREE.Mesh(makeTorusZ(0.12, 0.028, 8, 20), emeraldMat);
+      coil1.position.set(0, 0, 0.23);
+      g.add(coil1);
+      const coil2 = new THREE.Mesh(makeTorusZ(0.09, 0.025, 8, 20), emeraldMat);
+      coil2.position.set(0.015, -0.01, 0.31);
+      coil2.rotation.x = 0.15;
+      g.add(coil2);
+      const coil3 = new THREE.Mesh(makeTorusZ(0.07, 0.022, 8, 20), emeraldMat);
+      coil3.position.set(-0.01, 0.01, 0.39);
+      coil3.rotation.y = -0.15;
+      g.add(coil3);
+
+      const hoodGeom = new THREE.ConeGeometry(0.13, 0.18, 4);
+      hoodGeom.scale(1.4, 0.55, 1.0);
+      hoodGeom.rotateX(Math.PI / 2);
+      const hood = new THREE.Mesh(hoodGeom, emeraldMat);
+      hood.position.set(0, -0.02, 0.44);
+      g.add(hood);
+
+      const spineRidge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.16), silverMat);
+      spineRidge.position.set(0, 0.03, 0.45);
+      g.add(spineRidge);
+
+      const headGeom = new THREE.OctahedronGeometry(0.075, 0);
+      headGeom.scale(0.9, 1.4, 0.7);
+      const head = new THREE.Mesh(headGeom, emeraldMat);
+      head.position.set(0, -0.065, 0.50);
+      g.add(head);
+
+      const leftFang = new THREE.Mesh(makeConeZ(0.01, 0.035, 4), silverMat);
+      leftFang.position.set(-0.025, -0.10, 0.47);
+      g.add(leftFang);
+      const rightFang = new THREE.Mesh(makeConeZ(0.01, 0.035, 4), silverMat);
+      rightFang.position.set(0.025, -0.10, 0.47);
+      g.add(rightFang);
+
+      const leftEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.015, 0), eyeEmeraldMat);
+      leftEye.position.set(-0.035, -0.075, 0.515);
+      g.add(leftEye);
+      const rightEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.015, 0), eyeEmeraldMat);
+      rightEye.position.set(0.035, -0.075, 0.515);
+      g.add(rightEye);
+
+      const diadem = new THREE.Mesh(makeTorusZ(0.06, 0.012, 6, 16), silverMat);
+      diadem.position.set(0, -0.04, 0.56);
+      diadem.rotation.x = -0.3;
+      g.add(diadem);
+
+      return g;
+    }
+
+    // 3. Ravenclaw
+    function buildRavenclaw() {
+      const g = new THREE.Group();
+      const bronzeMat = new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.25, metalness: 0.9 });
+      const azureMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.2, metalness: 0.85, emissive: 0x0f172a, emissiveIntensity: 0.3 });
+      const sapphireMat = new THREE.MeshStandardMaterial({ color: 0x00bfff, emissive: 0x00bfff, emissiveIntensity: 2.8, roughness: 0.1, metalness: 0.9 });
+
+      const mantle = new THREE.Mesh(makeCylinderZ(0.10, 0.14, 0.14, 12), azureMat);
+      mantle.position.set(0, 0, 0.26);
+      g.add(mantle);
+
+      const wingGeom = new THREE.BoxGeometry(0.025, 0.18, 0.24);
+      const leftWing = new THREE.Mesh(wingGeom, azureMat);
+      leftWing.position.set(-0.13, 0.02, 0.38);
+      leftWing.rotation.set(0.15, -0.45, 0.3);
+      g.add(leftWing);
+      const leftTip = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.05, 0.10), bronzeMat);
+      leftTip.position.set(-0.18, 0.05, 0.47);
+      leftTip.rotation.set(0.15, -0.45, 0.3);
+      g.add(leftTip);
+
+      const rightWing = new THREE.Mesh(wingGeom, azureMat);
+      rightWing.position.set(0.13, 0.02, 0.38);
+      rightWing.rotation.set(0.15, 0.45, -0.3);
+      g.add(rightWing);
+      const rightTip = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.05, 0.10), bronzeMat);
+      rightTip.position.set(0.18, 0.05, 0.47);
+      rightTip.rotation.set(0.15, 0.45, -0.3);
+      g.add(rightTip);
+
+      const head = new THREE.Mesh(new THREE.DodecahedronGeometry(0.08, 0), azureMat);
+      head.position.set(0, -0.02, 0.42);
+      g.add(head);
+
+      const plume = new THREE.Mesh(makeConeZ(0.025, 0.08, 3), bronzeMat);
+      plume.position.set(0, 0.05, 0.47);
+      plume.rotation.x = -0.4;
+      g.add(plume);
+
+      const beak = new THREE.Mesh(makeConeZ(0.03, 0.07, 4), bronzeMat);
+      beak.position.set(0, -0.085, 0.40);
+      beak.rotation.x = Math.PI / 2 + 0.3;
+      g.add(beak);
+
+      const leftEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), sapphireMat);
+      leftEye.position.set(-0.032, -0.055, 0.435);
+      g.add(leftEye);
+      const rightEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), sapphireMat);
+      rightEye.position.set(0.032, -0.055, 0.435);
+      g.add(rightEye);
+
+      const floatingGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.042, 0), sapphireMat);
+      floatingGem.position.set(0, 0, 0.55);
+      g.add(floatingGem);
+
+      return g;
+    }
+
+    // 4. Hufflepuff
+    function buildHufflepuff() {
+      const g = new THREE.Group();
+      const goldMat = new THREE.MeshStandardMaterial({ color: 0xffc72c, roughness: 0.22, metalness: 0.92 });
+      const bronzeMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.28, metalness: 0.88 });
+      const blackStripeMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.35, metalness: 0.7 });
+      const amberEyeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 2.8, roughness: 0.1, metalness: 0.9 });
+
+      const rook = new THREE.Mesh(makeCylinderZ(0.125, 0.145, 0.14, 8), bronzeMat);
+      rook.position.set(0, 0, 0.26);
+      g.add(rook);
+
+      const belt = new THREE.Mesh(makeCylinderZ(0.132, 0.132, 0.03, 8), blackStripeMat);
+      belt.position.set(0, 0, 0.26);
+      g.add(belt);
+
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.10), goldMat);
+      head.position.set(0, -0.015, 0.38);
+      g.add(head);
+
+      const leftStripe = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.125, 0.08), blackStripeMat);
+      leftStripe.position.set(-0.038, -0.02, 0.38);
+      g.add(leftStripe);
+      const rightStripe = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.125, 0.08), blackStripeMat);
+      rightStripe.position.set(0.038, -0.02, 0.38);
+      g.add(rightStripe);
+
+      const snout = new THREE.Mesh(makeCylinderZ(0.035, 0.045, 0.05, 6), blackStripeMat);
+      snout.position.set(0, -0.08, 0.36);
+      g.add(snout);
+
+      const leftEar = new THREE.Mesh(makeTorusZ(0.025, 0.008, 6, 12), goldMat);
+      leftEar.position.set(-0.06, 0.01, 0.44);
+      g.add(leftEar);
+      const rightEar = new THREE.Mesh(makeTorusZ(0.025, 0.008, 6, 12), goldMat);
+      rightEar.position.set(0.06, 0.01, 0.44);
+      g.add(rightEar);
+
+      const leftEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), amberEyeMat);
+      leftEye.position.set(-0.035, -0.055, 0.39);
+      g.add(leftEye);
+      const rightEye = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), amberEyeMat);
+      rightEye.position.set(0.035, -0.055, 0.39);
+      g.add(rightEye);
+
+      // Chalice
+      const cupGroup = new THREE.Group();
+      cupGroup.position.set(0, 0, 0.49);
+      const bowl = new THREE.Mesh(makeCylinderZ(0.065, 0.035, 0.07, 12), goldMat);
+      cupGroup.add(bowl);
+
+      const leftHandle = new THREE.Mesh(makeTorusZ(0.022, 0.006, 6, 12), goldMat);
+      leftHandle.position.set(-0.065, 0, 0);
+      cupGroup.add(leftHandle);
+      const rightHandle = new THREE.Mesh(makeTorusZ(0.022, 0.006, 6, 12), goldMat);
+      rightHandle.position.set(0.065, 0, 0);
+      cupGroup.add(rightHandle);
+
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), amberEyeMat);
+      flame.position.set(0, 0, 0.03);
+      cupGroup.add(flame);
+
+      g.add(cupGroup);
+      return g;
+    }
+
+    // Assemble all 4 tokens in lineup
+    const houses = [
+      { name: 'Gryffindor', color: 0xe02424, accent: 0xffd700, x: -1.35, builder: buildGryffindor },
+      { name: 'Slytherin', color: 0x059669, accent: 0xe2e8f0, x: -0.45, builder: buildSlytherin },
+      { name: 'Ravenclaw', color: 0x2563eb, accent: 0xcd7f32, x: 0.45, builder: buildRavenclaw },
+      { name: 'Hufflepuff', color: 0xd97706, accent: 0xffc72c, x: 1.35, builder: buildHufflepuff }
+    ];
+
+    const statueGroups = [];
+
+    houses.forEach(h => {
+      const root = new THREE.Group();
+      root.position.set(h.x, 0, 0);
+
+      const { pedestalGroup, runeRing } = createChessPedestal(h.color, h.accent);
+      root.add(pedestalGroup);
+
+      const figure = h.builder();
+      root.add(figure);
+
+      // Light aura
+      const aura = new THREE.PointLight(h.color, 1.4, 2.0);
+      aura.position.set(0, 0, 0.45);
+      root.add(aura);
+
+      scene.add(root);
+      statueGroups.push({ root, runeRing, figure });
+    });
+
+    // Preset Camera function
+    window.__setCameraView = (viewName) => {
+      if (viewName === 'lineup') {
+        camera.position.set(0, -3.8, 1.7);
+        camera.lookAt(0, 0, 0.42);
+      } else if (viewName === 'gryff_slyth') {
+        camera.position.set(-0.9, -2.4, 1.4);
+        camera.lookAt(-0.9, 0, 0.42);
+      } else if (viewName === 'raven_huff') {
+        camera.position.set(0.9, -2.4, 1.4);
+        camera.lookAt(0.9, 0, 0.42);
+      }
+      renderer.render(scene, camera);
+    };
+
+    window.__getScreenshot = () => {
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL('image/png');
+    };
+
+    // Render loop
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = Date.now() * 0.002;
+
+      statueGroups.forEach((s, idx) => {
+        if (s.runeRing) s.runeRing.rotation.z -= delta * 0.6;
+        s.figure.rotation.z = Math.sin(time + idx * 1.5) * 0.15;
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

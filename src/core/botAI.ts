@@ -19,8 +19,21 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
   if (state.turnPhase === 'AUCTION' && state.auction && state.auction.active) {
     const activeBidders = state.auction.activeBidders;
     const currentBidderId = activeBidders[state.auction.currentBidderIndex];
+
+    // Skip if bot is bankrupt (shouldn't be in activeBidders but check anyway)
+    if (bot.isBankrupt) {
+      return { type: 'FOLD_AUCTION', playerId: bot.id };
+    }
+
+    // Check if property is still available (not already owned by someone else)
+    const auctionTile = state.auction.propertyId;
+    if (state.propertyOwnership[auctionTile]) {
+      // Property was purchased during auction, skip
+      return null;
+    }
+
     if (currentBidderId === bot.id) {
-      const tile = HOGWARTS_TILES.find((t) => t.id === state.auction!.propertyId);
+      const tile = HOGWARTS_TILES.find((t) => t.id === auctionTile);
       const facePrice = tile?.price || 100;
       const completesSet = tile?.colorGroup ? ownsFullColorSet(bot, tile.colorGroup, state) : false;
 
@@ -47,7 +60,8 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
       if (bot.getOutOfJailCards > 0) {
         return { type: 'USE_JAIL_CARD' };
       }
-      if (bot.balance >= 750) {
+      // Jail fine is 150 Galleons, check balance >= 150
+      if (bot.balance >= 150) {
         return { type: 'PAY_JAIL_FINE' };
       }
     }

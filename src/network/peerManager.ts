@@ -50,6 +50,9 @@ export function startHostSession(
 
     console.log(`[Host] Initializing Supabase channel: ${channelName} (Host ID: ${hostPeerId})`);
 
+    // Track guest sender ID to assigned player ID mapping for security
+    const guestToPlayerMap: Record<string, string> = {};
+
     const channel = supabase.channel(channelName, {
       config: {
         presence: { key: hostPeerId },
@@ -91,7 +94,19 @@ export function startHostSession(
         };
         onGuestJoin(guestSender, { playerName: msg.playerName, house: msg.house });
       } else if (msg.type === 'CLIENT_ACTION') {
-        onClientAction(msg.action, msg.senderId);
+        // Security: Verify the action belongs to the player assigned to this sender
+        const assignedPlayerId = guestToPlayerMap[msg.senderId];
+        if (assignedPlayerId) {
+          // Wrap action with verified player ID for host to validate
+          const secureAction = {
+            ...msg.action,
+            _verifiedPlayerId: assignedPlayerId,
+            _senderId: msg.senderId,
+          };
+          onClientAction(secureAction as GameAction, msg.senderId);
+        } else {
+          console.warn(`[Host] CLIENT_ACTION from unknown sender: ${msg.senderId} - ignored`);
+        }
       } else if (msg.type === 'CLIENT_HEARTBEAT') {
         // Keep-alive from client received
       }
@@ -258,6 +273,14 @@ export function startGuestSession(
 
             onJoinAccepted(assignedId, msg.initialGameState);
 
+            // Apply any pending SYNC_STATE that arrived before JOIN_ACCEPTED
+            const pendingState = (window as any).__pendingSyncState;
+            if (pendingState) {
+              console.log('[Guest] Applying pending SYNC_STATE that arrived before JOIN_ACCEPTED');
+              onStateSync(pendingState);
+              delete (window as any).__pendingSyncState;
+            }
+
             // Start client heartbeat to keep WebSocket open across NAT
             heartbeatTimer = setInterval(() => {
               channel.send({
@@ -299,14 +322,23 @@ export function startGuestSession(
         }
       }
     } else if (msg.type === 'SYNC_STATE') {
-        if (joinAccepted) {
-          onStateSync(msg.state);
-        }
-      } else if (msg.type === 'HOST_DISCONNECTED') {
-        console.warn('[Guest] Host has disconnected.');
-        onDisconnect();
+      // SYNC_STATE can come before JOIN_ACCEPTED - store it and apply when joined
+      if (joinAccepted) {
+        onStateSync(msg.state);
       }
-    });
+      // Store latest SYNC_STATE in case it arrives before JOIN_ACCEPTED
+      if (!joinAccepted && msg.state) {
+        // Queue the state to be applied after JOIN_ACCEPTED
+        const pendingState = msg.state;
+        // We need to apply this after JOIN_ACCEPTED is received
+        // Use a flag to track pending state
+        (window as any).__pendingSyncState = pendingState;
+      }
+    } else if (msg.type === 'HOST_DISCONNECTED') {
+      console.warn('[Guest] Host has disconnected.');
+      onDisconnect();
+    }
+  });
 
     // Detect Host presence leave with 25s mobile grace period
     channel.on('presence', { event: 'leave' }, (payload: any) => {

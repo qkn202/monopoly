@@ -21,13 +21,19 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [glarePos, setGlarePos] = useState({ x: 50, y: 50 });
-  const [countdown, setCountdown] = useState<number>(turboMode ? 2 : 4);
+  const [cardBackLoaded, setCardBackLoaded] = useState(false);
+  const [cardFrontLoaded, setCardFrontLoaded] = useState(false);
+  // For AI players, use short countdown matching auto-dismiss timing (700ms/1400ms)
+  // For human players, use longer countdown (3s/5s)
+  const initialCountdown = player?.isAI ? (turboMode ? 2 : 3) : (turboMode ? 3 : 5);
+  const [countdown, setCountdown] = useState<number>(initialCountdown);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-flip with snappy suspense
   useEffect(() => {
     setIsFlipped(false);
-    setCountdown(player?.isAI ? (turboMode ? 1 : 2) : (turboMode ? 3 : 5));
+    const newCountdown = player?.isAI ? (turboMode ? 2 : 3) : (turboMode ? 3 : 5);
+    setCountdown(newCountdown);
 
     const flipTimer = setTimeout(() => {
       setIsFlipped(true);
@@ -40,20 +46,27 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
   // Snappy auto-dismiss for AI players (700ms in turbo, 1400ms normal)
   useEffect(() => {
     if (!card || !player?.isAI) return;
+    // Calculate dismiss time based on turbo mode (matching countdown display)
+    const dismissTime = turboMode ? 700 : 1400;
     const aiTimer = setTimeout(() => {
       onDismiss();
-    }, turboMode ? 700 : 1400);
+    }, dismissTime);
     return () => clearTimeout(aiTimer);
   }, [card?.id, player?.isAI, onDismiss, turboMode]);
 
-  // Visual countdown timer
+  // Visual countdown timer - sync with auto-dismiss for AI
   useEffect(() => {
     if (!card) return;
+
+    // For AI players, countdown syncs with auto-dismiss (fast countdown)
+    // For human players, countdown is 1 second intervals
+    const intervalTime = player?.isAI ? 500 : 1000; // Faster countdown for AI
+
     const interval = setInterval(() => {
       setCountdown((prev) => Math.max(0, prev - 1));
-    }, 1000);
+    }, intervalTime);
     return () => clearInterval(interval);
-  }, [card?.id]);
+  }, [card?.id, player?.isAI]);
 
   // Keyboard shortcut: Space or Enter to dismiss
   useEffect(() => {
@@ -106,6 +119,11 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
           : `${baseUrl}assets/cards/tile_2.jpg`;
     }
   };
+
+  // Fallback background gradient for when images don't load
+  const fallbackGradient = isCharms
+    ? 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #a78bfa 100%)'
+    : 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #34d399 100%)';
 
   const getActionBadge = () => {
     switch (card.action) {
@@ -205,8 +223,19 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
             />
 
             {/* Back Face (Face Down) */}
-            <div className="active-card-side card-back-face">
-              <img src={cardBackPath} alt="Card Back" className="card-back-img" />
+            <div className="active-card-side card-back-face" style={{ background: !cardBackLoaded ? fallbackGradient : undefined }}>
+              <img
+                src={cardBackPath}
+                alt="Card Back"
+                className="card-back-img"
+                onLoad={() => setCardBackLoaded(true)}
+                onError={() => setCardBackLoaded(false)}
+              />
+              {!cardBackLoaded && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '3rem' }}>{isCharms ? '✨' : '🧪'}</span>
+                </div>
+              )}
               <div className="card-back-hint">
                 <span className="hint-pulse">✨ Nhấp để lật bài</span>
               </div>
@@ -226,7 +255,29 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
 
                 {/* Central Art Vignette */}
                 <div className="card-front-art-box">
-                  <img src={getCardArtPath()} alt={card.title} className="card-front-art-img" />
+                  {cardFrontLoaded ? (
+                    <img src={getCardArtPath()} alt={card.title} className="card-front-art-img" />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: fallbackGradient,
+                      fontSize: '2.5rem'
+                    }}>
+                      {isCharms ? '✨' : '🧪'}
+                    </div>
+                  )}
+                  <img
+                    src={getCardArtPath()}
+                    alt={card.title}
+                    className="card-front-art-img"
+                    style={{ display: 'none' }}
+                    onLoad={() => setCardFrontLoaded(true)}
+                    onError={() => setCardFrontLoaded(false)}
+                  />
                   <div className="art-box-frame" />
                 </div>
 

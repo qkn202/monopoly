@@ -48,8 +48,10 @@ export function executeCardEffect(
     case 'MOVE': {
       const steps = card.amount || 0;
       const oldPos = p.position;
-      const newPos = (oldPos + steps + 40) % 40;
-      if (steps > 0 && newPos < oldPos) {
+      // Use proper modulo: ((oldPos + steps) % 40 + 40) % 40 to handle negative steps
+      const newPos = ((oldPos + steps) % 40 + 40) % 40;
+      // Check if player wrapped around the board (crossed position 0/GO)
+      if (newPos < oldPos) {
         // Passed GO
         p.balance += 500;
         s.events = [createEvent(`${p.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', p.id), ...s.events];
@@ -60,6 +62,8 @@ export function executeCardEffect(
     }
     case 'MOVE_TO': {
       const target = card.targetTileIndex ?? 0;
+      // Check if player crossed position 0 (GO) to reach target
+      // This happens when: target < oldPos AND not going to jail (position 10)
       if (target < p.position && target !== 10) {
         // Passed GO (except when sent to Jail at 10)
         p.balance += 500;
@@ -310,16 +314,27 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
   let updatedPlayers = state.players.map((p) => (p.id === debtor.id ? updatedDebtor : p));
 
   if (creditorId) {
-    // Transfer debtor's properties and cash to creditor
+    // Transfer debtor's properties, cash, AND buildings (houses/hotels) to creditor
     debtor.properties.forEach((tileId) => {
       newPropertyOwnership[tileId] = creditorId;
     });
     updatedPlayers = updatedPlayers.map((p) => {
       if (p.id === creditorId) {
+        // Merge debtor's houses and hotels with creditor's existing ones
+        const mergedHouses = { ...p.houses };
+        const mergedHotels = { ...p.hotels };
+        debtor.properties.forEach((tileId) => {
+          const housesToAdd = debtor.houses[tileId] || 0;
+          const hotelsToAdd = debtor.hotels[tileId] || 0;
+          mergedHouses[tileId] = (mergedHouses[tileId] || 0) + housesToAdd;
+          mergedHotels[tileId] = (mergedHotels[tileId] || 0) + hotelsToAdd;
+        });
         return {
           ...p,
           balance: p.balance + totalTransferCash,
           properties: [...p.properties, ...debtor.properties],
+          houses: mergedHouses,
+          hotels: mergedHotels,
         };
       }
       return p;
