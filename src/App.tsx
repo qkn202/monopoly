@@ -95,6 +95,7 @@ export function App() {
                 balance: 5000,
                 position: 0,
                 properties: [],
+                visitedProperties: [],
                 inJail: false,
                 jailTurnsRemaining: 0,
                 getOutOfJailCards: 0,
@@ -266,12 +267,11 @@ export function App() {
       // Pause bot actions while magic card popup is being presented
       if (gameState.activeCard) return;
 
-      // Snappy bot thinking delay (120ms-350ms in Turbo, 350ms-900ms in Normal)
-      const isRentTurn = isBotTurn && gameState.turnPhase === 'END_TURN' && !!gameState.lastRentPayment;
+      // Bot thinking delay: longer when making important decisions (ACTION phase), shorter for quick actions
       const isTurbo = !!gameState.turboMode;
       const thinkingDelay = isTurbo
-        ? (isRentTurn ? 350 : 120)
-        : (isRentTurn ? 900 : 350);
+        ? (gameState.turnPhase === 'ACTION' ? 350 : 120)  // Turbo: 350ms for decisions, 120ms for quick actions
+        : (gameState.turnPhase === 'ACTION' ? 900 : 350); // Normal: 900ms for decisions, 350ms for quick actions
 
       const aiTimer = setTimeout(() => {
         const botAction = getBotAction(gameState, activeBot);
@@ -386,7 +386,7 @@ export function App() {
     <div className="main-game-layout">
       {/* Left Stage: 3D Three.js Board (70-75% screen width) */}
       <main className="board-3d-stage">
-        <BoardThreeJS gameState={gameState} />
+        <BoardThreeJS gameState={gameState} myPlayerId={myPlayerId} />
       </main>
 
       {/* Right Stage: Fixed Control Sidebar (25-30% screen width) */}

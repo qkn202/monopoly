@@ -16,10 +16,12 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 ### 1. Bàn cờ 3D Three.js & Đồ họa Ma thuật
 - **Bàn cờ 3D WebGL tương tác cao:** Raycasting nhận diện vị trí, hiệu ứng ánh sáng ma thuật theo thời gian thực và đổ bóng chân thực.
-- **3 Chế độ Camera mượt mà:**
-  - 🎥 **Toàn Cảnh (Overview):** Góc nhìn nghiêng 3D bao quát cả 40 ô đất và lâu đài Hogwarts.
-  - 🏃‍♂️ **Tự Động Bám Theo (Auto-Follow):** Camera tự động xoay và lướt theo từng bước nhảy của quân cờ.
-  - 🛰️ **Góc Nhìn Từ Trên Xuống (Top-Down):** Phẳng 2D truyền thống, quan sát dễ dàng trên màn hình nhỏ.
+- **3 Chế độ Camera cố định:**
+  - 👁️ **Toàn Cảnh (Overview):** Góc nhìn nghiêng 3D bao quát cả 40 ô đất và lâu đài Hogwarts.
+  - 🎥 **Bám Theo (Follow):** Camera zoom cận vào quân cờ đang di chuyển, theo dõi real-time.
+  - 📐 **Góc Nhìn Từ Trên Xuống (Top-Down):** Phẳng 2D truyền thống, quan sát dễ dàng trên màn hình nhỏ.
+  - *Camera không xoay tự do — chỉ có thể zoom in/out*
+- **Hệ thống màu theo Ownership:** Đất được tô màu theo nhà của chủ sở hữu (Gryffindor=đỏ, Slytherin=xanh lục, Ravenclaw=xanh dương, Hufflepuff=vàng). Đất trống có màu xám trung lập.
 - **Tượng Quân Cờ Phù Thủy 3D:** Mỗi người chơi sở hữu mô hình thu nhỏ mang huy hiệu và màu sắc đặc trưng của từng Nhà, tự động nhảy theo điểm xúc xắc.
 
 ### 2. 4 Nhà Phù Thủy Hogwarts
@@ -33,8 +35,11 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 - **40 Ô đất kinh điển:** Hẻm Xéo, Tiệm Đũa Phép Ollivander, Ngân Hàng Gringotts, Quán Ba Cây Chổi, Sân Quidditch, Tháp Thiên Văn, Rừng Cấm, v.v.
 - **Nâng cấp Bất động sản linh hoạt:**
   - Xây từ **1 đến 4 Túp Lều** (`Cottage`) trên bất kỳ mảnh đất nào mình sở hữu (không bị khóa cứng bởi điều kiện gom đủ 100% bộ màu).
+  - **Quy tắc xây nhà:** Phải đặt chân vào ô đất ít nhất 1 lần sau khi mua mới được xây. Sau khi xây nhà, phải quay lại đất đó lần nữa mới được xây thêm.
+  - Mỗi lần chỉ xây **1 Túp Lều**.
   - Nâng cấp tối thượng lên **🏰 Lâu Đài Hogwarts** khi ô đất đạt đủ 4 Túp Lều, nâng tiền thuê lên mức kỷ lục!
 - **Hệ thống Thế chấp & Chuộc tài sản:** Hỗ trợ thế chấp nhận ngay 50% giá trị và chuộc lại với lãi suất 10% khi cần dòng tiền.
+- **Giai đoạn Phá Sản (Bankruptcy Phase):** Khi không đủ tiền trả nợ, người chơi được phép tự chọn tài sản để thế chấp hoặc bán nhà trước khi tuyên bố phá sản.
 
 ### 4. Cơ chế Đột biến & Tranh đấu Kịch tính
 - ☠️ **Bão Lời Nguyền Hắc Ám (Dark Curse Escalation):**
@@ -43,7 +48,9 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 - ⚡ **Thâu Tóm Cưỡng Chế (Hostile Takeover):**
   - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ nhà trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
 - 🔨 **Đấu Giá Công Khai (Public Auction):**
-  - Khi một người chơi bỏ qua việc mua đất trống, ô đất sẽ được đưa ra sàn đấu giá công khai với đồng hồ đếm ngược 6 giây. Người trả giá cao nhất sẽ giành được ô đất với mức giá hời.
+  - Khi một người chơi bỏ qua việc mua đất trống, ô đất sẽ được đưa ra sàn đấu giá công khai với đồng hồ đếm ngược.
+  - Người trả giá cao nhất sẽ giành được ô đất với mức giá hời.
+  - Người rút lui khỏi đấu giá sẽ bị loại khỏi vòng đấu giá hiện tại; những người còn lại tiếp tục đấu giá.
 
 ### 5. Thẻ Bài Ma Thuật Huyền Bí
 - 📜 **Thẻ Bùa Chú (Charms Deck):** Thưởng tiền thưởng, dịch chuyển tức thời, vé miễn giam Azkaban, bùa hộ mệnh.
@@ -69,7 +76,7 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 | **`Space`** | Gieo xúc xắc / Thu cất thẻ bài / Kết thúc lượt đi |
 | **`B`** | Mua đất nhanh / Thâu tóm cưỡng chế / Nâng cấp Túp Lều hoặc Lâu Đài |
 | **`P`** | Bỏ qua cơ hội mua đất để chuyển sang Đấu Giá công khai |
-| **`C`** | Chuyển đổi nhanh 3 chế độ Camera (`Overview` ➔ `Follow` ➔ `Top-Down`) |
+| **`C`** | Chuyển đổi nhanh 3 chế độ Camera (`👁️ Overview` ➔ `🎥 Follow` ➔ `📐 Top-Down`) |
 | **`M`** | Bật / Tắt âm thanh ma thuật |
 
 ---
@@ -109,6 +116,11 @@ monopoly/
 │   ├── network/
 │   │   ├── supabaseClient.ts   # Khởi tạo Supabase client
 │   │   └── multiplayerSession.ts # Kiến trúc kết nối Host - Guest qua Realtime Broadcast
+│   ├── render/
+│   │   ├── BoardCards.ts       # Hệ thống vẽ 40 lá bài đất 3D
+│   │   ├── BoardTokens.ts      # Quản lý quân cờ 3D & animation di chuyển
+│   │   ├── BoardCoordinates.ts # Tính toán tọa độ 40 ô đất
+│   │   └── BoardFrame.ts       # Khung bàn cờ Hogwarts
 │   ├── ui/
 │   │   ├── BoardThreeJS.tsx    # Thành phần đồ họa 3D Three.js WebGL
 │   │   ├── CardInspectModal.tsx# Modal soi thẻ bài 3D flip card
@@ -116,7 +128,7 @@ monopoly/
 │   │   ├── Lobby.tsx           # Phòng chờ: tạo phòng, nhập mã phòng, chọn Nhà
 │   │   ├── RightSidebar.tsx    # Bảng điều khiển, sàn đấu giá, tài sản & bảng xếp hạng
 │   │   └── WinModal.tsx        # Modal vinh danh nhà vô địch khi hết 30 phút
-│   ├── App.tsx                 # Điểm kết nối logic game, phím tắt & layout chính
+│   ├── App.tsx                  # Điểm kết nối logic game, phím tắt & layout chính
 │   └── main.tsx                # Entry point
 ├── scripts/
 │   ├── test_upgrade_and_build.ts   # Unit test nâng cấp bất động sản & hạ cánh

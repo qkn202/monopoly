@@ -108,6 +108,12 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Đã có 4 Túp Lều, cần nâng cấp lên Lâu Đài' };
   }
 
+  // RULE: Must have VISITED the property since last building on it
+  // (Landed on it once after buying, or after last house upgrade)
+  if (!player.visitedProperties.includes(propertyId)) {
+    return { allowed: false, reason: 'Cần đặt chân vào ô đất này ít nhất 1 lần trước khi xây nhà' };
+  }
+
   const cost = tile.houseCost;
   if (player.balance < cost) {
     return { allowed: false, reason: `Không đủ tiền (Cần ${cost} Galleons)` };
@@ -142,6 +148,11 @@ export function canBuildHotel(
   const currentHouses = player.houses[tile.id] || 0;
   if (currentHouses < 4) {
     return { allowed: false, reason: 'Cần có đủ 4 Túp Lều trước khi nâng cấp lên Lâu Đài' };
+  }
+
+  // RULE: Must have VISITED the property since last building on it
+  if (!player.visitedProperties.includes(propertyId)) {
+    return { allowed: false, reason: 'Cần đặt chân vào ô đất này ít nhất 1 lần trước khi nâng cấp Lâu Đài' };
   }
 
   const cost = tile.houseCost;

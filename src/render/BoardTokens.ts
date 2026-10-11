@@ -134,6 +134,7 @@ export interface PlayerTokenMesh {
   runeRing: THREE.Mesh;
   satellites: THREE.Mesh[];
   haloLight: THREE.PointLight;
+  highlightRing: THREE.Mesh | null;
   currentTile: number;
   waypoints: number[];
   hopProgress: number;
@@ -493,11 +494,56 @@ export function createDiamondToken(
 export class PlayerTokenManager {
   private tokens: Map<string, PlayerTokenMesh> = new Map();
   private container: THREE.Group;
+  private currentPlayerId: string | null = null;
 
   constructor(scene: THREE.Scene) {
     this.container = new THREE.Group();
     this.container.name = 'PlayerTokens';
     scene.add(this.container);
+  }
+
+  public setCurrentPlayer(playerId: string | null): void {
+    const prevId = this.currentPlayerId;
+    this.currentPlayerId = playerId;
+
+    // Update highlight on affected tokens
+    if (prevId) {
+      const prevToken = this.tokens.get(prevId);
+      if (prevToken) this.updateTokenHighlight(prevToken, false);
+    }
+    if (playerId) {
+      const currToken = this.tokens.get(playerId);
+      if (currToken) this.updateTokenHighlight(currToken, true);
+    }
+  }
+
+  private updateTokenHighlight(token: PlayerTokenMesh, isCurrent: boolean): void {
+    // Boost aura light for current player
+    if (token.haloLight) {
+      token.haloLight.intensity = isCurrent ? 3.0 : 1.0;
+    }
+    // Show/hide highlight ring
+    if (token.highlightRing) {
+      token.highlightRing.visible = isCurrent;
+    }
+  }
+
+  /**
+   * Get the ACTUAL animated position of a token (where it currently is in 3D space,
+   * including during hop animation). Use this for camera follow, NOT getTilePosition.
+   */
+  public getAnimatedTokenPosition(playerId: string): THREE.Vector3 | null {
+    const token = this.tokens.get(playerId);
+    if (!token) return null;
+    return token.group.position.clone();
+  }
+
+  /**
+   * Check if a token is currently hopping (animating)
+   */
+  public isTokenHopping(playerId: string): boolean {
+    const token = this.tokens.get(playerId);
+    return token ? token.waypoints.length > 0 : false;
   }
 
   public syncPlayers(players: Player[]): void {
@@ -573,6 +619,20 @@ export class PlayerTokenManager {
       emissiveColor
     );
 
+    // Add highlight ring for current player indicator
+    const highlightRingGeo = new THREE.RingGeometry(0.35, 0.42, 32);
+    const highlightRingMat = new THREE.MeshBasicMaterial({
+      color: gemColor,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const highlightRing = new THREE.Mesh(highlightRingGeo, highlightRingMat);
+    highlightRing.rotation.x = -Math.PI / 2;
+    highlightRing.position.z = -0.05;
+    highlightRing.visible = false;
+    group.add(highlightRing);
+
     group.name = `PlayerGemstone_${player.id}_${gemShape}`;
     group.position.copy(initialPos);
     this.container.add(group);
@@ -584,6 +644,7 @@ export class PlayerTokenManager {
       runeRing,
       satellites,
       haloLight: auraLight,
+      highlightRing,
       currentTile: player.position,
       waypoints: [],
       hopProgress: 1.0,
@@ -622,6 +683,14 @@ export class PlayerTokenManager {
           sat.rotation.z += deltaTime * 2.0;
           sat.rotation.x += deltaTime * 1.5;
         });
+      }
+
+      // 3.5. Animate highlight ring for current player
+      if (token.highlightRing && token.highlightRing.visible) {
+        const ringScale = 1.0 + Math.sin(time * 3) * 0.08;
+        token.highlightRing.scale.set(ringScale, ringScale, 1);
+        const ringMat = token.highlightRing.material as THREE.MeshBasicMaterial;
+        ringMat.opacity = 0.5 + Math.sin(time * 4) * 0.3;
       }
 
       // 4. Hopping Navigation Engine (Parabolic jump along waypoints)

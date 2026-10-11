@@ -17,6 +17,7 @@ import './BoardThreeJS.css';
 
 interface BoardThreeJSProps {
   gameState: GameState;
+  myPlayerId?: string;
 }
 
 export interface HoveredTileInfo {
@@ -41,7 +42,7 @@ export interface RentNotice {
   isTax?: boolean;
 }
 
-export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
+export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const baseUrl = import.meta.env.BASE_URL || '/';
   const [loading, setLoading] = useState(false);
@@ -50,6 +51,7 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
   const [rentNotice, setRentNotice] = useState<RentNotice | null>(null);
   const [inspectedTile, setInspectedTile] = useState<TileConfig | null>(null);
   const [currentView, setCurrentView] = useState<'follow' | 'overview' | 'topdown'>('overview');
+  const currentViewRef = useRef<'follow' | 'overview' | 'topdown'>('overview');
   const prevRentPaymentRef = useRef<number>(0);
 
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -65,6 +67,11 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
   // Keep fresh reference to gameState for mouse handlers without re-binding
   const gameStateRef = useRef<GameState>(gameState);
   gameStateRef.current = gameState;
+
+  // Keep currentViewRef in sync with currentView state for use in event handlers
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
   const turboRef = useRef<boolean>(!!gameState.turboMode);
   turboRef.current = !!gameState.turboMode;
 
@@ -110,37 +117,19 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
     renderer.domElement.style.touchAction = 'none';
     container.appendChild(renderer.domElement);
 
-    // 4. OrbitControls
+    // 4. OrbitControls - DISABLED ROTATION, ONLY ZOOM + PAN TO TARGET
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.minDistance = 4;
-    controls.maxDistance = 30;
-    controls.zoomSpeed = 1.0;
-    controls.rotateSpeed = 0.8;
-    controls.target.set(0, -0.8, 0.2);
+    controls.dampingFactor = 0.1;
+    controls.minDistance = 3;   // Allow zooming in closer
+    controls.maxDistance = 12;  // Max zoom out
+    controls.zoomSpeed = 0.8;
+    controls.enableRotate = false; // DISABLE rotation - only zoom allowed
+    controls.enablePan = false;  // DISABLE pan - stay focused on board center
+    controls.minPolarAngle = Math.PI / 4;  // Limit tilt angle
+    controls.maxPolarAngle = Math.PI / 2.2; // Prevent looking from too steep angle
+    controls.target.set(0, -0.4, 0);
     controlsRef.current = controls;
-
-    // Prevent Camera lerp from fighting user wheel zoom / drag
-    const handleControlsStart = () => {
-      isUserInteracting.current = true;
-    };
-    const handleControlsEnd = () => {
-      isUserInteracting.current = false;
-      targetCamPos.current.copy(camera.position);
-      targetLookAt.current.copy(controls.target);
-    };
-    const handleControlsChange = () => {
-      if (isUserInteracting.current) {
-        targetCamPos.current.copy(camera.position);
-        targetLookAt.current.copy(controls.target);
-      }
-    };
-
-    controls.addEventListener('start', handleControlsStart);
-    controls.addEventListener('end', handleControlsEnd);
-    controls.addEventListener('change', handleControlsChange);
 
     // 5. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
@@ -330,8 +319,9 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
 
-      // Re-adjust camera distance for portrait mode if user is not actively dragging
-      if (!isUserInteracting.current) {
+      // Only reset to overview position on resize if user is not actively interacting
+      // This prevents follow mode from snapping to overview on window resize
+      if (!isUserInteracting.current && currentViewRef.current === 'overview') {
         const portScale = asp < 1 ? Math.min(2.1, 1 / asp) : 1;
         targetCamPos.current.set(0, -10.5 * portScale, 13.2 * portScale);
         targetLookAt.current.set(0, -0.4, 0.1);
@@ -373,16 +363,33 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
       // Update 3D Property Buildings & Ownership Figures
       buildingManager.update(time, deltaTime);
 
-      // Smooth cinematic camera interpolation towards active target when user is not manually interacting
+      // FOLLOW MODE: Update camera to track animated token position in real-time
+      if (currentViewRef.current === 'follow' && !isUserInteracting.current) {
+        const gs = gameStateRef.current;
+        const curP = gs.players[gs.currentPlayerIndex];
+        if (curP) {
+          // Get the ACTUAL animated position of the token (where it currently is, not where it's going)
+          const animPos = tokenManager.getAnimatedTokenPosition(curP.id);
+          if (animPos) {
+            // Flat close-up view following token's actual position
+            const followZ = 6.0;
+            targetCamPos.current.set(animPos.x * 0.5, animPos.y * 0.5 - 6, followZ);
+            targetLookAt.current.set(animPos.x, animPos.y, 0);
+            targetUpVec.current.set(0, 1, 0);
+          }
+        }
+      }
+
+      // Smooth camera interpolation towards active target (only zoom, no rotation)
       if (!isUserInteracting.current) {
-        if (camera.position.distanceTo(targetCamPos.current) > 0.005) {
-          camera.position.lerp(targetCamPos.current, 0.055);
+        if (camera.position.distanceTo(targetCamPos.current) > 0.01) {
+          camera.position.lerp(targetCamPos.current, 0.06);
         }
-        if (controls.target.distanceTo(targetLookAt.current) > 0.005) {
-          controls.target.lerp(targetLookAt.current, 0.055);
+        if (controls.target.distanceTo(targetLookAt.current) > 0.01) {
+          controls.target.lerp(targetLookAt.current, 0.06);
         }
-        if (camera.up.distanceTo(targetUpVec.current) > 0.005) {
-          camera.up.lerp(targetUpVec.current, 0.055);
+        if (camera.up.distanceTo(targetUpVec.current) > 0.01) {
+          camera.up.lerp(targetUpVec.current, 0.06);
         }
       }
 
@@ -415,16 +422,18 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
   // Sync token, card aura, ownership & building positions whenever players or propertyOwnership change
   useEffect(() => {
     tokenManagerRef.current?.syncPlayers(gameState.players);
+
+    // Update current player highlight (new HUD feature)
+    const curPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (curPlayer) {
+      tokenManagerRef.current?.setCurrentPlayer(curPlayer.id);
+      cardMeshesRef.current?.setActivePlayerTileIndex(curPlayer.position);
+    }
+
     buildingManagerRef.current?.syncBuildings(gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties);
 
     // Sync card ownership visual representation on 3D deed cards (canvas textures + neon border glow + mortgaged banner)
     cardMeshesRef.current?.syncOwnership(gameState.propertyOwnership, gameState.players, gameState.mortgagedProperties);
-
-    // Update active player's tile aura on the 3D cards
-    const curPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (curPlayer) {
-      cardMeshesRef.current?.setActivePlayerTileIndex(curPlayer.position);
-    }
 
     // Detect newly acquired properties to trigger card particle burst, audio chime & announcement toast
     const prevOwnership = prevOwnershipRef.current;
@@ -598,33 +607,15 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
       targetLookAt.current.set(0, 0, 0);
       targetUpVec.current.set(0, 1, 0);
     } else if (currentView === 'follow' && curPlayer) {
-      // Auto-Follow & Auto-Rotate dynamic tile focus
+      // FOLLOW MODE: Close-up zoom on token position with flat angle
       const tileIdx = ((curPlayer.position % 40) + 40) % 40;
       const tilePos = getTilePosition(tileIdx);
-      const followZ = 5.5 * Math.min(1.35, portraitScale);
-      const followOffset = 4.5 * Math.min(1.35, portraitScale);
 
-      if (tileIdx <= 10) {
-        // Bottom row (0-10): view from front, 30° tilt
-        targetCamPos.current.set(tilePos.x, tilePos.y - followOffset, followZ);
-        targetLookAt.current.set(tilePos.x, tilePos.y, 0.4);
-        targetUpVec.current.set(0, 1, 0);
-      } else if (tileIdx <= 19) {
-        // Left column (11-19): rotate -90°, view from left
-        targetCamPos.current.set(tilePos.x - followOffset, tilePos.y, followZ);
-        targetLookAt.current.set(tilePos.x, tilePos.y, 0.4);
-        targetUpVec.current.set(1, 0, 0);
-      } else if (tileIdx <= 30) {
-        // Top row (20-30): rotate -180°, view from top
-        targetCamPos.current.set(tilePos.x, tilePos.y + followOffset, followZ);
-        targetLookAt.current.set(tilePos.x, tilePos.y, 0.4);
-        targetUpVec.current.set(0, -1, 0);
-      } else {
-        // Right column (31-39): rotate +90°, view from right
-        targetCamPos.current.set(tilePos.x + followOffset, tilePos.y, followZ);
-        targetLookAt.current.set(tilePos.x, tilePos.y, 0.4);
-        targetUpVec.current.set(-1, 0, 0);
-      }
+      // Flat close-up view: camera almost directly above token
+      const followZ = 6.0 * Math.min(1.0, portraitScale);
+      targetCamPos.current.set(tilePos.x * 0.5, tilePos.y * 0.5 - 6, followZ);
+      targetLookAt.current.set(tilePos.x, tilePos.y, 0);
+      targetUpVec.current.set(0, 1, 0);
     }
   }, [gameState.currentPlayerIndex, gameState.players, currentView]);
 
@@ -637,10 +628,94 @@ export function BoardThreeJS({ gameState }: BoardThreeJSProps) {
     (window as any).__setCameraPreset = setCameraPreset;
   }, []);
 
+  // Get current player info for HUD
+  const curPlayer = gameState.players[gameState.currentPlayerIndex];
+  const currentTile = curPlayer ? HOGWARTS_TILES[curPlayer.position] : null;
+  const isMyTurn = !myPlayerId || curPlayer?.id === myPlayerId;
+
   return (
     <div className="three-board-wrapper">
       {/* 3D Canvas Mount Point */}
       <div ref={mountRef} className="three-canvas-container" />
+
+      {/* ============================================
+          NEW: HUD Position & Turn Info
+          ============================================ */}
+      <div className="position-hud">
+        {/* Turn Info */}
+        <div className="hud-card">
+          <div className="hud-label">Lượt Đi</div>
+          <div className="hud-value">
+            {curPlayer?.tokenIcon} {curPlayer?.name}
+            {isMyTurn && <span style={{ fontSize: '0.65rem', color: '#4ade80' }}>(BẠN)</span>}
+          </div>
+          <div
+            className="hud-turn-counter"
+            style={{ color: curPlayer?.color || '#fbbf24' }}
+          >
+            ⚔️ Vòng {gameState.turnNumber} • {gameState.players.length} Người Chơi
+          </div>
+        </div>
+
+        {/* Position Info */}
+        {curPlayer && currentTile && (
+          <div className="hud-card">
+            <div className="hud-label">Vị Trí Hiện Tại</div>
+            <div className="hud-value">
+              <span style={{
+                background: 'rgba(255,215,0,0.2)',
+                padding: '2px 8px',
+                borderRadius: '8px',
+                fontSize: '0.85rem'
+              }}>
+                #{curPlayer.position}
+              </span>
+            </div>
+            <div className="hud-tile-name">
+              <span className="tile-icon">{currentTile.icon}</span>
+              <span style={{ color: '#f8fafc', fontWeight: 600 }}>{currentTile.name}</span>
+            </div>
+            {currentTile.price && (
+              <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginTop: '2px' }}>
+                💰 {currentTile.price} Galleons
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Timer */}
+        <div className="hud-card" style={{ padding: '8px 14px' }}>
+          <div className="hud-label">Thời Gian</div>
+          <div
+            className="hud-value"
+            style={{
+              fontSize: '1.1rem',
+              color: gameState.turnSecondsRemaining <= 10 ? '#ef4444' : '#fbbf24'
+            }}
+          >
+            ⏱️ {Math.floor(gameState.turnSecondsRemaining / 60)}:
+            {String(gameState.turnSecondsRemaining % 60).padStart(2, '0')}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================
+          NEW: Camera Mode Indicator
+          ============================================ */}
+      <div className="camera-mode-indicator">
+        <div className={`camera-mode-badge ${currentView === 'overview' ? 'active' : ''}`}>
+          <span className="mode-icon">👁️</span>
+          <span>OVERVIEW</span>
+        </div>
+        <div className={`camera-mode-badge ${currentView === 'follow' ? 'active' : ''}`}>
+          <span className="mode-icon">🎥</span>
+          <span>FOLLOW</span>
+        </div>
+        <div className={`camera-mode-badge ${currentView === 'topdown' ? 'active' : ''}`}>
+          <span className="mode-icon">📐</span>
+          <span>TOP-DOWN</span>
+        </div>
+      </div>
 
       {/* Loading Overlay */}
       {loading && (

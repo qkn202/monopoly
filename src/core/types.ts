@@ -48,6 +48,7 @@ export interface Player {
   balance: number; // Galleons
   position: number; // 0 to 39
   properties: string[]; // Tile IDs
+  visitedProperties: string[]; // Tile IDs visited since last build (can only build after visiting)
   inJail: boolean;
   jailTurnsRemaining: number;
   getOutOfJailCards: number;
@@ -114,6 +115,7 @@ export type TurnPhase =
   | 'ROLL'
   | 'ACTION' // Landed on unowned property (can buy or pass to auction)
   | 'AUCTION' // Mandatory public auction
+  | 'BANKRUPTCY' // Player must mortgage/sell before declaring bankruptcy
   | 'END_TURN'
   | 'GAME_OVER';
 
@@ -141,6 +143,13 @@ export interface UpgradeCandidate {
   isHotelUpgrade: boolean;
 }
 
+export interface BankruptcyInfo {
+  debtorId: string;
+  creditorId?: string;
+  amount: number;
+  reason: string;
+}
+
 export interface GameState {
   players: Player[];
   currentPlayerIndex: number;
@@ -165,6 +174,7 @@ export interface GameState {
   turboMode?: boolean; // Fast mode (2x speed, fast bot AI, quick animations)
   rentMultiplier: number; // Global rent & tax multiplier (default 1, e.g. 2x)
   nextEscalationRound: number; // Target round number for next random escalation (e.g. 4-7)
+  bankruptcyInfo?: BankruptcyInfo | null; // Info when player is in BANKRUPTCY phase
   maxRentMultiplier: number; // Cap (default 2)
   activeEscalationEvent?: EscalationEvent | null;
   takeoverCandidate?: TakeoverCandidate | null;
@@ -202,4 +212,5 @@ export type GameAction =
   | { type: 'TURN_TIMEOUT' }
   | { type: 'TOGGLE_TURBO' }
   | { type: 'SET_TURBO'; enabled: boolean }
-  | { type: 'DISMISS_ESCALATION' };
+  | { type: 'DISMISS_ESCALATION' }
+  | { type: 'DECLARE_BANKRUPTCY' };

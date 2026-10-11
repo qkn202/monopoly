@@ -3,11 +3,17 @@ import { soundManager } from '../audio/soundManager';
 
 /**
  * Creates 6 canvas textures for dice pips (1 to 6)
+ * Materials are returned in order: [2, 5, 3, 4, 1, 6]
+ * This matches BoxGeometry face mapping: [0]=+X, [1]=-X, [2]=+Y, [3]=-Y, [4]=+Z, [5]=-Z
+ * So rotating to show face N on +Z requires specific rotations.
  */
 function createDiceMaterials(): THREE.MeshStandardMaterial[] {
+  // Create materials in order: [2, 5, 3, 4, 1, 6]
+  // materials[0] = value 2, materials[1] = value 5, etc.
+  const faceOrder = [2, 5, 3, 4, 1, 6];
   const materials: THREE.MeshStandardMaterial[] = [];
 
-  for (let n = 1; n <= 6; n++) {
+  for (const n of faceOrder) {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
@@ -79,14 +85,14 @@ function createDiceMaterials(): THREE.MeshStandardMaterial[] {
 }
 
 // Map face number (1-6) to BoxGeometry material index (0-5)
-// In Three.js Box: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
-// We configure materials array so:
-// Face 1 -> material 4 (+Z is top in our board view!)
-// Face 2 -> material 0 (+X)
-// Face 3 -> material 2 (+Y)
-// Face 4 -> material 3 (-Y)
-// Face 5 -> material 1 (-X)
-// Face 6 -> material 5 (-Z)
+// In Three.js BoxGeometry: materials[0]=+X, [1]=-X, [2]=+Y, [3]=-Y, [4]=+Z (top), [5]=-Z (bottom)
+// We reorder materials array so that:
+// materials[0] = value 2 (shows on +X when rotated)
+// materials[1] = value 5 (shows on -X when rotated)
+// materials[2] = value 3 (shows on +Y when rotated)
+// materials[3] = value 4 (shows on -Y when rotated)
+// materials[4] = value 1 (shows on +Z when rotated - TOP)
+// materials[5] = value 6 (shows on -Z when rotated - BOTTOM)
 
 export class Board3DDice {
   private container: THREE.Group;
@@ -125,27 +131,33 @@ export class Board3DDice {
   }
 
   private orientDieToValue(mesh: THREE.Mesh, value: number): THREE.Euler {
-    // Face 1 is on +Z by default
-    // We rotate so the chosen face points along +Z (towards camera)
+    // We want the chosen value to show on the +Z face (top, towards camera)
+    // BoxGeometry materials: [0]=+X, [1]=-X, [2]=+Y, [3]=-Y, [4]=+Z, [5]=-Z
     const euler = new THREE.Euler();
     switch (value) {
       case 1:
-        euler.set(0, 0, 0); // +Z is face 1
+        // materials[4] has value 1, +Z face is already correct (no rotation needed)
+        euler.set(0, 0, 0);
         break;
       case 2:
-        euler.set(0, -Math.PI / 2, 0); // +X (face 2) moves to +Z
+        // materials[0] has value 2, rotate -90° around Y to bring +X to +Z
+        euler.set(0, -Math.PI / 2, 0);
         break;
       case 3:
-        euler.set(Math.PI / 2, 0, 0); // +Y (face 3) moves to +Z
+        // materials[2] has value 3, rotate +90° around X to bring +Y to +Z
+        euler.set(Math.PI / 2, 0, 0);
         break;
       case 4:
-        euler.set(-Math.PI / 2, 0, 0); // -Y (face 4) moves to +Z
+        // materials[3] has value 4, rotate -90° around X to bring -Y to +Z
+        euler.set(-Math.PI / 2, 0, 0);
         break;
       case 5:
-        euler.set(0, Math.PI / 2, 0); // -X (face 5) moves to +Z
+        // materials[1] has value 5, rotate +90° around Y to bring -X to +Z
+        euler.set(0, Math.PI / 2, 0);
         break;
       case 6:
-        euler.set(Math.PI, 0, 0); // -Z (face 6) moves to +Z
+        // materials[5] has value 6, rotate 180° around X to bring -Z to +Z
+        euler.set(Math.PI, 0, 0);
         break;
     }
     return euler;

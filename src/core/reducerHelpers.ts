@@ -188,98 +188,27 @@ export function resolveDebtOrLiquidate(
     };
   }
 
-  // Case 3: Debtor CAN raise enough cash. Perform orderly emergency liquidation:
-  let currentBalance = debtor.balance;
-  const currentHouses = { ...debtor.houses };
-  const currentHotels = { ...debtor.hotels };
-  const newMortgages = { ...state.mortgagedProperties };
-  const liquidationEvents: string[] = [];
-
-  // Step A: Sell castles (hotels) down to cottages first
-  for (const propId of debtor.properties) {
-    if (currentBalance >= amount) break;
-    const hotelCount = currentHotels[propId] || 0;
-    if (hotelCount > 0) {
-      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
-      const houseCost = tile?.houseCost || 50;
-      const hotelRefund = Math.floor(houseCost / 2);
-      currentHotels[propId] = 0;
-      currentHouses[propId] = 4;
-      currentBalance += hotelRefund;
-      liquidationEvents.push(`hạ cấp Lâu Đài tại "${tile?.name || propId}" (+${hotelRefund}G)`);
-    }
-  }
-
-  // Step B: Sell cottages one by one across properties
-  while (currentBalance < amount) {
-    let foundHouse = false;
-    for (const propId of debtor.properties) {
-      const houseCount = currentHouses[propId] || 0;
-      if (houseCount > 0) {
-        const tile = HOGWARTS_TILES.find((t) => t.id === propId);
-        const houseCost = tile?.houseCost || 50;
-        const refund = Math.floor(houseCost / 2);
-        currentHouses[propId] = houseCount - 1;
-        currentBalance += refund;
-        liquidationEvents.push(`dỡ 1 Túp Lều tại "${tile?.name || propId}" (+${refund}G)`);
-        foundHouse = true;
-        if (currentBalance >= amount) break;
-      }
-    }
-    if (!foundHouse) break;
-  }
-
-  // Step C: If still below debt amount, mortgage properties (only those with 0 houses in color group)
-  for (const propId of debtor.properties) {
-    if (currentBalance >= amount) break;
-    if (newMortgages[propId]) continue; // already mortgaged
-
-    const tile = HOGWARTS_TILES.find((t) => t.id === propId);
-    if (!tile || !tile.mortgageValue) continue;
-
-    // Check if color group has any remaining houses
-    if (tile.colorGroup) {
-      const groupTiles = HOGWARTS_TILES.filter((t) => t.colorGroup === tile.colorGroup);
-      const hasBuildings = groupTiles.some(
-        (t) => (currentHouses[t.id] || 0) > 0 || (currentHotels[t.id] || 0) > 0
-      );
-      if (hasBuildings) continue; // cannot mortgage yet
-    }
-
-    currentBalance += tile.mortgageValue;
-    newMortgages[propId] = true;
-    liquidationEvents.push(`thế chấp "${tile.name}" (+${tile.mortgageValue}G)`);
-  }
-
-  // Now currentBalance is guaranteed >= amount!
-  const finalBalance = currentBalance - amount;
-  const updatedDebtor: Player = {
-    ...debtor,
-    balance: Math.max(0, finalBalance),
-    houses: currentHouses,
-    hotels: currentHotels,
-  };
-
-  let updatedPlayers = state.players.map((p) => (p.id === debtor.id ? updatedDebtor : p));
-
-  if (creditorId) {
-    updatedPlayers = updatedPlayers.map((p) =>
-      p.id === creditorId ? { ...p, balance: p.balance + amount } : p
-    );
-  }
-
-  const liquidationSummary =
-    liquidationEvents.slice(0, 3).join(', ') +
-    (liquidationEvents.length > 3 ? ` và ${liquidationEvents.length - 3} tài sản khác` : '');
-  const notice = `⚠️ ${debtor.name} thiếu tiền mặt, đã tự động phát mãi [${liquidationSummary}] để thanh toán ${amount}G ${reason}.`;
-
+  // Case 3: Debtor CAN raise enough cash. Enter BANKRUPTCY phase for player to choose
+  // Player can now mortgage properties or sell houses to raise funds manually
   return {
-    state: refreshAllNetWorth({
+    state: {
       ...state,
-      players: updatedPlayers,
-      mortgagedProperties: newMortgages,
-      events: [createEvent(notice, 'warning', debtor.id), ...state.events],
-    }),
+      turnPhase: 'BANKRUPTCY',
+      bankruptcyInfo: {
+        debtorId: debtor.id,
+        creditorId,
+        amount,
+        reason,
+      },
+      events: [
+        createEvent(
+          `⚠️ ${debtor.name} không đủ tiền! Cần ${amount} Galleons nhưng chỉ có ${debtor.balance}G. Hãy thế chấp tài sản hoặc bán nhà để trả nợ!`,
+          'warning',
+          debtor.id
+        ),
+        ...state.events,
+      ],
+    },
     isBankrupt: false,
   };
 }
@@ -356,8 +285,39 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     winner = activePlayers[0] || null;
     turnPhase = 'GAME_OVER';
   } else if (debtor.id === state.players[state.currentPlayerIndex]?.id) {
-    // Debtor was active player, set turnPhase to END_TURN so the game can proceed to next player
-    turnPhase = 'END_TURN';
+    // Debtor was current player - need to advance to next non-bankrupt player immediately
+    // We can't just set turnPhase to END_TURN because the bankrupt player might still be "current"
+    // We need to advance the turn immediately
+    const currentIdx = state.currentPlayerIndex;
+    let nextIdx = (currentIdx + 1) % state.players.length;
+    while (nextIdx !== currentIdx && updatedPlayers[nextIdx].isBankrupt) {
+      nextIdx = (nextIdx + 1) % state.players.length;
+    }
+    // If we found a non-bankrupt player, advance to them
+    if (nextIdx !== currentIdx || !updatedPlayers[nextIdx].isBankrupt) {
+      return refreshAllNetWorth({
+        ...state,
+        players: updatedPlayers,
+        propertyOwnership: newPropertyOwnership,
+        mortgagedProperties: newMortgages,
+        winner,
+        currentPlayerIndex: nextIdx,
+        turnPhase: 'ROLL',
+        dice: null,
+        consecutiveDoubles: 0,
+        auction: null,
+        activeCard: null,
+        takeoverCandidate: null,
+        upgradeCandidate: null,
+        lastRentPayment: null,
+        turnSecondsRemaining: state.maxTurnSeconds || 60,
+        events: [
+          createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN và rời khỏi cuộc chơi!`, 'error', debtor.id),
+          createEvent(`➡️ Lượt tự động chuyển cho ${updatedPlayers[nextIdx]?.name || 'người chơi tiếp theo'}`, 'info', updatedPlayers[nextIdx]?.id),
+          ...state.events,
+        ],
+      });
+    }
   }
 
   return refreshAllNetWorth({

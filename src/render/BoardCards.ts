@@ -89,15 +89,42 @@ function createCardCanvasTexture(
   canvas.height = canvasH;
   const ctx = canvas.getContext('2d')!;
 
+  // NEW: Ownership-based coloring system
+  // If owned, use owner's house color. If unowned, use neutral gray.
   const style = tile.colorGroup ? COLOR_GROUP_STYLES[tile.colorGroup] : null;
-  const headerColor = style?.bg || '#1e293b';
-  const districtName = style?.name || (tile.type === 'GO' ? 'KHỞI HÀNH' : tile.type === 'JAIL' ? 'NGỤC AZKABAN' : 'PHÁP THUẬT');
 
-  // 1. Dark Midnight Slate / Royal Parchment Background (no pure black void)
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvasH);
-  bgGrad.addColorStop(0, '#0f172a');
-  bgGrad.addColorStop(0.5, '#0a0f1d');
-  bgGrad.addColorStop(1, '#060912');
+  // Use owner's house color if owned, otherwise neutral gray
+  let headerColor = '#475569'; // Neutral gray for unowned
+  let districtName = 'NGÂN HÀNG'; // Bank owned
+  let useOwnerTheme = false;
+
+  if (owner) {
+    // Use owner's house color as the main theme
+    headerColor = owner.color;
+    districtName = owner.name.toUpperCase();
+    useOwnerTheme = true;
+  } else if (style) {
+    headerColor = style.bg;
+    districtName = style.name;
+  } else {
+    districtName = tile.type === 'GO' ? 'KHỞI HÀNH' : tile.type === 'JAIL' ? 'NGỤC AZKABAN' : 'PHÁP THUẬT';
+  }
+
+  // 1. Background based on ownership
+  let bgGrad;
+  if (useOwnerTheme && owner) {
+    // Owned: Dark version of owner's color as background
+    bgGrad = ctx.createLinearGradient(0, 0, 0, canvasH);
+    bgGrad.addColorStop(0, owner.color + '33'); // 20% opacity
+    bgGrad.addColorStop(0.5, owner.color + '22'); // 13% opacity
+    bgGrad.addColorStop(1, owner.color + '11'); // 7% opacity
+  } else {
+    // Unowned: Neutral slate background
+    bgGrad = ctx.createLinearGradient(0, 0, 0, canvasH);
+    bgGrad.addColorStop(0, '#1e293b');
+    bgGrad.addColorStop(0.5, '#1a2436');
+    bgGrad.addColorStop(1, '#0f172a');
+  }
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, canvasW, canvasH);
 
@@ -115,7 +142,7 @@ function createCardCanvasTexture(
     // -------------------------------------------------------------------
     // VERTICAL CARD (South & North tracks) - 570 x 1024
     // -------------------------------------------------------------------
-    // A. Header Bar
+    // A. Header Bar with ownership color
     const headerH = 145;
     ctx.fillStyle = headerColor;
     ctx.fillRect(m + 4, m + 4, canvasW - (m + 4) * 2, headerH);
@@ -127,13 +154,13 @@ function createCardCanvasTexture(
     ctx.lineTo(canvasW - (m + 4), m + 4 + headerH);
     ctx.stroke();
 
-    // District Category
-    ctx.fillStyle = '#f8fafc';
+    // Owner/Category Label
+    ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 22px "Cinzel", "Times New Roman", serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 6;
-    ctx.fillText(districtName.toUpperCase(), canvasW / 2, m + 42);
+    ctx.fillText(useOwnerTheme ? 'SỞ HỮU BỞI' : districtName.toUpperCase(), canvasW / 2, m + 42);
 
     // Location Title
     ctx.fillStyle = '#ffffff';
@@ -192,26 +219,21 @@ function createCardCanvasTexture(
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 28px "Cinzel", "Times New Roman", serif';
+      // Simplified: Show owner name
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px "Cinzel", "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 6;
+      ctx.fillText(owner.name.toUpperCase(), canvasW / 2, plaqueY + plaqueH / 2 + 10);
+    } else {
+      const plaqueY = canvasH - m - 45;
+      ctx.fillStyle = '#64748b'; // Neutral gray for unowned
+      ctx.font = 'bold 34px "Cinzel", "Times New Roman", serif';
       ctx.textAlign = 'center';
       ctx.shadowColor = '#000000';
       ctx.shadowBlur = 8;
-      ctx.fillText(`👑 ${owner.name.toUpperCase()}`, canvasW / 2, plaqueY + 34);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px "Cinzel", "Times New Roman", serif';
-      ctx.shadowBlur = 4;
-      const rentAmount = tile.baseRent || (tile.rentTiers ? tile.rentTiers[0] : 0);
-      ctx.fillText(`${owner.house.toUpperCase()} • THUẾ: ${rentAmount}G`, canvasW / 2, plaqueY + 66);
-    } else {
-      const plaqueY = canvasH - m - 45;
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 34px "Cinzel", "Times New Roman", serif';
-      ctx.textAlign = 'center';
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
-      ctx.fillText(tile.price ? `${tile.price} GALLEONS` : 'HOGWARTS REALM', canvasW / 2, plaqueY);
+      ctx.fillText(tile.price ? `${tile.price} GALLEONS` : 'HOGWARTS', canvasW / 2, plaqueY);
     }
 
   } else if (!isCorner) {
@@ -244,7 +266,7 @@ function createCardCanvasTexture(
     const textStartX = picX + picW + 24;
     const textW = canvasW - textStartX - m - 8;
 
-    // District Color Pill
+    // District Color Pill / Owner Badge
     ctx.fillStyle = headerColor;
     ctx.beginPath();
     ctx.roundRect(textStartX, m + 28, textW, 60, 8);
@@ -258,7 +280,11 @@ function createCardCanvasTexture(
     ctx.textAlign = 'center';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 6;
-    ctx.fillText(districtName.toUpperCase(), textStartX + textW / 2, m + 68);
+    if (useOwnerTheme) {
+      ctx.fillText('SỞ HỮU BỞI', textStartX + textW / 2, m + 68);
+    } else {
+      ctx.fillText(districtName.toUpperCase(), textStartX + textW / 2, m + 68);
+    }
 
     // Location Title
     ctx.fillStyle = '#ffd700';
@@ -281,50 +307,36 @@ function createCardCanvasTexture(
     ctx.shadowBlur = 0;
     ctx.fillText('ĐỊA DANH PHÙ THỦY CHÍNH THỐNG', textStartX + textW / 2, m + 305);
 
-    // Bottom Plaque: Owner House Banner or Gold Price Plaque
+    // Bottom Plaque: Owner Banner or Price Plaque
     if (owner) {
-      const plaqueH = 82;
+      const plaqueH = 72;
       const plaqueY = canvasH - m - plaqueH - 12;
-      const plaqueGrad = ctx.createLinearGradient(textStartX, plaqueY, textStartX + textW, plaqueY + plaqueH);
-      plaqueGrad.addColorStop(0, owner.color);
-      plaqueGrad.addColorStop(0.5, '#0b1120');
-      plaqueGrad.addColorStop(1, owner.color);
-      ctx.fillStyle = plaqueGrad;
+      // Solid owner color background
+      ctx.fillStyle = owner.color;
       ctx.beginPath();
       ctx.roundRect(textStartX, plaqueY, textW, plaqueH, 10);
       ctx.fill();
 
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 30px "Cinzel", "Times New Roman", serif';
+      // Owner name centered
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 32px "Cinzel", "Times New Roman", serif';
       ctx.textAlign = 'center';
       ctx.shadowColor = '#000000';
-      ctx.shadowBlur = 8;
-      ctx.fillText(`👑 ${owner.name.toUpperCase()}`, textStartX + textW / 2, plaqueY + 35);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 22px "Cinzel", "Times New Roman", serif';
-      ctx.shadowBlur = 4;
-      const rentAmount = tile.baseRent || (tile.rentTiers ? tile.rentTiers[0] : 0);
-      ctx.fillText(`${owner.house.toUpperCase()} • THUẾ: ${rentAmount} GALLEONS`, textStartX + textW / 2, plaqueY + 68);
+      ctx.shadowBlur = 6;
+      ctx.fillText(owner.name.toUpperCase(), textStartX + textW / 2, plaqueY + plaqueH / 2 + 10);
     } else {
       const plaqueY = canvasH - m - 60;
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+      ctx.fillStyle = '#475569'; // Neutral gray
       ctx.beginPath();
       ctx.roundRect(textStartX, plaqueY - 50, textW, 70, 8);
       ctx.fill();
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 2;
-      ctx.stroke();
 
-      ctx.fillStyle = '#ffd700';
+      ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 40px "Cinzel", "Times New Roman", serif';
-      ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
-      ctx.fillText(tile.price ? `${tile.price} GALLEONS` : 'HOGWARTS REALM', textStartX + textW / 2, plaqueY);
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 8;
+      ctx.fillText(tile.price ? `${tile.price} GALLEONS` : 'HOGWARTS', textStartX + textW / 2, plaqueY);
     }
 
   } else {

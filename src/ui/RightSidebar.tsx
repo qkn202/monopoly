@@ -604,6 +604,65 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         )}
 
+        {/* ============================================
+            BANKRUPTCY PHASE: Player must mortgage/sell to pay debt
+            ============================================ */}
+        {gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo && (
+          <div className="end-turn-action-box">
+            <div className="landed-receipt-card tax-paid magical-receipt">
+              <div className="receipt-corner tl" />
+              <div className="receipt-corner tr" />
+              <div className="receipt-corner bl" />
+              <div className="receipt-corner br" />
+              <div className="receipt-header">
+                <span className="receipt-badge-rent">⚠️ CẢNH BÁO PHÁ SẢN ⚠️</span>
+              </div>
+              <div className="receipt-status-msg" style={{ color: '#f87171', textAlign: 'center' }}>
+                Bạn cần thanh toán <strong>{gameState.bankruptcyInfo.amount} Galleons</strong><br/>
+                cho {gameState.bankruptcyInfo.reason}<br/>
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  (Số dư hiện tại: {currentPlayer?.balance}G)
+                </span>
+              </div>
+            </div>
+
+            <div className="bankruptcy-actions-info" style={{ margin: '12px 0', textAlign: 'center' }}>
+              <div style={{ color: '#fbbf24', marginBottom: '8px' }}>
+                💡 Hãy thế chấp tài sản hoặc bán nhà để trả nợ!
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                • Click vào tài sản trên bàn cờ để thế chấp<br/>
+                • Sử dụng nút bên dưới để bán nhà
+              </div>
+            </div>
+
+            {currentPlayer && currentPlayer.balance >= (gameState.bankruptcyInfo?.amount || 0) && (
+              <button
+                className="btn-primary-roll"
+                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', marginTop: '8px' }}
+                onClick={() => {
+                  // Pay the debt and exit bankruptcy phase
+                  const amount = gameState.bankruptcyInfo!.amount;
+                  const creditorId = gameState.bankruptcyInfo!.creditorId;
+                  const updatedBalance = currentPlayer.balance - amount;
+                  // This will be handled by the reducer checking if balance is sufficient
+                  dispatch({ type: 'END_TURN' });
+                }}
+              >
+                ✅ TRẢ NỢ VÀ TIẾP TỤC ({currentPlayer.balance}G → {Math.max(0, currentPlayer.balance - (gameState.bankruptcyInfo?.amount || 0))}G)
+              </button>
+            )}
+
+            <button
+              className="btn-pass-auction"
+              style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', marginTop: '8px' }}
+              onClick={() => dispatch({ type: 'DECLARE_BANKRUPTCY' })}
+            >
+              💥 TUYÊN BỐ PHÁ SẢN
+            </button>
+          </div>
+        )}
+
         {/* Quick Rule Footnote & Shortcut hints */}
         <div className="rules-tax-footnote">
           <span>⚡ <strong>Phím tắt:</strong> [Space] Gieo/Xong • [B] Mua • [P] Đấu giá • [T] Siêu Tốc 2x</span>

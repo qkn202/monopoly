@@ -447,6 +447,311 @@
   }
 }
 
+/* ============================================
+   NEW: HUD Position & Turn Info
+   ============================================ */
+.position-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 35;
+  pointer-events: none;
+}
+
+.hud-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(8, 10, 20, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(255, 215, 0, 0.35);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.1);
+  min-width: 180px;
+}
+
+.hud-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  font-family: 'Cinzel', serif;
+}
+
+.hud-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+  font-family: 'Cinzel', serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-value .house-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.hud-tile-name {
+  font-size: 0.82rem;
+  color: #38bdf8;
+  font-weight: 600;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hud-tile-name .tile-icon {
+  font-size: 1rem;
+}
+
+.hud-turn-counter {
+  font-size: 0.75rem;
+  color: #fbbf24;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ============================================
+   NEW: Camera Mode Indicator (Enhanced)
+   ============================================ */
+.camera-mode-indicator {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.camera-mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.5px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(100, 100, 100, 0.4);
+  color: #6b7280;
+  transition: all 0.3s ease;
+  opacity: 0.5;
+}
+
+.camera-mode-badge.active {
+  opacity: 1;
+  border-color: #ffd700;
+  color: #ffd700;
+  background: rgba(30, 25, 10, 0.9);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: cameraPulse 2s ease-in-out infinite;
+}
+
+@keyframes cameraPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.5); }
+}
+
+.camera-mode-badge .mode-icon {
+  font-size: 0.95rem;
+}
+
+/* ============================================
+   NEW: Mini-Map
+   ============================================ */
+.board-minimap {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, rgba(10, 15, 30, 0.9) 0%, rgba(5, 8, 18, 0.95) 100%);
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  border-radius: 50%;
+  z-index: 35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(0, 242, 254, 0.05);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minimap-svg {
+  width: 90%;
+  height: 90%;
+}
+
+.minimap-track {
+  fill: none;
+  stroke: rgba(255, 215, 0, 0.2);
+  stroke-width: 8;
+}
+
+.minimap-corner {
+  fill: rgba(255, 215, 0, 0.15);
+}
+
+.minimap-tick {
+  fill: rgba(255, 255, 255, 0.3);
+}
+
+.minimap-player-marker {
+  filter: drop-shadow(0 0 4px currentColor);
+  transition: all 0.3s ease;
+}
+
+.minimap-player-marker.current {
+  filter: drop-shadow(0 0 8px currentColor);
+  animation: minimapPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes minimapPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+.minimap-center-logo {
+  fill: rgba(255, 215, 0, 0.3);
+}
+
+/* ============================================
+   NEW: Corner Card Clear Labels
+   ============================================ */
+.corner-card-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid;
+  border-radius: 10px;
+  z-index: 25;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.corner-card-label .corner-icon {
+  font-size: 1.8rem;
+}
+
+.corner-card-label .corner-text {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: 'Cinzel', serif;
+}
+
+.corner-card-label.go-corner {
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.corner-card-label.go-corner .corner-text {
+  color: #ffd700;
+}
+
+.corner-card-label.jail-corner {
+  border-color: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.corner-card-label.jail-corner .corner-text {
+  color: #ef4444;
+}
+
+.corner-card-label.parking-corner {
+  border-color: #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.corner-card-label.parking-corner .corner-text {
+  color: #38bdf8;
+}
+
+.corner-card-label.goto-corner {
+  border-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+.corner-card-label.goto-corner .corner-text {
+  color: #a855f7;
+}
+
+/* ============================================
+   NEW: Current Player Token Highlight
+   ============================================ */
+.token-highlight-ring {
+  position: absolute;
+  border: 3px solid;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 20;
+  animation: tokenGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes tokenGlow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+/* ============================================
+   NEW: Board Position Numbers
+   ============================================ */
+.board-position-numbers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.position-number {
+  position: absolute;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: rgba(255, 215, 0, 0.4);
+  font-family: 'Cinzel', serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  transform: translate(-50%, -50%);
+}
+
+.position-number.active {
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
 @media (max-width: 900px), (orientation: portrait) {
   .three-controls-bar {
     top: max(52px, calc(env(safe-area-inset-top) + 48px));
@@ -511,5 +816,54 @@
     max-width: 92vw;
     white-space: normal;
     text-align: center;
+  }
+
+  /* Mobile HUD adjustments */
+  .position-hud {
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    left: 8px;
+    transform: none;
+  }
+
+  .hud-card {
+    min-width: 140px;
+    padding: 8px 12px;
+  }
+
+  .hud-value {
+    font-size: 0.85rem;
+  }
+
+  .hud-label {
+    font-size: 0.6rem;
+  }
+
+  .board-minimap {
+    width: 70px;
+    height: 70px;
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: 8px;
+  }
+
+  .camera-mode-indicator {
+    bottom: 36px;
+    transform: translateX(-50%) scale(0.85);
+  }
+
+  .camera-mode-badge {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+  }
+
+  .corner-card-label {
+    padding: 4px 6px;
+  }
+
+  .corner-card-label .corner-icon {
+    font-size: 1.2rem;
+  }
+
+  .corner-card-label .corner-text {
+    font-size: 0.5rem;
   }
 }
