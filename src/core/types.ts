@@ -249,11 +249,12 @@ export interface GameState {
   turnSecondsRemaining: number; // 60s per turn limit
   maxTurnSeconds: number; // Default 60s
   turboMode?: boolean; // Fast mode (2x speed, fast bot AI, quick animations)
-  rentMultiplier: number; // Global rent & tax multiplier (default 1, e.g. 2x)
-  nextEscalationRound: number; // Target round number for next random escalation (e.g. 4-7)
+  rentMultiplier: number; // Global rent & tax multiplier (default 1, e.g. 2x, 3x, 4x, 5x)
+  nextEscalationRound: number; // Target round number for next random escalation
   bankruptcyInfo?: BankruptcyInfo | null; // Info when player is in BANKRUPTCY phase
   bankruptcyDraft?: BankruptcyDraft | null; // Active drafting session for bankrupt player assets
-  maxRentMultiplier: number; // Cap (default 2)
+  maxRentMultiplier: number; // Cap (now 5)
+  lastEscalationMinute?: number; // Minute milestone when last escalation triggered (15, 20, 25...)
   activeEscalationEvent?: EscalationEvent | null;
   takeoverCandidate?: TakeoverCandidate | null;
   upgradeCandidate?: UpgradeCandidate | null;
@@ -266,6 +267,7 @@ export interface GameState {
 export interface EscalationEvent {
   multiplier: number;
   round: number;
+  minute?: number;
   timestamp: number;
   message: string;
 }

@@ -51,11 +51,11 @@ export const DarkCurseModal: React.FC<DarkCurseModalProps> = ({ event, onDismiss
           </div>
 
           <div className="curse-parchment-tag">
-            <span>Bộ Pháp thuật · vòng {event.round}</span>
+            <span>Bộ Pháp thuật · {event.minute ? `Phút thứ ${event.minute}` : `Vòng ${event.round}`}</span>
           </div>
 
-          <h2 className="curse-decree-title">Lời nguyền Hắc ám</h2>
-          <div className="curse-decree-subtitle">Voldemort và Tử thần Thực tử trỗi dậy</div>
+          <h2 className="curse-decree-title">Lời nguyền Biến động Thuế</h2>
+          <div className="curse-decree-subtitle">Thế lực Hắc ám trỗi dậy · Thuế & Tiền thuê biến động</div>
 
           {/* Runic Divider */}
           <div className="curse-runic-divider">

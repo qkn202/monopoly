@@ -59,8 +59,9 @@ export function createInitialState(
     maxTurnSeconds: 60,
     turboMode: false,
     rentMultiplier: 1,
-    nextEscalationRound: Math.floor(Math.random() * 4) + 4,
-    maxRentMultiplier: 2,
+    nextEscalationRound: 999,
+    maxRentMultiplier: 5,
+    lastEscalationMinute: 0,
     activeEscalationEvent: null,
     takeoverCandidate: null,
     upgradeCandidate: null,
@@ -111,12 +112,52 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
+      // Check dynamic tax & rent escalation:
+      // Starting from minute 15, every 5 minutes (minute 15, 20, 25...), random multiplier between x2 and x5 until end of game
+      const duration = state.timer.durationSeconds || 1800;
+      const elapsedSeconds = duration - nextRemaining;
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+      let rentMultiplier = state.rentMultiplier || 1;
+      let activeEscalationEvent = state.activeEscalationEvent || null;
+      let lastEscalationMinute = state.lastEscalationMinute ?? 0;
+      let events = state.events;
+
+      if (elapsedMinutes >= 15 && elapsedMinutes % 5 === 0 && lastEscalationMinute !== elapsedMinutes) {
+        lastEscalationMinute = elapsedMinutes;
+        const possibleMultipliers = [2, 3, 4, 5];
+        const candidates = possibleMultipliers.filter((m) => m !== rentMultiplier);
+        rentMultiplier = candidates.length > 0
+          ? candidates[Math.floor(Math.random() * candidates.length)]
+          : possibleMultipliers[Math.floor(Math.random() * possibleMultipliers.length)];
+
+        const escalationMsg = `⚡ Lời nguyền Biến động (Phút thứ ${elapsedMinutes}): Toàn bộ thuế và tiền thuê đổi thành x${rentMultiplier}!`;
+        activeEscalationEvent = {
+          multiplier: rentMultiplier,
+          round: state.turnNumber,
+          minute: elapsedMinutes,
+          timestamp: Date.now(),
+          message: escalationMsg,
+        };
+        events = limitEvents([
+          createEvent(escalationMsg, 'error'),
+          ...state.events,
+        ]);
+      }
+
+      const nextBaseState: GameState = {
+        ...state,
+        timer: { ...state.timer, remainingSeconds: nextRemaining },
+        rentMultiplier,
+        maxRentMultiplier: 5,
+        lastEscalationMinute,
+        activeEscalationEvent,
+        events,
+      };
+
       // When in AUCTION, auction has its own countdown - only tick global timer
       if (state.turnPhase === 'AUCTION') {
-        return {
-          ...state,
-          timer: { ...state.timer, remainingSeconds: nextRemaining },
-        };
+        return nextBaseState;
       }
 
       // When in Bankruptcy Draft, draft has its own 15s turn countdown per pick
@@ -128,17 +169,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
           const bestPropId = getBestDraftProperty(draft.availablePropertyIds);
           return selectDraftProperty(
-            {
-              ...state,
-              timer: { ...state.timer, remainingSeconds: nextRemaining },
-            },
+            nextBaseState,
             currentDrafterId,
             bestPropId
           );
         }
         return {
-          ...state,
-          timer: { ...state.timer, remainingSeconds: nextRemaining },
+          ...nextBaseState,
           bankruptcyDraft: {
             ...draft,
             timerSeconds: nextDraftSec,
@@ -150,14 +187,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (nextTurnSec <= 0) {
         // Auto-handle turn timeout! Only reset turn timer, keep global timer intact
         return handleTurnTimeout({
-          ...state,
+          ...nextBaseState,
           turnSecondsRemaining: state.maxTurnSeconds || 60,
         });
       }
 
       return {
-        ...state,
-        timer: { ...state.timer, remainingSeconds: nextRemaining },
+        ...nextBaseState,
         turnSecondsRemaining: nextTurnSec,
       };
     }
@@ -1498,29 +1534,11 @@ function advanceTurn(state: GameState): GameState {
 
   const nextTurnNumber = nextIndex === 0 ? finalizedState.turnNumber + 1 : finalizedState.turnNumber;
 
-  let rentMultiplier = finalizedState.rentMultiplier || 1;
-  const maxRentMultiplier = finalizedState.maxRentMultiplier || 2;
-  let nextEscalationRound = finalizedState.nextEscalationRound || (Math.floor(Math.random() * 4) + 4);
-  let activeEscalationEvent = finalizedState.activeEscalationEvent || null;
-  let newEvents = finalizedState.events;
-
-  // When crossing into a new round, check if randomized escalation milestone is met
-  if (nextIndex === 0 && nextTurnNumber > finalizedState.turnNumber) {
-    if (nextTurnNumber >= nextEscalationRound && rentMultiplier < maxRentMultiplier) {
-      rentMultiplier = Math.min(maxRentMultiplier, rentMultiplier * 2);
-      const escalationMsg = `☠️ Lời nguyền Hắc ám, vòng ${nextTurnNumber}: tiền thuê và thuế nhân ${rentMultiplier}.`;
-      activeEscalationEvent = {
-        multiplier: rentMultiplier,
-        round: nextTurnNumber,
-        timestamp: Date.now(),
-        message: escalationMsg,
-      };
-      newEvents = [
-        createEvent(escalationMsg, 'error'),
-        ...finalizedState.events,
-      ];
-    }
-  }
+  const rentMultiplier = finalizedState.rentMultiplier || 1;
+  const maxRentMultiplier = finalizedState.maxRentMultiplier || 5;
+  const lastEscalationMinute = finalizedState.lastEscalationMinute ?? 0;
+  const activeEscalationEvent = finalizedState.activeEscalationEvent || null;
+  const newEvents = finalizedState.events;
 
   return refreshAllNetWorth({
     ...finalizedState,
@@ -1536,8 +1554,8 @@ function advanceTurn(state: GameState): GameState {
     lastRentPayment: null,
     turnSecondsRemaining: finalizedState.maxTurnSeconds || 60,
     rentMultiplier,
-    nextEscalationRound,
     maxRentMultiplier,
+    lastEscalationMinute,
     activeEscalationEvent,
     events: newEvents,
   });

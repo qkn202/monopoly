@@ -91,9 +91,9 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
   - Khi một người chơi phá sản với chủ nợ là Ngân hàng, toàn bộ bất động sản được chia đều cho các phù thủy còn lại.
   - Người chơi có tổng tài sản (Net Worth) **thấp nhất được ưu tiên chọn đất trước** (Poorest-first snake draft).
   - Những mảnh đất lẻ không thể chia đều sẽ được thanh lý thành tiền mặt theo giá niêm yết và chia đều 100% cho mọi người còn sống sót.
-- ☠️ **Bão Lời Nguyền Hắc Ám (Dark Curse Escalation):**
-  - Cứ sau mỗi chu kỳ vòng đấu nhất định, thế lực Hắc Ám trỗi dậy.
-  - **Toàn bộ tiền thuê đất và thuế trên bàn cờ lập tức nhân đôi (x2, x4)** kèm giao diện sấm chớp và âm thanh rùng rợn!
+- ☠️ **Biến Động Thuế Hắc Ám (Dark Curse Dynamic Escalation):**
+  - Bắt đầu từ **phút thứ 15** của ván đấu, cứ sau **mỗi 5 phút** (phút 15, 20, 25...), thế lực Hắc Ám trỗi dậy khiến mức thuế và tiền thuê trên bàn cờ **ngẫu nhiên thay đổi từ x2 đến x5** cho đến hết ván đấu!
+  - Đi kèm giao diện chiếu chỉ ma thuật và hiệu ứng âm thanh sấm chớp rùng rợn.
 - ⚡ **Thâu Tóm Cưỡng Chế (Hostile Takeover):**
   - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất + nhà**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ công trình trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
 - 🔨 **Đấu Giá Công Khai (Public Auction):**

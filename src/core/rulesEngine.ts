@@ -210,9 +210,19 @@ export function calculateNetWorth(player: Player, state: GameState): number {
 
 export function determineLeaderboard(state: GameState): Player[] {
   return [...state.players].sort((a, b) => {
+    // Bankrupt players always at bottom
     if (a.isBankrupt && !b.isBankrupt) return 1;
     if (!a.isBankrupt && b.isBankrupt) return -1;
-    return b.netWorth - a.netWorth;
+    // Both bankrupt - same rank
+    if (a.isBankrupt && b.isBankrupt) return 0;
+    // Sort by net worth (descending)
+    if (b.netWorth !== a.netWorth) return b.netWorth - a.netWorth;
+    // Tie-breaker: more cash = higher rank
+    if (b.balance !== a.balance) return b.balance - a.balance;
+    // Tie-breaker: more properties = higher rank
+    if (b.properties.length !== a.properties.length) return b.properties.length - a.properties.length;
+    // Final tie-breaker: alphabetical by name (deterministic, not by index)
+    return a.name.localeCompare(b.name);
   });
 }
 

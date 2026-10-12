@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:hpvn": "tsx scripts/test-hpvn-core.ts && tsx scripts/test_audit_fixes.ts && tsx scripts/test_upgrade_and_build.ts && tsx scripts/test_personal_event_logs.ts && tsx scripts/test_bankruptcy_distribution.ts && tsx scripts/test_finances_cashflow.ts"
+    "test:hpvn": "tsx scripts/test-hpvn-core.ts && tsx scripts/test_audit_fixes.ts && tsx scripts/test_upgrade_and_build.ts && tsx scripts/test_personal_event_logs.ts && tsx scripts/test_bankruptcy_distribution.ts && tsx scripts/test_finances_cashflow.ts && tsx scripts/test_dynamic_tax_escalation.ts"
   },
   "dependencies": {
     "@types/three": "^0.186.0",
