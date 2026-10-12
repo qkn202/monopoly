@@ -447,83 +447,6 @@
   }
 }
 
-/* ============================================
-   NEW: HUD Position & Turn Info
-   ============================================ */
-.position-hud {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 35;
-  pointer-events: none;
-}
-
-.hud-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(8, 10, 20, 0.95) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 2px solid rgba(255, 215, 0, 0.35);
-  border-radius: 12px;
-  padding: 10px 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.1);
-  min-width: 180px;
-}
-
-.hud-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-  font-family: 'Cinzel', serif;
-}
-
-.hud-value {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #f8fafc;
-  font-family: 'Cinzel', serif;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hud-value .house-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.hud-tile-name {
-  font-size: 0.82rem;
-  color: #38bdf8;
-  font-weight: 600;
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.hud-tile-name .tile-icon {
-  font-size: 1rem;
-}
-
-.hud-turn-counter {
-  font-size: 0.75rem;
-  color: #fbbf24;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
 /* ============================================
    NEW: Camera Mode Indicator (Enhanced)
@@ -750,7 +673,6 @@
 }
 
 @media (max-width: 640px), (orientation: portrait) {
-  .position-hud,
   .camera-mode-indicator { display: none; }
 }
 
@@ -820,25 +742,6 @@
     text-align: center;
   }
 
-  /* Mobile HUD adjustments */
-  .position-hud {
-    top: max(52px, calc(env(safe-area-inset-top) + 44px));
-    left: 8px;
-    transform: none;
-  }
-
-  .hud-card {
-    min-width: 140px;
-    padding: 8px 12px;
-  }
-
-  .hud-value {
-    font-size: 0.85rem;
-  }
-
-  .hud-label {
-    font-size: 0.6rem;
-  }
 
   .board-minimap {
     width: 70px;

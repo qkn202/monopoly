@@ -657,76 +657,10 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     setCurrentView(view);
   };
 
-  // Get current player info for HUD
-  const curPlayer = gameState.players[gameState.currentPlayerIndex];
-  const currentTile = curPlayer ? HOGWARTS_TILES[curPlayer.position] : null;
-  const isMyTurn = !myPlayerId || curPlayer?.id === myPlayerId;
-
   return (
     <div className="three-board-wrapper">
       {/* 3D Canvas Mount Point */}
       <div ref={mountRef} className="three-canvas-container" />
-
-      {/* ============================================
-          NEW: HUD Position & Turn Info
-          ============================================ */}
-      <div className="position-hud">
-        {/* Turn Info */}
-        <div className="hud-card">
-          <div className="hud-label">Lượt Đi</div>
-          <div className="hud-value">
-            {curPlayer?.tokenIcon} {curPlayer?.name}
-            {isMyTurn && <span style={{ fontSize: '0.65rem', color: '#4ade80' }}>(BẠN)</span>}
-          </div>
-          <div
-            className="hud-turn-counter"
-            style={{ color: curPlayer?.color || '#fbbf24' }}
-          >
-            ⚔️ Vòng {gameState.turnNumber} • {gameState.players.length} Người Chơi
-          </div>
-        </div>
-
-        {/* Position Info */}
-        {curPlayer && currentTile && (
-          <div className="hud-card">
-            <div className="hud-label">Vị Trí Hiện Tại</div>
-            <div className="hud-value">
-              <span style={{
-                background: 'rgba(255,215,0,0.2)',
-                padding: '2px 8px',
-                borderRadius: '8px',
-                fontSize: '0.85rem'
-              }}>
-                #{curPlayer.position}
-              </span>
-            </div>
-            <div className="hud-tile-name">
-              <span className="tile-icon">{currentTile.icon}</span>
-              <span style={{ color: '#f8fafc', fontWeight: 600 }}>{currentTile.name}</span>
-            </div>
-            {currentTile.price && (
-              <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginTop: '2px' }}>
-                💰 {currentTile.price} Galleons
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Timer */}
-        <div className="hud-card" style={{ padding: '8px 14px' }}>
-          <div className="hud-label">Thời Gian</div>
-          <div
-            className="hud-value"
-            style={{
-              fontSize: '1.1rem',
-              color: gameState.turnSecondsRemaining <= 10 ? '#ef4444' : '#fbbf24'
-            }}
-          >
-            ⏱️ {Math.floor(gameState.turnSecondsRemaining / 60)}:
-            {String(gameState.turnSecondsRemaining % 60).padStart(2, '0')}
-          </div>
-        </div>
-      </div>
 
       {/* ============================================
           NEW: Camera Mode Indicator
