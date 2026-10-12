@@ -3,13 +3,25 @@ import { GameState, GameAction } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES } from '../core/boardData';
 import { determineLeaderboard, canBuildHouse, canBuildHotel } from '../core/rulesEngine';
 import { soundManager } from '../audio/soundManager';
+import { openFloo, usePhoneFloo } from '../hpvn/usePhoneFloo';
+import { Icon } from '../hpvn/Icon';
+import { useHudInsets } from '../hpvn/useHudInsets';
 import './RightSidebar.css';
+import { g, galleons } from '../hpvn/money';
+
+// The log reads as plain sentences; the colored left rule already carries the event type.
+const LEADING_EMOJI = /^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u;
 
 interface RightSidebarProps {
   gameState: GameState;
   dispatch: (action: GameAction) => void;
   roomCode?: string;
   myPlayerId?: string;
+  isHost?: boolean;
+  /** Leave the table: a local game is parked for 30 minutes, an online seat leaves the room. */
+  onExit?: () => void | Promise<void>;
+  /** Galleons this seat loses by leaving a running staked match (0 = nothing at stake). */
+  stakeAtRisk?: number;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
@@ -17,7 +29,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   dispatch,
   roomCode,
   myPlayerId,
+  isHost = true,
+  onExit,
+  stakeAtRisk = 0,
 }) => {
+  const [confirmExit, setConfirmExit] = useState(false);
+  const phoneFloo = usePhoneFloo(true);
+  useHudInsets();
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'properties' | 'events'>('leaderboard');
   const [copied, setCopied] = useState(false);
   const [selectedPropertyPlayerId, setSelectedPropertyPlayerId] = useState<string | null>(null);
@@ -37,7 +55,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const currentBidder = currentBidderId
     ? gameState.players.find((p) => p.id === currentBidderId)
     : null;
-  const isMyBidTurn = myPlayerId ? currentBidderId === myPlayerId : isMyTurn;
+  // Solo/hotseat: only a human seat bids from these buttons; bots bid through botAI.
+  const isMyBidTurn = myPlayerId ? currentBidderId === myPlayerId : !!currentBidder && !currentBidder.isAI;
   const baseUrl = import.meta.env.BASE_URL || '/';
 
   // Format 30m countdown timer
@@ -81,14 +100,35 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     setMuted(isNowMuted);
   };
 
-  const cycleCameraPreset = () => {
-    const current = (window as any).__cameraPreset || 'overview';
-    const next = current === 'overview' ? 'follow' : current === 'follow' ? 'topdown' : 'overview';
-    (window as any).__cameraPreset = next;
-    if (typeof (window as any).__setCameraPreset === 'function') {
-      (window as any).__setCameraPreset(next);
-    }
+  // "You" is the seat this screen controls; in solo that is the one human seat.
+  const me = myPlayer || gameState.players.find((p) => !p.isAI) || currentPlayer;
+  const myBuildings = me
+    ? Object.values(me.houses).reduce((a, b) => a + b, 0) + Object.values(me.hotels).reduce((a, b) => a + b, 0)
+    : 0;
+  const colorSets = Object.keys(COLOR_GROUP_STYLES)
+    .filter((g) => g !== 'STATION' && g !== 'UTILITY')
+    .map((g) => {
+      const tiles = HOGWARTS_TILES.filter((t) => t.colorGroup === g);
+      const owned = tiles.filter((t) => me && gameState.propertyOwnership[t.id] === me.id).length;
+      return { g, color: COLOR_GROUP_STYLES[g].bg, name: COLOR_GROUP_STYLES[g].name, frac: tiles.length ? owned / tiles.length : 0, owned, total: tiles.length };
+    });
+
+  const timerRing = (size = 36) => {
+    const r = size / 2 - 3;
+    const c = 2 * Math.PI * r;
+    return (
+      <div className={`hpvn-ring ${turnSec <= 10 ? 'is-low' : ''}`} style={{ width: size, height: size }} title="Thời gian lượt này">
+        <svg width={size} height={size} aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={r} className="hpvn-ring-track" />
+          <circle cx={size / 2} cy={size / 2} r={r} className="hpvn-ring-fill" strokeDasharray={c}
+            strokeDashoffset={c * (1 - Math.max(0, Math.min(60, turnSec)) / 60)} />
+        </svg>
+        <b>{turnSec}</b>
+      </div>
+    );
   };
+
+  const recentEvents = gameState.events.slice(0, 2);
 
   const openDrawerWithTab = (tab: 'leaderboard' | 'properties' | 'events') => {
     setActiveTab(tab);
@@ -123,8 +163,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </div>
             )}
             {currentPlayer.inJail && !isMyTurn && (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                ⏳ Đang chờ {currentPlayer.name} trả tiền bảo lãnh...
+              <div style={{ textAlign: 'center', color: '#bb9c7c', fontSize: '0.85rem', marginBottom: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                Đang chờ {currentPlayer.name} trả tiền bảo lãnh…
               </div>
             )}
             <button
@@ -132,7 +172,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               disabled={!isMyTurn}
               onClick={() => dispatch({ type: 'ROLL_DICE' })}
             >
-              <span>🎲</span> {isMyTurn ? 'GIEO XÚC XẮC [Space]' : `ĐANG CHỜ ${currentPlayer.name.toUpperCase()}...`}
+              {isMyTurn ? <>Gieo xúc xắc <kbd className="hpvn-key">Space</kbd></> : `Đang chờ ${currentPlayer.name}…`}
             </button>
           </div>
         )}
@@ -147,7 +187,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -159,17 +199,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               <div className="decision-card-text">
                 <div className="decision-tag takeover-tag">
-                  <span className="tag-runes">⚡ ✦</span> THÂU TÓM CƯỠNG CHẾ <span className="tag-runes">✦ ⚡</span>
+                  Thâu tóm đất
                 </div>
                 <div className="landed-tile-title">
                   {landedTile.name}
                 </div>
                 <div className="landed-tile-price">
-                  Chủ hiện tại: <strong style={{ color: '#38bdf8' }}>{gameState.takeoverCandidate.ownerName}</strong>
+                  Chủ hiện tại: <strong style={{ color: '#f3d189' }}>{gameState.takeoverCandidate.ownerName}</strong>
                   <br />
-                  Giá mua đứt (x2): <strong style={{ color: '#ffd700' }}>{gameState.takeoverCandidate.cost} Galleons</strong>
+                  Giá mua đứt (x2): <strong style={{ color: '#f3d189' }}>{galleons(gameState.takeoverCandidate.cost)}</strong>
                   <br />
-                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#bb9c7c', fontStyle: 'italic' }}>
                     *Chủ đất bắt buộc nhượng lại và nhận toàn bộ số tiền này.
                   </span>
                 </div>
@@ -182,7 +222,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 disabled={!isMyTurn || currentPlayer.balance < gameState.takeoverCandidate.cost}
                 onClick={() => dispatch({ type: 'TAKEOVER_PROPERTY', propertyId: landedTile.id })}
               >
-                ⚡ Mua Đứt ({gameState.takeoverCandidate.cost}G) [B]
+                Mua đứt · {g(gameState.takeoverCandidate.cost)} <kbd className="hpvn-key">B</kbd>
               </button>
               <button
                 className="btn-pass-auction"
@@ -205,7 +245,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -217,7 +257,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               <div className="decision-card-text">
                 <div className="decision-tag upgrade-tag">
-                  <span className="tag-runes">ᛟ ✦</span> NÂNG CẤP BẤT ĐỘNG SẢN <span className="tag-runes">✦ ᛟ</span>
+                  Nâng cấp đất
                 </div>
                 <div className="landed-tile-title">
                   {landedTile.name}
@@ -225,24 +265,24 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <div className="landed-tile-price">
                   {gameState.upgradeCandidate.isHotelUpgrade ? (
                     <>
-                      Đang có: <strong style={{ color: '#38bdf8' }}>4 Túp Lều</strong>
+                      Đang có: <strong style={{ color: '#f3d189' }}>4 túp lều</strong>
                       <br />
-                      Lên cấp: <strong style={{ color: '#ffd700' }}>🏰 Lâu Đài Hogwarts (Tối Đa)</strong>
+                      Lên cấp: <strong style={{ color: '#f3d189' }}>Lâu đài (tối đa)</strong>
                     </>
                   ) : (
                     <>
                       Đang có:{' '}
-                      <strong style={{ color: '#38bdf8' }}>
+                      <strong style={{ color: '#f3d189' }}>
                         {gameState.upgradeCandidate.currentHouses > 0
-                          ? `${gameState.upgradeCandidate.currentHouses} Túp Lều`
+                          ? `${gameState.upgradeCandidate.currentHouses} túp lều`
                           : 'Chưa có nhà'}
                       </strong>
                       <br />
-                      Xây thêm: <strong style={{ color: '#ffd700' }}>🛖 Túp Lều thứ {gameState.upgradeCandidate.currentHouses + 1} / 4</strong>
+                      Xây thêm: <strong style={{ color: '#f3d189' }}>túp lều thứ {gameState.upgradeCandidate.currentHouses + 1} / 4</strong>
                     </>
                   )}
                   <br />
-                  Chi phí: <strong style={{ color: '#ffd700' }}>{gameState.upgradeCandidate.cost} Galleons</strong>
+                  Chi phí: <strong style={{ color: '#f3d189' }}>{galleons(gameState.upgradeCandidate.cost)}</strong>
                 </div>
               </div>
             </div>
@@ -260,7 +300,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     })
                   }
                 >
-                  🏰 Lên Lâu Đài ({gameState.upgradeCandidate.cost}G) [B]
+                  Lên lâu đài · {g(gameState.upgradeCandidate.cost)} <kbd className="hpvn-key">B</kbd>
                 </button>
               ) : (
                 <button
@@ -274,7 +314,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     })
                   }
                 >
-                  🛖 Xây Lều ({gameState.upgradeCandidate.cost}G) [B]
+                  Xây lều · {g(gameState.upgradeCandidate.cost)} <kbd className="hpvn-key">B</kbd>
                 </button>
               )}
               <button
@@ -298,7 +338,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -310,21 +350,21 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               <div className="decision-card-text">
                 <div className="decision-tag">
-                  <span className="tag-runes">ᛟ ✦</span> CƠ HỘI MUA ĐẤT <span className="tag-runes">✦ ᛟ</span>
+                  Mua đất
                 </div>
                 <div className="landed-tile-title">
                   {landedTile.name}
                 </div>
                 <div className="landed-tile-price">
-                  Giá mua: <strong style={{ color: '#ffd700' }}>{landedTile.price} Galleons</strong>
+                  Giá mua: <strong style={{ color: '#f3d189' }}>{galleons(landedTile.price)}</strong>
                   <br />
                   Tiền thuê:{' '}
-                  <strong style={{ color: gameState.rentMultiplier > 1 ? '#f87171' : '#cbd5e1' }}>
-                    {(landedTile.baseRent || 0) * (gameState.rentMultiplier || 1)}G
+                  <strong style={{ color: gameState.rentMultiplier > 1 ? '#f87171' : '#e0cfab' }}>
+                    {g((landedTile.baseRent || 0) * (gameState.rentMultiplier || 1))}
                   </strong>
                   {gameState.rentMultiplier > 1 && (
                     <span className="curse-badge-small">
-                      (x{gameState.rentMultiplier} ☠️)
+                      (x{gameState.rentMultiplier})
                     </span>
                   )}
                 </div>
@@ -337,14 +377,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 disabled={!isMyTurn || currentPlayer.balance < (landedTile.price || 0)}
                 onClick={() => dispatch({ type: 'BUY_PROPERTY', propertyId: landedTile.id })}
               >
-                📜 Mua ({landedTile.price}G) [B]
+                Mua · {g(landedTile.price)} <kbd className="hpvn-key">B</kbd>
               </button>
               <button
                 className="btn-pass-auction"
                 disabled={!isMyTurn}
                 onClick={() => dispatch({ type: 'PASS_PROPERTY' })}
               >
-                🔨 Đấu Giá [P]
+                Đấu giá <kbd className="hpvn-key">P</kbd>
               </button>
             </div>
           </div>
@@ -353,15 +393,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         {gameState.turnPhase === 'AUCTION' && gameState.auction && (
           <div className="auction-box">
             <div className="auction-title-row">
-              <div className="auction-title">🔨 ĐẤU GIÁ CÔNG KHAI</div>
+              <div className="auction-title">Đấu giá</div>
               <div className="auction-countdown">{gameState.auction.timerSeconds}s</div>
             </div>
             <div className="auction-bid-row">
               <div>
                 Giá cao nhất:{' '}
-                <strong style={{ color: '#ffd700' }}>{gameState.auction.currentBid} Galleons</strong>
+                <strong style={{ color: '#f3d189' }}>{galleons(gameState.auction.currentBid)}</strong>
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.78rem', color: '#bb9c7c' }}>
                 {gameState.auction.highBidderId
                   ? `Dẫn đầu: ${gameState.players.find((p) => p.id === gameState.auction?.highBidderId)?.name}`
                   : 'Chưa ai ra giá'}
@@ -370,10 +410,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
             <div style={{ margin: '6px 0', fontSize: '0.8rem', textAlign: 'center' }}>
               {isMyBidTurn ? (
-                <strong style={{ color: '#38bdf8' }}>👉 ĐẾN LƯỢT BẠN RA GIÁ!</strong>
+                <strong style={{ color: '#f3d189' }}>Đến lượt bạn ra giá</strong>
               ) : (
-                <span style={{ color: '#94a3b8' }}>
-                  ⏳ Đang chờ <strong>{currentBidder?.name || 'người chơi'}</strong> ra giá...
+                <span style={{ color: '#bb9c7c' }}>
+                  Đang chờ <strong>{currentBidder?.name || 'người chơi'}</strong> ra giá…
                 </span>
               )}
             </div>
@@ -381,7 +421,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="bid-controls-grid">
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 25}
+                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 25}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',
@@ -390,11 +430,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   })
                 }
               >
-                +25 G
+                +{g(25)}
               </button>
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 50}
+                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 50}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',
@@ -403,11 +443,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   })
                 }
               >
-                +50 G
+                +{g(50)}
               </button>
               <button
                 className="btn-bid"
-                disabled={!isMyBidTurn || !currentBidderId || (myPlayer?.balance || 0) < gameState.auction.currentBid + 100}
+                disabled={!isMyBidTurn || !currentBidderId || (currentBidder?.balance || 0) < gameState.auction.currentBid + 100}
                 onClick={() =>
                   dispatch({
                     type: 'PLACE_BID',
@@ -416,7 +456,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   })
                 }
               >
-                +100 G
+                +{g(100)}
               </button>
               <button
                 className="btn-fold"
@@ -442,7 +482,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   {landedTile && (
                     <div className="receipt-card-thumb-wrap">
                       <img
-                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                         alt={landedTile.name}
                         className="receipt-card-thumb-img"
                         onError={(e) => {
@@ -454,8 +494,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   )}
                   <div className="receipt-info-area">
                     <div className="receipt-header">
-                      <span className="receipt-badge-rent">✦ BIÊN LAI TIỀN THUÊ GRINGOTTS ✦</span>
-                      <span className="receipt-amount-neg">-{gameState.lastRentPayment.amount} G</span>
+                      <span className="receipt-badge-rent">Trả tiền thuê</span>
+                      <span className="receipt-amount-neg">−{g(gameState.lastRentPayment.amount)}</span>
                     </div>
                     <div className="receipt-tile-name">
                       {landedTile?.icon} {landedTile?.name}
@@ -467,14 +507,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       </div>
                       <div className="receipt-line">
                         <span>Chủ sở hữu:</span>
-                        <strong style={{ color: gameState.players.find((p) => p.id === gameState.lastRentPayment?.creditorId)?.color || '#ffd700' }}>
+                        <strong style={{ color: gameState.players.find((p) => p.id === gameState.lastRentPayment?.creditorId)?.color || '#f3d189' }}>
                           {gameState.players.find((p) => p.id === gameState.lastRentPayment?.creditorId)?.name}
                         </strong>
                       </div>
                       {gameState.rentMultiplier > 1 && (
                         <div className="receipt-line" style={{ color: '#f87171' }}>
                           <span>Hiệu ứng:</span>
-                          <strong>Đã x{gameState.rentMultiplier} do Lời Nguyền Hắc Ám ☠️</strong>
+                          <strong>Đã x{gameState.rentMultiplier} do Lời nguyền Hắc ám</strong>
                         </div>
                       )}
                     </div>
@@ -497,7 +537,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   {landedTile && (
                     <div className="receipt-card-thumb-wrap">
                       <img
-                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                         alt={landedTile.name}
                         className="receipt-card-thumb-img"
                         onError={(e) => {
@@ -509,8 +549,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   )}
                   <div className="receipt-info-area">
                     <div className="receipt-header">
-                      <span className="receipt-badge-tax">✦ TRÁT THU THUẾ BỘ PHÁP THUẬT ✦</span>
-                      <span className="receipt-amount-neg">-{gameState.lastRentPayment.amount} G</span>
+                      <span className="receipt-badge-tax">Nộp thuế</span>
+                      <span className="receipt-amount-neg">−{g(gameState.lastRentPayment.amount)}</span>
                     </div>
                     <div className="receipt-tile-name">
                       {landedTile?.icon} {landedTile?.name}
@@ -522,12 +562,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       </div>
                       <div className="receipt-line">
                         <span>Quỹ Cứu Tế:</span>
-                        <strong style={{ color: '#ffd700' }}>{gameState.freeParkingPot} Galleons</strong>
+                        <strong style={{ color: '#f3d189' }}>{galleons(gameState.freeParkingPot)}</strong>
                       </div>
                       {gameState.rentMultiplier > 1 && (
                         <div className="receipt-line" style={{ color: '#c084fc' }}>
                           <span>Hiệu ứng:</span>
-                          <strong>Đã x{gameState.rentMultiplier} do Lời Nguyền Hắc Ám ☠️</strong>
+                          <strong>Đã x{gameState.rentMultiplier} do Lời nguyền Hắc ám</strong>
                         </div>
                       )}
                     </div>
@@ -549,7 +589,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <div className="receipt-split-body">
                   <div className="receipt-card-thumb-wrap">
                     <img
-                      src={`${baseUrl}assets/cards/tile_${landedTile.index}.jpg`}
+                      src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
                       alt={landedTile.name}
                       className="receipt-card-thumb-img"
                       onError={(e) => {
@@ -560,7 +600,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   </div>
                   <div className="receipt-info-area">
                     <div className="receipt-header">
-                      <span className="receipt-badge-own">✦ BẤT ĐỘNG SẢN CỦA BẠN ✦</span>
+                      <span className="receipt-badge-own">Đất của bạn</span>
                       <span className="receipt-amount-safe">AN TOÀN</span>
                     </div>
                     <div className="receipt-tile-name">
@@ -582,7 +622,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <div className="receipt-corner bl" />
                 <div className="receipt-corner br" />
                 <div className="receipt-header">
-                  <span className="receipt-badge-pot">🎉 PHÒNG YÊU CẦU • SAFE HAVEN</span>
+                  <span className="receipt-badge-pot">Phòng Yêu Cầu</span>
                 </div>
                 <div className="receipt-status-msg">
                   Nơi trú ẩn an toàn. Nhặt toàn bộ tiền tích lũy từ các loại thuế!
@@ -596,10 +636,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               disabled={!isMyTurn}
               onClick={() => dispatch({ type: 'END_TURN' })}
             >
-              <span>{gameState.consecutiveDoubles > 0 ? '🎲' : '➡️'}</span>{' '}
-              {gameState.consecutiveDoubles > 0
-                ? `GIEO TIẾP [Space] (ĐƯỢC ĐÔI #${gameState.consecutiveDoubles})`
-                : 'KẾT THÚC LƯỢT [Space]'}
+                            {gameState.consecutiveDoubles > 0
+                ? <>Gieo tiếp (đôi #{gameState.consecutiveDoubles}) <kbd className="hpvn-key">Space</kbd></>
+                : <>Kết thúc lượt <kbd className="hpvn-key">Space</kbd></>}
             </button>
           </div>
         )}
@@ -755,7 +794,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
         {/* Quick Rule Footnote & Shortcut hints */}
         <div className="rules-tax-footnote">
-          <span>⚡ <strong>Phím tắt:</strong> [Space] Gieo/Xong • [B] Mua • [P] Đấu giá • [T] Siêu Tốc 2x</span>
+          <span><kbd>Space</kbd> gieo · <kbd>B</kbd> mua · <kbd>P</kbd> đấu giá · <kbd>T</kbd> tốc 2x</span>
         </div>
       </div>
     );
@@ -772,7 +811,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               player.isBankrupt ? 'bankrupt' : ''
             }`}
           >
-            <div className={`leaderboard-rank ${idx === 0 ? 'top' : ''}`}>#{idx + 1}</div>
+            <div className={`leaderboard-rank ${idx === 0 ? 'top' : ''}`}>{idx + 1}</div>
             <div
               className="player-avatar-circle"
               style={{
@@ -794,18 +833,16 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {player.name} {player.isAI ? '🤖' : ''}
+                {player.name}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                {player.properties.length} ô đất {player.inJail ? '• ⛓️ Azkaban' : ''}
+              <div style={{ fontSize: '0.72rem', color: '#bb9c7c' }}>
+                {player.properties.length} ô đất {player.inJail ? '· Azkaban' : ''}
+                {player.isAI && <span className="hpvn-bot">bot</span>}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontWeight: 800, color: '#ffd700', fontSize: '0.85rem' }}>
-                {player.netWorth.toLocaleString()} G
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                Tiền mặt: {player.balance.toLocaleString()}
+              <div style={{ fontWeight: 800, color: '#f3d189', fontSize: '0.85rem' }}>
+                {g(player.netWorth)}
               </div>
             </div>
           </div>
@@ -829,9 +866,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   key={p.id}
                   onClick={() => setSelectedPropertyPlayerId(p.id)}
                   style={{
-                    background: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    background: isSelected ? 'rgba(243, 209, 137, 0.25)' : 'rgba(255, 255, 255, 0.05)',
                     border: isSelected ? `1px solid ${p.color}` : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: isSelected ? '#ffd700' : '#94a3b8',
+                    color: isSelected ? '#f3d189' : '#bb9c7c',
                     borderRadius: '6px',
                     padding: '4px 10px',
                     fontSize: '0.75rem',
@@ -839,7 +876,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {p.tokenIcon} {p.name.split(' ')[0]} ({p.properties.length})
+                  {p.tokenIcon} {p.name.split(' ')[0]} · {p.properties.length}
                 </button>
               );
             })}
@@ -847,7 +884,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         )}
 
         {viewingPlayer.properties.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#64748b', padding: '30px 10px', fontSize: '0.85rem' }}>
+          <div style={{ textAlign: 'center', color: '#8a7356', padding: '30px 10px', fontSize: '0.85rem' }}>
             {viewingPlayer.name} chưa sở hữu bất động sản nào.
           </div>
         ) : (
@@ -866,7 +903,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <div
                   key={tile.id}
                   style={{
-                    background: 'rgba(15, 23, 42, 0.7)',
+                    background: 'rgba(28, 18, 10, 0.7)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '8px',
                     padding: '8px 10px',
@@ -876,7 +913,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: style?.bg || '#ffd700' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: style?.bg || '#f3d189' }}>
                       {tile.icon} {tile.name}
                     </span>
                     {isMortgaged ? (
@@ -884,15 +921,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                         ĐANG THẾ CHẤP
                       </span>
                     ) : hasHotel ? (
-                      <span style={{ fontSize: '0.75rem', color: '#ffd700', fontWeight: 700 }}>
-                        🏰 1 Lâu Đài
+                      <span style={{ fontSize: '0.75rem', color: '#f3d189', fontWeight: 700 }}>
+                        1 lâu đài
                       </span>
                     ) : houseCount > 0 ? (
-                      <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
-                        🛖 {houseCount} Túp lều
+                      <span style={{ fontSize: '0.75rem', color: '#f3d189', fontWeight: 600 }}>
+                        {houseCount} túp lều
                       </span>
                     ) : (
-                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#bb9c7c' }}>
                         Chưa xây nhà
                       </span>
                     )}
@@ -925,9 +962,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                         className="btn-bid"
                         style={{ flex: 1 }}
                         disabled={!isMyTurn || !isControllingViewingPlayer || viewingPlayer.balance < Math.floor((tile.mortgageValue || 50) * 1.1)}
-                        onClick={() => dispatch({ type: 'UNMORTGAGE_PROPERTY', propertyId: tile.id })}
+                        onClick={() => dispatch({ type: 'UNMORTGAGE_PROPERTY', propertyId: tile.id, playerId: viewingPlayer.id })}
                       >
-                        Chuộc lại ({Math.floor((tile.mortgageValue || 50) * 1.1)}G)
+                        Chuộc lại · {g(Math.floor((tile.mortgageValue || 50) * 1.1))}
                       </button>
                     ) : (
                       <>
@@ -937,9 +974,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             style={{ flex: 1 }}
                             disabled={!isMyTurn || !isControllingViewingPlayer}
                             onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
-                            title="Hạ cấp Lâu Đài về 4 Túp lều"
+                            title="Hạ cấp lâu đài về 4 túp lều"
                           >
-                            Hạ cấp Lâu Đài (+{Math.floor((tile.houseCost || 100) / 2)}G)
+                            Hạ cấp lâu đài · +{g(Math.floor((tile.houseCost || 100) / 2))}
                           </button>
                         ) : houseCount >= 4 ? (
                           <>
@@ -948,18 +985,18 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)' }}
                               disabled={!isMyTurn || !isControllingViewingPlayer || !hotelCheck.allowed}
                               onClick={() => dispatch({ type: 'BUILD_HOTEL', propertyId: tile.id, playerId: viewingPlayer.id })}
-                              title={hotelCheck.reason || 'Nâng cấp lên Lâu Đài Hogwarts'}
+                              title={hotelCheck.reason || 'Nâng cấp lên lâu đài Hogwarts'}
                             >
-                              🏰 Lâu Đài ({tile.houseCost}G)
+                              Lâu đài · {g(tile.houseCost)}
                             </button>
                             <button
                               className="btn-fold"
                               style={{ flex: 1 }}
                               disabled={!isMyTurn || !isControllingViewingPlayer}
                               onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
-                              title="Dỡ 1 Túp lều"
+                              title="Dỡ 1 túp lều"
                             >
-                              Dỡ lều (+{Math.floor((tile.houseCost || 50) / 2)}G)
+                              Dỡ lều · +{g(Math.floor((tile.houseCost || 50) / 2))}
                             </button>
                           </>
                         ) : (
@@ -969,9 +1006,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               style={{ flex: 1 }}
                               disabled={!isMyTurn || !isControllingViewingPlayer || !houseCheck.allowed}
                               onClick={() => dispatch({ type: 'BUILD_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
-                              title={houseCheck.reason || 'Xây 1 Túp lều'}
+                              title={houseCheck.reason || 'Xây 1 túp lều'}
                             >
-                              Xây lều ({tile.houseCost}G)
+                              Xây lều · {g(tile.houseCost)}
                             </button>
                             {houseCount > 0 && (
                               <button
@@ -979,9 +1016,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                 style={{ flex: 1 }}
                                 disabled={!isMyTurn || !isControllingViewingPlayer}
                                 onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
-                                title="Dỡ 1 Túp lều"
+                                title="Dỡ 1 túp lều"
                               >
-                                Dỡ lều (+{Math.floor((tile.houseCost || 50) / 2)}G)
+                                Dỡ lều · +{g(Math.floor((tile.houseCost || 50) / 2))}
                               </button>
                             )}
                           </>
@@ -990,10 +1027,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                           className="btn-fold"
                           style={{ flex: 1 }}
                           disabled={!isMyTurn || !isControllingViewingPlayer || houseCount > 0 || hasHotel}
-                          onClick={() => dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: tile.id })}
+                          onClick={() => dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: tile.id, playerId: viewingPlayer.id })}
                           title={houseCount > 0 || hasHotel ? 'Cần bán hết nhà trước khi thế chấp' : ''}
                         >
-                          Thế chấp (+{tile.mortgageValue}G)
+                          Thế chấp · +{g(tile.mortgageValue)}
                         </button>
                       </>
                     )}
@@ -1011,7 +1048,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     <div className="event-feed">
       {gameState.events.slice(0, 40).map((evt) => (
         <div key={evt.id} className={`event-log-item ${evt.type}`}>
-          {evt.message}
+          {evt.message.replace(LEADING_EMOJI, '')}
         </div>
       ))}
     </div>
@@ -1022,137 +1059,122 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       {/* ========================================================
           1. DESKTOP SIDEBAR VIEW (Active on min-width: 901px)
           ======================================================== */}
-      <aside className="right-sidebar right-sidebar-desktop">
-        {/* Header with Game Title, Room Code, and Timer */}
-        <div className="sidebar-header">
-          <div className="header-top-row">
-            <div className="game-logo-title">
-              <span>⚡</span> HOGWARTS 3D
-            </div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                className="sound-toggle-btn"
-                onClick={toggleSound}
-                title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: muted ? '#94a3b8' : '#38bdf8',
-                  borderRadius: '6px',
-                  padding: '4px 8px',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {muted ? '🔇 Tắt' : '🔊 Bật'}
-              </button>
-              {roomCode && (
-                <button className="room-badge" onClick={copyRoomCode} title="Nhấn để copy mã phòng (Máy chủ Supabase Realtime)">
-                  <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', marginRight: '4px', boxShadow: '0 0 6px #10b981' }} />
-                  {copied ? 'ĐÃ COPY MÃ!' : `PHÒNG: ${roomCode}`}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="header-status-bar">
-            <div className={`timer-pill ${timerClass}`} title="Thời gian toàn trận (tối đa 30 phút)">
-              <span>⏳</span>
-              <span>{timeFormatted}</span>
-            </div>
-            <div className={`turn-timer-pill ${turnTimerClass}`} title="Thời gian suy nghĩ lượt này (tối đa 1 phút)">
-              <span>⏱️</span>
-              <span className="turn-timer-num">{turnSec}s</span>
-            </div>
-            <div className="round-pill">VÒNG {gameState.turnNumber}</div>
-            {gameState.rentMultiplier > 1 && (
-              <div
-                className="curse-multiplier-pill pulse-fast"
-                title="Bão Lời Nguyền Hắc Ám: Toàn bộ tiền thuê đất & thuế đã bị nhân đôi!"
-              >
-                <span>☠️</span>
-                <span>THUẾ &amp; THUÊ X{gameState.rentMultiplier}</span>
-              </div>
-            )}
-            <button
-              className={`turbo-toggle-btn ${gameState.turboMode ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'TOGGLE_TURBO' })}
-              title="Bật/Tắt chế độ Siêu Tốc 2x (Phím T) — Bot đi nhanh, quân cờ lướt nhanh, đấu giá 4s"
-            >
-              <span>⚡</span>
-              <span>{gameState.turboMode ? '2X' : '1X'}</span>
+      <aside className="right-sidebar right-sidebar-desktop hpvn-cmd">
+        {/* Top bar: name, clock, round, then icon controls */}
+        <header className="hpvn-cmd-top">
+          <span className="game-logo-title">Cờ Tỷ Phú</span>
+          <span className={`hpvn-pill timer-pill ${timerClass}`} title={`Vòng ${gameState.turnNumber} · thời gian còn lại của ván (30 phút)`}>
+            <Icon name="clock" size={14} />{timeFormatted}<span className="hpvn-pill-sub">V{gameState.turnNumber}</span>
+          </span>
+          {gameState.rentMultiplier > 1 && (
+            <span className="hpvn-pill is-curse" title="Lời nguyền Hắc ám: tiền thuê và thuế tăng">x{gameState.rentMultiplier}</span>
+          )}
+          <button className={`hpvn-pill hpvn-iconbtn ${gameState.turboMode ? 'is-on' : ''}`} disabled={!isHost}
+            onClick={() => dispatch({ type: 'TOGGLE_TURBO' })} aria-pressed={gameState.turboMode}
+            title={gameState.turboMode ? 'Siêu tốc đang bật (phím T)' : 'Bật siêu tốc 2x (phím T)'} aria-label="Siêu tốc">
+            <Icon name="bolt" size={16} />
+          </button>
+          <button className="hpvn-pill hpvn-iconbtn" onClick={toggleSound} title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+            aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}>
+            <Icon name={muted ? 'soundOff' : 'soundOn'} size={16} />
+          </button>
+          {onExit && (
+            <button className="hpvn-pill hpvn-iconbtn hpvn-exit" onClick={() => setConfirmExit(true)} title="Thoát ván" aria-label="Thoát ván">
+              <Icon name="exit" size={16} />
             </button>
-          </div>
-        </div>
-
-        {/* Turn Action Card (Current Player Controls) */}
-        {currentPlayer && (
-          <div className="turn-action-card">
-            <div className="player-turn-header">
-              <div
-                className="player-avatar-circle"
-                style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}
-              >
-                {currentPlayer.tokenIcon}
-              </div>
-              <div className="player-turn-meta">
-                <div className="player-turn-name">{currentPlayer.name}</div>
-                <div className="player-turn-house">
-                  {currentPlayer.house} {currentPlayer.isAI ? '🤖' : ''}
-                </div>
-              </div>
-              <div className="player-turn-balance">{currentPlayer.balance.toLocaleString()} G</div>
-            </div>
-
-            {/* 1-Minute Turn Countdown Progress Bar */}
-            <div className="turn-timer-track" title={`Thời gian lượt đi còn lại: ${turnSec}s`}>
-              <div
-                className={`turn-timer-fill ${turnTimerClass}`}
-                style={{ width: `${Math.max(0, Math.min(100, (turnSec / 60) * 100))}%` }}
-              />
-            </div>
-
-            {/* Dice Results Display */}
-            {gameState.dice && (
-              <div className="dice-result-box">
-                <div className="dice-die-face">{gameState.dice.die1}</div>
-                <div className="dice-die-face">{gameState.dice.die2}</div>
-              </div>
+          )}
+        </header>
+        {(roomCode || phoneFloo) && (
+          <div className="hpvn-cmd-room">
+            {roomCode && (
+              <button className="room-badge" onClick={copyRoomCode} title="Chép mã phòng">
+                {copied ? 'Đã chép mã' : `Phòng ${roomCode}`}
+              </button>
             )}
-
-            {renderTurnActions(false)}
+            {phoneFloo && <button className="hpvn-floo-btn" onClick={openFloo}>Floo</button>}
           </div>
         )}
 
-        {/* Navigation Tabs */}
-        <div className="sidebar-tabs">
-          <button
-            className={`tab-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('leaderboard')}
-          >
-            🏆 XẾP HẠNG ({gameState.players.filter((p) => !p.isBankrupt).length})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'properties' ? 'active' : ''}`}
-            onClick={() => setActiveTab('properties')}
-          >
-            🏰 ĐẤT ĐAI ({viewingPlayer?.properties.length || 0})
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
-            onClick={() => setActiveTab('events')}
-          >
-            📜 NHẬT KÝ
-          </button>
-        </div>
+        {/* You: always this screen's seat, even while bots play */}
+        {me && (
+          <section className="hpvn-you">
+            <div className="player-avatar-circle" style={{ borderColor: me.color, background: `${me.color}22` }}>{me.tokenIcon}</div>
+            <div className="hpvn-you-name">
+              <strong>{me.name}</strong>
+              <span>{me.house}{me.isBankrupt ? ' · phá sản' : me.inJail ? ' · Azkaban' : ''}</span>
+            </div>
+            <div className="hpvn-you-worth">
+              <strong>{g(me.netWorth)}</strong>
+              <span>tổng tài sản</span>
+            </div>
+            <div className="hpvn-you-stats">
+              <div><b>{g(me.balance)}</b><span>tiền mặt</span></div>
+              <div><b>{me.properties.length} ô</b><span>đất</span></div>
+              <div><b>{myBuildings}</b><span>nhà</span></div>
+            </div>
+            <div className="hpvn-sets">
+              {colorSets.map((cs) => (
+                <i key={cs.g} title={`${cs.name}: ${cs.owned}/${cs.total}`}
+                  style={{ background: `linear-gradient(90deg, ${cs.color} ${cs.frac * 100}%, rgba(255, 255, 255, 0.08) ${cs.frac * 100}%)` }} />
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* Tab Content Panels */}
-        <div className="tab-content-area">
-          {activeTab === 'leaderboard' && renderLeaderboard()}
-          {activeTab === 'properties' && renderProperties()}
-          {activeTab === 'events' && renderEventLogs()}
-        </div>
+        {/* One "what to do now" block */}
+        {currentPlayer && (
+          <section className={`turn-action-card hpvn-act ${isMyTurn ? 'is-mine' : ''}`}>
+            <div className="hpvn-act-head">
+              {!isMyTurn && (
+                <div className="player-avatar-circle mini-avatar" style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}>
+                  {currentPlayer.tokenIcon}
+                </div>
+              )}
+              <div className="hpvn-act-title">
+                <span>
+                  {isMyTurn ? 'Lượt của bạn' : `Lượt của ${currentPlayer.name}`}
+                  {gameState.dice ? ` · gieo ${gameState.dice.die1} + ${gameState.dice.die2}` : ''}
+                </span>
+              </div>
+              {timerRing()}
+            </div>
+            {renderTurnActions(false)}
+            <div className="hpvn-tools">
+              <button className={activeTab === 'properties' ? 'is-active' : ''}
+                onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab(activeTab === 'properties' ? 'leaderboard' : 'properties'); }}>
+                <Icon name="land" size={16} />Đất và nhà · {me?.properties.length || 0}
+              </button>
+              <button className={activeTab === 'events' ? 'is-active' : ''}
+                onClick={() => setActiveTab(activeTab === 'events' ? 'leaderboard' : 'events')}>
+                <Icon name="scroll" size={16} />Nhật ký
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Players (or the land / log panel the tools opened) */}
+        <section className="hpvn-list">
+          <div className="hpvn-list-head">
+            <span>{activeTab === 'leaderboard' ? 'Người chơi' : activeTab === 'properties' ? 'Đất và nhà' : 'Nhật ký'}</span>
+            {activeTab !== 'leaderboard' && (
+              <button onClick={() => setActiveTab('leaderboard')}>Người chơi</button>
+            )}
+          </div>
+          <div className="tab-content-area">
+            {activeTab === 'leaderboard' && renderLeaderboard()}
+            {activeTab === 'properties' && renderProperties()}
+            {activeTab === 'events' && renderEventLogs()}
+          </div>
+        </section>
+
+        {activeTab !== 'events' && recentEvents.length > 0 && (
+          <button className="hpvn-recent" onClick={() => setActiveTab('events')} title="Xem nhật ký">
+            <span className="hpvn-recent-label">Gần đây</span>
+            {recentEvents.map((evt) => (
+              <span key={evt.id} className="hpvn-recent-line">{evt.message.replace(LEADING_EMOJI, '')}</span>
+            ))}
+          </button>
+        )}
       </aside>
 
       {/* ========================================================
@@ -1160,50 +1182,36 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           ======================================================== */}
       <div className="mobile-hud-container">
         {/* Floating Top Status Bar */}
-        <header className="mobile-top-bar">
-          <div className="mobile-top-left">
-            <span className="mobile-logo-bolt">⚡</span>
-            <span className="mobile-logo-text">HOGWARTS 3D</span>
-            <button
-              className="sound-toggle-btn mobile-sound-btn"
-              onClick={toggleSound}
-              title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-            >
-              {muted ? '🔇' : '🔊'}
-            </button>
-          </div>
-
-          <div className="mobile-top-center">
-            <div className={`timer-pill ${timerClass}`}>
-              <span>⏱️</span>
-              <span>{timeFormatted}</span>
-            </div>
-            <div className="round-pill">V{gameState.turnNumber}</div>
+        <header className="mobile-top-bar hpvn-phone-top">
+          <div className="hpvn-phone-row">
+            <span className={`hpvn-pill timer-pill ${timerClass}`} title="Thời gian còn lại của ván">
+              <Icon name="clock" size={14} />{timeFormatted}
+            </span>
             {gameState.rentMultiplier > 1 && (
-              <div className="mobile-curse-pill" title="Tiền thuê & thuế x2">
-                ☠️ x{gameState.rentMultiplier}
-              </div>
+              <span className="hpvn-pill is-curse" title="Lời nguyền Hắc ám: tiền thuê và thuế tăng">x{gameState.rentMultiplier}</span>
             )}
-            <button
-              className={`mobile-turbo-pill ${gameState.turboMode ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'TOGGLE_TURBO' })}
-              title="Chế độ Siêu Tốc 2x (Phím T)"
-            >
-              ⚡ {gameState.turboMode ? '2x' : '1x'}
+            <span className="hpvn-phone-gap" />
+            <button className={`hpvn-pill hpvn-iconbtn ${gameState.turboMode ? 'is-on' : ''}`} disabled={!isHost}
+              onClick={() => dispatch({ type: 'TOGGLE_TURBO' })} aria-pressed={gameState.turboMode} aria-label="Siêu tốc 2x">
+              <Icon name="bolt" size={16} />
             </button>
+            <button className="hpvn-pill hpvn-iconbtn" onClick={toggleSound} aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}>
+              <Icon name={muted ? 'soundOff' : 'soundOn'} size={16} />
+            </button>
+            {onExit && (
+              <button className="hpvn-pill hpvn-iconbtn hpvn-exit" onClick={() => setConfirmExit(true)} aria-label="Thoát ván">
+                <Icon name="exit" size={16} />
+              </button>
+            )}
           </div>
-
-          <div className="mobile-top-right">
-            <button
-              className="mobile-quick-wallet-btn"
-              onClick={() => openDrawerWithTab('properties')}
-              title="Mở Quản lý đất đai & tài sản"
-            >
-              <span className="wallet-gold">
-                🪙 {myPlayer ? `${myPlayer.balance.toLocaleString()}G` : `${currentPlayer?.balance.toLocaleString()}G`}
-              </span>
-              <span className="wallet-arrow">▾</span>
-            </button>
+          <div className="hpvn-strip" role="list" aria-label="Người chơi">
+            {[...leaderboard].sort((a, b) => Number(b.id === me?.id) - Number(a.id === me?.id)).map((p) => (
+              <button key={p.id} role="listitem" onClick={() => openDrawerWithTab('leaderboard')}
+                className={`hpvn-strip-chip ${p.id === currentPlayer?.id ? 'is-turn' : ''} ${p.id === me?.id ? 'is-me' : ''} ${p.isBankrupt ? 'is-out' : ''}`}>
+                <span className="player-avatar-circle mini-avatar" style={{ borderColor: p.color, background: `${p.color}22` }}>{p.tokenIcon}</span>
+                <span>{p.id === me?.id ? <b>Bạn</b> : p.netWorth.toLocaleString('vi-VN')}</span>
+              </button>
+            ))}
           </div>
         </header>
 
@@ -1221,23 +1229,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 </div>
                 <div className="mobile-player-info">
                   <span className="mobile-player-name">{currentPlayer.name}</span>
-                  <span className="mobile-player-house">{currentPlayer.house} {currentPlayer.isAI ? '🤖' : ''}</span>
+                  <span className="mobile-player-house">{currentPlayer.house} {currentPlayer.isAI && <span className="hpvn-bot">bot</span>}</span>
                 </div>
               </div>
 
-              {gameState.dice && (
-                <div className="mobile-dice-mini">
-                  <div className="dice-die-face mini">{gameState.dice.die1}</div>
-                  <div className="dice-die-face mini">{gameState.dice.die2}</div>
-                </div>
-              )}
+              {timerRing(32)}
 
-              <div className={`mobile-turn-countdown ${turnTimerClass}`} title="Thời gian lượt đi (1 phút)">
-                <span>⏱️</span>
-                <span>{turnSec}s</span>
-              </div>
-
-              <div className="mobile-player-cash">{currentPlayer.balance.toLocaleString()} G</div>
+              <div className="mobile-player-cash">{g(currentPlayer.balance)}</div>
             </div>
           )}
 
@@ -1249,37 +1247,27 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           {/* Bottom Quick Tabs & Camera Switcher Bar */}
           <div className="mobile-quick-tabs-bar">
             <button
-              className={`mobile-tab-btn ${activeTab === 'leaderboard' && isMobileDrawerOpen ? 'active' : ''}`}
-              onClick={() => openDrawerWithTab('leaderboard')}
-            >
-              <span className="tab-icon">🏆</span>
-              <span className="tab-label">Xếp Hạng</span>
-            </button>
-
-            <button
               className={`mobile-tab-btn ${activeTab === 'properties' && isMobileDrawerOpen ? 'active' : ''}`}
               onClick={() => openDrawerWithTab('properties')}
             >
-              <span className="tab-icon">🏰</span>
-              <span className="tab-label">Đất Đai ({viewingPlayer?.properties.length || 0})</span>
+              <span className="tab-icon"><Icon name="land" /></span>
+              <span className="tab-label">Đất đai · {viewingPlayer?.properties.length || 0}</span>
             </button>
 
             <button
               className={`mobile-tab-btn ${activeTab === 'events' && isMobileDrawerOpen ? 'active' : ''}`}
               onClick={() => openDrawerWithTab('events')}
             >
-              <span className="tab-icon">📜</span>
-              <span className="tab-label">Nhật Ký</span>
+              <span className="tab-icon"><Icon name="scroll" /></span>
+              <span className="tab-label">Nhật ký</span>
             </button>
 
-            <button
-              className="mobile-tab-btn mobile-camera-btn"
-              onClick={cycleCameraPreset}
-              title="Đổi góc nhìn 3D"
-            >
-              <span className="tab-icon">🎥</span>
-              <span className="tab-label">Góc Nhìn</span>
-            </button>
+            {phoneFloo && (
+              <button className="mobile-tab-btn hpvn-floo-tab" onClick={openFloo} title="Mở Mạng Floo">
+                <span className="tab-icon"><Icon name="flame" /></span>
+                <span className="tab-label">Floo</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1297,9 +1285,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               <div className="mobile-drawer-header">
                 <div className="mobile-drawer-title">
-                  {activeTab === 'leaderboard' && '🏆 BẢNG XẾP HẠNG PHÁP SƯ'}
-                  {activeTab === 'properties' && '🏰 QUẢN LÝ ĐẤT ĐAI & NHÀ'}
-                  {activeTab === 'events' && '📜 NHẬT KÝ VÁN ĐẤU'}
+                  {activeTab === 'leaderboard' && 'Xếp hạng'}
+                  {activeTab === 'properties' && 'Đất đai'}
+                  {activeTab === 'events' && 'Nhật ký ván'}
                 </div>
                 <button
                   className="mobile-drawer-close-btn"
@@ -1315,19 +1303,19 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   className={`tab-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
                   onClick={() => setActiveTab('leaderboard')}
                 >
-                  🏆 XẾP HẠNG ({gameState.players.filter((p) => !p.isBankrupt).length})
+                  Xếp hạng · {gameState.players.filter((p) => !p.isBankrupt).length}
                 </button>
                 <button
                   className={`tab-btn ${activeTab === 'properties' ? 'active' : ''}`}
                   onClick={() => setActiveTab('properties')}
                 >
-                  🏰 ĐẤT ĐAI ({viewingPlayer?.properties.length || 0})
+                  Đất đai · {viewingPlayer?.properties.length || 0}
                 </button>
                 <button
                   className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
                   onClick={() => setActiveTab('events')}
                 >
-                  📜 NHẬT KÝ
+                  Nhật ký
                 </button>
               </div>
 
@@ -1342,13 +1330,34 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   className="btn-mobile-close-drawer"
                   onClick={() => setIsMobileDrawerOpen(false)}
                 >
-                  Trở Về Bàn Cờ 3D
+                  Về bàn cờ
                 </button>
               </div>
             </div>
           </>
         )}
       </div>
+
+      {confirmExit && onExit && (
+        <div className="hpvn-confirm-backdrop" onClick={() => setConfirmExit(false)}>
+          <div className="hpvn-confirm" role="dialog" aria-modal="true" aria-labelledby="hpvn-exit-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="hpvn-exit-title">Thoát ván?</h2>
+            <p>
+              {roomCode && stakeAtRisk > 0
+                ? (isHost
+                  ? `Bạn là chủ phòng: thoát sẽ đóng phòng, ván không có kết quả và mọi người được hoàn ${galleons(stakeAtRisk)}.`
+                  : `Bạn sẽ rời phòng và mất ${galleons(stakeAtRisk)} tiền cược. Ván của những người còn lại vẫn tiếp tục.`)
+                : roomCode
+                ? 'Bạn sẽ rời phòng. Ván của những người còn lại vẫn tiếp tục.'
+                : 'Ván được lưu và đồng hồ ván dừng lại. Quay lại để chơi tiếp; sau 30 phút không thao tác, ván tự đóng.'}
+            </p>
+            <div className="hpvn-confirm-actions">
+              <button className="btn-bid" onClick={() => setConfirmExit(false)} autoFocus>Ở lại</button>
+              <button className="btn-fold" onClick={() => { setConfirmExit(false); void onExit(); }}>Thoát</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,6 +1,7 @@
 import { GameState, Player, CardConfig, GameEvent } from './types';
 import { HOGWARTS_TILES } from './boardData';
 import { calculateNetWorth } from './rulesEngine';
+import { g, galleons } from '../hpvn/money';
 
 export function createEvent(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', playerId?: string): GameEvent {
   return {
@@ -150,8 +151,8 @@ export function resolveDebtOrLiquidate(
 
     const creditor = creditorId ? state.players.find((p) => p.id === creditorId) : null;
     const notice = creditor
-      ? `💸 ${debtor.name} dừng chân tại đất của ${creditor.name} và đã trả ${amount} Galleons ${reason}!`
-      : `⚖️ ${debtor.name} đã nộp ${amount} Galleons ${reason}!`;
+      ? `💸 ${debtor.name} dừng chân tại đất của ${creditor.name} và đã trả ${galleons(amount)} ${reason}!`
+      : `⚖️ ${debtor.name} đã nộp ${galleons(amount)} ${reason}!`;
 
     return {
       state: refreshAllNetWorth({
@@ -328,8 +329,14 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     winner,
     turnPhase,
     events: [
-      createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN và rời khỏi cuộc chơi!`, 'error', debtor.id),
+      createEvent(`💥 ${debtor.name} phá sản và rời ván.`, 'error', debtor.id),
       ...state.events,
     ],
   });
 }
+
+/** A game saved before `visitedProperties` existed (solo save, room snapshot) gets an empty list per player. */
+export const withVisitList = (state: GameState): GameState => ({
+  ...state,
+  players: state.players.map((p) => (Array.isArray(p.visitedProperties) ? p : { ...p, visitedProperties: [] })),
+});

@@ -2,6 +2,12 @@ import { createInitialState, gameReducer } from '../src/core/gameReducer';
 import { canBuildHouse, canBuildHotel } from '../src/core/rulesEngine';
 import { HOGWARTS_TILES } from '../src/core/boardData';
 
+// Upstream 7099e39: a build needs a visit to the tile since the last build (landing, buying).
+const visit = (s: any, playerId: string, tileId: string) => ({
+  ...s,
+  players: s.players.map((p: any) => (p.id === playerId ? { ...p, visitedProperties: [...p.visitedProperties, tileId] } : p)),
+});
+
 function runTests() {
   console.log('--- Testing House and Hotel Upgrades without Monopoly Constraint ---');
 
@@ -14,20 +20,28 @@ function runTests() {
   const tile1 = HOGWARTS_TILES[1]; // First purchasable property
   console.log(`Testing with tile: "${tile1.name}" (ID: ${tile1.id}, houseCost: ${tile1.houseCost})`);
 
-  // 1. Give player 0 ownership of tile 1 only (NOT full set)
+  // 1. Verify canBuildHouse without full color set is rejected
+  const checkNoSet = canBuildHouse(p0, tile1.id, state);
+  console.log('canBuildHouse without color set (should be rejected):', checkNoSet);
+  if (checkNoSet.allowed) {
+    throw new Error('FAIL: canBuildHouse without full color set must be refused');
+  }
+
+  // 2. Give player 0 ownership of full BROWN color set (tile 1 and tile 3)
+  const tile3 = HOGWARTS_TILES[3];
   state = {
     ...state,
-    propertyOwnership: { [tile1.id]: p0.id },
+    propertyOwnership: { [tile1.id]: p0.id, [tile3.id]: p0.id },
     players: state.players.map((p) =>
-      p.id === p0.id ? { ...p, properties: [tile1.id], balance: 5000 } : p
+      p.id === p0.id ? { ...p, properties: [tile1.id, tile3.id], visitedProperties: [tile1.id], balance: 5000 } : p
     ),
   };
 
-  // Test canBuildHouse for 1st house
+  // Test canBuildHouse for 1st house with full color set
   const check1 = canBuildHouse(state.players[0], tile1.id, state);
-  console.log('canBuildHouse (single property owned):', check1);
+  console.log('canBuildHouse (with full color set):', check1);
   if (!check1.allowed) {
-    throw new Error(`FAIL: canBuildHouse should be allowed, got: ${check1.reason}`);
+    throw new Error(`FAIL: canBuildHouse should be allowed with full set, got: ${check1.reason}`);
   }
 
   // Build house 1
@@ -38,10 +52,16 @@ function runTests() {
     throw new Error('FAIL: house 1 count or balance deduction mismatch');
   }
 
-  // Build up to 4 houses
-  for (let i = 2; i <= 4; i++) {
-    state = gameReducer(state, { type: 'BUILD_HOUSE', propertyId: tile1.id, playerId: p0.id });
+  // No second house without a new visit
+  if (canBuildHouse(state.players[0], tile1.id, state).allowed) {
+    throw new Error('FAIL: a second house without visiting the tile again must be refused');
   }
+
+  // Build up to 4 houses, visiting between builds
+  for (let i = 2; i <= 4; i++) {
+    state = gameReducer(visit(state, p0.id, tile1.id), { type: 'BUILD_HOUSE', propertyId: tile1.id, playerId: p0.id });
+  }
+  state = visit(state, p0.id, tile1.id);
   const p0AfterH4 = state.players.find((p) => p.id === p0.id)!;
   console.log(`After 4 houses: houses=${p0AfterH4.houses[tile1.id]}, balance=${p0AfterH4.balance}`);
   if (p0AfterH4.houses[tile1.id] !== 4) {
@@ -71,13 +91,13 @@ function runTests() {
     { name: 'Harry', house: 'Gryffindor', isAI: false },
     { name: 'Draco', house: 'Slytherin', isAI: false },
   ]);
-  const tile3 = HOGWARTS_TILES[3];
+  const landingTile = HOGWARTS_TILES[3];
   landState = {
     ...landState,
-    propertyOwnership: { [tile3.id]: landState.players[0].id },
+    propertyOwnership: { [tile1.id]: landState.players[0].id, [landingTile.id]: landState.players[0].id },
     players: landState.players.map((p, idx) =>
       idx === 0
-        ? { ...p, properties: [tile3.id], balance: 5000, position: 0, houses: { [tile3.id]: 2 } }
+        ? { ...p, properties: [tile1.id, landingTile.id], visitedProperties: [landingTile.id], balance: 5000, position: 0, houses: { [landingTile.id]: 2 } }
         : p
     ),
   };

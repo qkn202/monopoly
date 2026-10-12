@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { LOW_POWER, viewScale } from '../render/quality';
+import { flooCovers } from '../hpvn/bridge';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GameState, TileConfig, Player } from '../core/types';
 import { HOGWARTS_TILES } from '../core/boardData';
@@ -14,6 +16,7 @@ import { CardInspectModal } from './CardInspectModal';
 import { soundManager } from '../audio/soundManager';
 import { calculateTakeoverCost } from '../core/rulesEngine';
 import './BoardThreeJS.css';
+import { g, galleons } from '../hpvn/money';
 
 interface BoardThreeJSProps {
   gameState: GameState;
@@ -44,11 +47,11 @@ export interface RentNotice {
 
 export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const baseUrl = import.meta.env.BASE_URL || '/';
   const [loading, setLoading] = useState(false);
   const [hoveredTileInfo, setHoveredTileInfo] = useState<HoveredTileInfo | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<PurchaseNotice | null>(null);
   const [rentNotice, setRentNotice] = useState<RentNotice | null>(null);
+  const [rollBadge, setRollBadge] = useState<{ id: number; total: number; double: boolean } | null>(null);
   const [inspectedTile, setInspectedTile] = useState<TileConfig | null>(null);
   const [currentView, setCurrentView] = useState<'follow' | 'overview' | 'topdown'>('overview');
   const currentViewRef = useRef<'follow' | 'overview' | 'topdown'>('overview');
@@ -99,7 +102,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
 
     // 2. Camera setup - 2.5D Overview Tilt initial position (with portrait adaptation)
     const aspect = container.clientWidth / container.clientHeight;
-    const portraitScale = aspect < 1 ? Math.min(2.1, 1 / aspect) : 1;
+    const portraitScale = viewScale(aspect);
     const camera = new THREE.PerspectiveCamera(44, aspect, 0.1, 100);
     camera.position.set(0, -10.5 * portraitScale, 13.2 * portraitScale);
     cameraRef.current = camera;
@@ -108,9 +111,9 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     (window as any).__targetLookAt = targetLookAt;
 
     // 3. Renderer setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    const renderer = new THREE.WebGLRenderer({ antialias: !LOW_POWER, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(container.clientWidth, container.clientHeight, false);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, LOW_POWER ? 1.5 : 1.75));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.35;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -122,14 +125,25 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.minDistance = 3;   // Allow zooming in closer
-    controls.maxDistance = 12;  // Max zoom out
+    controls.maxDistance = 46;  // HPVN: the overview sits 24-44 away (viewScale); 12 clamped it and cropped the board
     controls.zoomSpeed = 0.8;
     controls.enableRotate = false; // DISABLE rotation - only zoom allowed
     controls.enablePan = false;  // DISABLE pan - stay focused on board center
-    controls.minPolarAngle = Math.PI / 4;  // Limit tilt angle
-    controls.maxPolarAngle = Math.PI / 2.2; // Prevent looking from too steep angle
+    // HPVN: no minPolarAngle — the overview tilt (~37°) and the top-down view sit below upstream's 45°
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; // HPVN: upstream π/2.2 clamped the overview and cropped the top row
     controls.target.set(0, -0.4, 0);
     controlsRef.current = controls;
+    // A zoom sticks: the camera lerp stops while the user zooms and continues from where they left it
+    const handleControlsStart = () => {
+      isUserInteracting.current = true;
+    };
+    const handleControlsEnd = () => {
+      isUserInteracting.current = false;
+      targetCamPos.current.copy(camera.position);
+      targetLookAt.current.copy(controls.target);
+    };
+    controls.addEventListener('start', handleControlsStart);
+    controls.addEventListener('end', handleControlsEnd);
 
     // 5. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
@@ -143,7 +157,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     rimLight.position.set(-10, 10, 8);
     scene.add(rimLight);
 
-    const centerPoint = new THREE.PointLight(0x00f2fe, 4.2, 12);
+    const centerPoint = new THREE.PointLight(0xe2b866, 4.2, 12);
     centerPoint.position.set(0, 0, 1.8);
     scene.add(centerPoint);
 
@@ -302,7 +316,12 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     buildingManager.syncBuildings(gameState.players, gameState.propertyOwnership);
 
     // 11. 3D Rolling Dice Mesh & Physics
-    const dice3D = new Board3DDice(scene);
+    const dice3D = new Board3DDice(scene, (center) => {
+      particlesRef.current?.spawnBurst(center, '#f3d189', LOW_POWER ? 50 : 110);
+      boardFrameRef.current?.flare();
+      const d = prevDiceRef.current;
+      if (d) setRollBadge({ id: Date.now(), total: d.die1 + d.die2, double: d.die1 === d.die2 });
+    });
     dice3DRef.current = dice3D;
 
     // 12. 3D Magical Particle Spells System
@@ -314,20 +333,25 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       if (!container) return;
       const w = container.clientWidth;
       const h = container.clientHeight;
+      if (!w || !h) return;
       const asp = w / h;
       camera.aspect = asp;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      renderer.setSize(w, h, false); // size the drawing buffer only: CSS sizes the canvas, so a shrinking stage can shrink
 
       // Only reset to overview position on resize if user is not actively interacting
       // This prevents follow mode from snapping to overview on window resize
       if (!isUserInteracting.current && currentViewRef.current === 'overview') {
-        const portScale = asp < 1 ? Math.min(2.1, 1 / asp) : 1;
+        const portScale = viewScale(asp);
         targetCamPos.current.set(0, -10.5 * portScale, 13.2 * portScale);
         targetLookAt.current.set(0, -0.4, 0.1);
       }
     };
     window.addEventListener('resize', handleResize);
+    // The stage also changes size without a window resize (phone dock growing with a decision, HPVN's Floo
+    // column opening, layout switch): a stale canvas cropped the board and put taps on the wrong tile.
+    const stageObserver = new ResizeObserver(handleResize);
+    stageObserver.observe(container);
 
     // Animation Loop
     let animId: number;
@@ -393,7 +417,8 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
         }
       }
 
-      renderer.render(scene, camera);
+      // nothing to draw while HPVN's Floo panel covers the board on a phone
+      if (!flooCovers()) renderer.render(scene, camera);
     };
     animate();
 
@@ -401,6 +426,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      stageObserver.disconnect();
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
       renderer.domElement.removeEventListener('mousemove', handleMouseMove);
@@ -453,7 +479,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           particlesRef.current?.spawnBurst(new THREE.Vector3(coord.x, coord.y, 0.25), owner.color, 90);
           if (isTakeover) {
             setTimeout(() => {
-              particlesRef.current?.spawnBurst(new THREE.Vector3(coord.x, coord.y, 0.35), '#ffd700', 100);
+              particlesRef.current?.spawnBurst(new THREE.Vector3(coord.x, coord.y, 0.35), '#f3d189', 100);
             }, 140);
           }
 
@@ -483,7 +509,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       soundManager.playBuyProperty();
       if (curPlayer) {
         const tilePos = getTilePosition(curPlayer.position);
-        particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.3), '#ffd700', 85);
+        particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.3), '#f3d189', 85);
       }
     }
     prevHouseCountRef.current = totalHouses;
@@ -516,7 +542,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
         const tilePos = getTilePosition(tile.index);
         particlesRef.current?.spawnBurst(
           new THREE.Vector3(tilePos.x, tilePos.y, 0.35),
-          payment.isTax ? '#a855f7' : '#ffd700',
+          payment.isTax ? '#a855f7' : '#f3d189',
           90
         );
 
@@ -542,6 +568,13 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     }, duration);
     return () => clearTimeout(timer);
   }, [rentNotice?.id, gameState.turboMode]);
+
+  // Roll total shown big over the plaza once the dice land
+  useEffect(() => {
+    if (!rollBadge) return;
+    const timer = setTimeout(() => setRollBadge(null), gameState.turboMode ? 800 : 1500);
+    return () => clearTimeout(timer);
+  }, [rollBadge?.id, gameState.turboMode]);
 
   // Dice Roll 3D Trigger & Audio
   useEffect(() => {
@@ -594,7 +627,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     const curPlayer = gameState.players[gameState.currentPlayerIndex];
     const container = mountRef.current;
     const aspect = container && container.clientHeight > 0 ? container.clientWidth / container.clientHeight : 1;
-    const portraitScale = aspect < 1 ? Math.min(2.1, 1 / aspect) : 1;
+    const portraitScale = viewScale(aspect);
 
     if (currentView === 'overview') {
       // 2.5D Tilt full board overview: optimal ~28° angle showing all 40 cards clearly
@@ -623,10 +656,6 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   const setCameraPreset = (view: 'follow' | 'overview' | 'topdown') => {
     setCurrentView(view);
   };
-
-  useEffect(() => {
-    (window as any).__setCameraPreset = setCameraPreset;
-  }, []);
 
   // Get current player info for HUD
   const curPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -717,198 +746,65 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
         </div>
       </div>
 
+      {rollBadge && (
+        <div key={rollBadge.id} className={`hpvn-roll-badge ${rollBadge.double ? 'is-double' : ''}`} aria-live="polite">
+          <strong>{rollBadge.total}</strong>
+          {rollBadge.double && <span>Đôi!</span>}
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {loading && (
         <div className="three-loading-overlay">
           <div className="magical-spinner" />
-          <p>Đang tải Hogwarts 3D...</p>
+          <p>Đang tải bàn cờ…</p>
         </div>
       )}
 
-      {/* Grand Hogwarts Property Claimed Announcement Banner Toast */}
-      {purchaseNotice && (
-        <div
-          className={`purchase-announcement-banner magical-scroll-banner ${purchaseNotice.isTakeover ? 'is-takeover' : ''}`}
-          style={{
-            borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color,
-            boxShadow: purchaseNotice.isTakeover
-              ? `0 16px 48px rgba(0, 0, 0, 0.95), 0 0 45px rgba(245, 158, 11, 0.6), inset 0 0 25px rgba(255, 215, 0, 0.2)`
-              : `0 16px 48px rgba(0, 0, 0, 0.9), 0 0 35px ${purchaseNotice.owner.color}66, inset 0 0 25px rgba(255, 215, 0, 0.1)`,
-          }}
-          onClick={() => setPurchaseNotice(null)}
-        >
-          {/* Gilded Corner Filigrees */}
-          <div className="banner-corner tl" style={{ borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color }} />
-          <div className="banner-corner tr" style={{ borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color }} />
-          <div className="banner-corner bl" style={{ borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color }} />
-          <div className="banner-corner br" style={{ borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color }} />
-
-          {/* Miniature Property Card Artwork Vignette */}
-          <div className="banner-card-thumb-box" style={{ borderColor: purchaseNotice.isTakeover ? '#f59e0b' : purchaseNotice.owner.color }}>
-            <img
-              src={`${baseUrl}assets/cards/tile_${purchaseNotice.tile.index}.jpg`}
-              alt={purchaseNotice.tile.name}
-              className="banner-card-thumb-img"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <div className="thumb-gold-ring" />
-            <div
-              className="thumb-house-crest"
-              style={{ backgroundColor: purchaseNotice.owner.color }}
-              title={purchaseNotice.owner.house}
-            >
-              <span>{purchaseNotice.isTakeover ? '⚡' : purchaseNotice.owner.tokenIcon || '👑'}</span>
-            </div>
-          </div>
-
-          <div className="announcement-content">
-            <div className="announcement-tag">
-              <span className="tag-runes">⚡ ✦</span>
-              <span>
-                {purchaseNotice.isTakeover
-                  ? 'THÂU TÓM CƯỠNG CHẾ • HOSTILE TAKEOVER'
-                  : 'CHỨNG THƯ ĐỊA DANH • PROPERTY TITLE DEED'}
-              </span>
-              <span className="tag-runes">✦ ⚡</span>
-            </div>
-            <div className="announcement-title">
-              {purchaseNotice.isTakeover ? (
-                <>
-                  <strong style={{ color: purchaseNotice.owner.color }}>{purchaseNotice.owner.name}</strong>{' '}
-                  <span className="announcement-house-tag">({purchaseNotice.owner.house})</span> đã chi trả gấp đôi để MUA ĐỨT:{' '}
-                  <span className="announcement-prop-name">"{purchaseNotice.tile.name}"</span> từ tay{' '}
-                  <strong style={{ color: purchaseNotice.prevOwner?.color || '#38bdf8' }}>{purchaseNotice.prevOwner?.name}</strong>!
-                </>
+      {/* Event toast: one line over the board — who, what, how much. Tap to dismiss; it also hides itself. */}
+      {(() => {
+        const toast = rentNotice
+          ? {
+              id: `r${rentNotice.id}`,
+              who: rentNotice.debtor,
+              tone: rentNotice.isTax ? 'tax' : 'rent',
+              text: rentNotice.isTax ? (
+                <>nộp thuế ở <em>{rentNotice.tile.name}</em></>
               ) : (
-                <>
-                  <strong style={{ color: purchaseNotice.owner.color }}>{purchaseNotice.owner.name}</strong>{' '}
-                  <span className="announcement-house-tag">({purchaseNotice.owner.house})</span> đã xác lập quyền sở hữu:{' '}
-                  <span className="announcement-prop-name">"{purchaseNotice.tile.name}"</span>
-                </>
-              )}
-            </div>
-            <div className="announcement-meta">
-              <span className="meta-pill price">
-                {purchaseNotice.isTakeover ? '⚡ Giá mua đứt: ' : '🪙 Giá: '}
-                <strong>
-                  {purchaseNotice.isTakeover
-                    ? calculateTakeoverCost(purchaseNotice.tile, purchaseNotice.prevOwner || purchaseNotice.owner)
-                    : (purchaseNotice.tile.price || 0)}{' '}
-                  Galleons
-                </strong>
-              </span>
-              <span className="meta-pill rent">
-                ⚠️ Thuế ghé thăm:{' '}
-                <strong>
-                  {((purchaseNotice.tile.baseRent || purchaseNotice.tile.rentTiers?.[0] || 0) * (gameState.rentMultiplier || 1))} G
-                </strong>
-                {gameState.rentMultiplier > 1 && (
-                  <span className="meta-curse-tag"> (x{gameState.rentMultiplier} ☠️)</span>
-                )}
-              </span>
-            </div>
-          </div>
-
-          <button className="announcement-close-btn" onClick={() => setPurchaseNotice(null)} title="Đóng">
-            ✕
+                <>trả tiền thuê cho <strong style={{ color: rentNotice.creditor?.color }}>{rentNotice.creditor?.name}</strong></>
+              ),
+              amount: `−${g(rentNotice.amount)}`,
+              note: gameState.rentMultiplier > 1 ? `x${gameState.rentMultiplier}` : '',
+              close: () => setRentNotice(null),
+            }
+          : purchaseNotice
+          ? {
+              id: `p${purchaseNotice.id}`,
+              who: purchaseNotice.owner,
+              tone: purchaseNotice.isTakeover ? 'takeover' : 'buy',
+              text: purchaseNotice.isTakeover ? (
+                <>mua đứt <em>{purchaseNotice.tile.name}</em> của <strong style={{ color: purchaseNotice.prevOwner?.color }}>{purchaseNotice.prevOwner?.name}</strong></>
+              ) : (
+                <>mua <em>{purchaseNotice.tile.name}</em></>
+              ),
+              amount: `${g((purchaseNotice.isTakeover
+                ? calculateTakeoverCost(purchaseNotice.tile, purchaseNotice.prevOwner || purchaseNotice.owner)
+                : purchaseNotice.tile.price || 0))}`,
+              note: '',
+              close: () => setPurchaseNotice(null),
+            }
+          : null;
+        if (!toast) return null;
+        return (
+          <button key={toast.id} className={`hpvn-toast is-${toast.tone}`} onClick={toast.close} aria-live="polite" title="Đóng">
+            <span className="hpvn-toast-ava" style={{ borderColor: toast.who.color, background: `${toast.who.color}22` }}>{toast.who.tokenIcon}</span>
+            <span className="hpvn-toast-text">
+              <strong style={{ color: toast.who.color }}>{toast.who.name}</strong> {toast.text}
+            </span>
+            <span className="hpvn-toast-amount">{toast.amount}{toast.note && <small>{toast.note}</small>}</span>
           </button>
-        </div>
-      )}
-
-      {/* Rent / Tax Deduction Announcement Banner Toast */}
-      {rentNotice && (
-        <div
-          className={`rent-announcement-banner magical-scroll-banner ${rentNotice.isTax ? 'is-tax' : 'is-rent'}`}
-          style={{
-            borderColor: rentNotice.isTax ? '#a855f7' : (rentNotice.creditor?.color || '#ef4444'),
-            boxShadow: `0 16px 48px rgba(0, 0, 0, 0.9), 0 0 35px ${
-              rentNotice.isTax ? '#a855f777' : (rentNotice.creditor?.color || '#ef4444') + '77'
-            }, inset 0 0 25px ${rentNotice.isTax ? 'rgba(168, 85, 247, 0.15)' : 'rgba(239, 68, 68, 0.12)'}`,
-          }}
-          onClick={() => setRentNotice(null)}
-        >
-          {/* Gilded Corner Filigrees */}
-          <div className="banner-corner tl" style={{ borderColor: rentNotice.isTax ? '#c084fc' : (rentNotice.creditor?.color || '#f87171') }} />
-          <div className="banner-corner tr" style={{ borderColor: rentNotice.isTax ? '#c084fc' : (rentNotice.creditor?.color || '#f87171') }} />
-          <div className="banner-corner bl" style={{ borderColor: rentNotice.isTax ? '#c084fc' : (rentNotice.creditor?.color || '#f87171') }} />
-          <div className="banner-corner br" style={{ borderColor: rentNotice.isTax ? '#c084fc' : (rentNotice.creditor?.color || '#f87171') }} />
-
-          {/* Miniature Property Card Artwork Vignette */}
-          <div
-            className="banner-card-thumb-box"
-            style={{ borderColor: rentNotice.isTax ? '#a855f7' : (rentNotice.creditor?.color || '#ef4444') }}
-          >
-            <img
-              src={`${baseUrl}assets/cards/tile_${rentNotice.tile.index}.jpg`}
-              alt={rentNotice.tile.name}
-              className="banner-card-thumb-img"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            <div className="thumb-gold-ring" />
-            <div
-              className="thumb-house-crest"
-              style={{
-                backgroundColor: rentNotice.isTax ? '#7c3aed' : (rentNotice.creditor?.color || '#dc2626'),
-              }}
-            >
-              <span>{rentNotice.isTax ? '⚖️' : (rentNotice.creditor?.tokenIcon || '💸')}</span>
-            </div>
-          </div>
-
-          <div className="announcement-content">
-            <div className="announcement-tag">
-              <span className="tag-runes">{rentNotice.isTax ? '⚖️ ✦' : '💸 ✦'}</span>
-              <span>
-                {rentNotice.isTax
-                  ? 'TRÁT THU THUẾ BỘ PHÁP THUẬT • TAX DECREE'
-                  : 'LỆ PHÍ DỪNG CHÂN GRINGOTTS • RENT COLLECTED'}
-              </span>
-              <span className="tag-runes">{rentNotice.isTax ? '✦ ⚖️' : '✦ 💰'}</span>
-            </div>
-            <div className="announcement-title">
-              {rentNotice.isTax ? (
-                <>
-                  <strong style={{ color: rentNotice.debtor.color }}>{rentNotice.debtor.name}</strong> dừng chân tại{' '}
-                  <span className="announcement-prop-name">"{rentNotice.tile.name}"</span> và đã nộp thuế!
-                </>
-              ) : (
-                <>
-                  <strong style={{ color: rentNotice.debtor.color }}>{rentNotice.debtor.name}</strong> dừng chân tại{' '}
-                  <span className="announcement-prop-name">"{rentNotice.tile.name}"</span> và đã trả tiền thuê cho{' '}
-                  <strong style={{ color: rentNotice.creditor?.color || '#ffd700' }}>
-                    {rentNotice.creditor?.name}
-                  </strong>!
-                </>
-              )}
-            </div>
-            <div className="announcement-meta">
-              <span className="meta-pill rent-deduct">
-                💸 Đã trừ: <strong style={{ color: '#ffd700' }}>-{rentNotice.amount} Galleons</strong>
-                {gameState.rentMultiplier > 1 && (
-                  <span className="meta-curse-tag"> (x{gameState.rentMultiplier} ☠️)</span>
-                )}
-              </span>
-              {rentNotice.isTax ? (
-                <span className="meta-pill price" style={{ background: 'rgba(168, 85, 247, 0.25)', borderColor: '#a855f7' }}>
-                  🏛️ Quỹ cứu tế: <strong>+{rentNotice.amount}G</strong>
-                </span>
-              ) : (
-                <span className="meta-pill price" style={{ background: 'rgba(16, 185, 129, 0.25)', borderColor: '#10b981' }}>
-                  👑 Chủ đất nhận: <strong>+{rentNotice.amount}G</strong>
-                </span>
-              )}
-            </div>
-          </div>
-
-          <button className="announcement-close-btn" onClick={() => setRentNotice(null)} title="Đóng">
-            ✕
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Hovered Tile Tooltip Badge */}
       {hoveredTileInfo && !purchaseNotice && !rentNotice && (
@@ -923,22 +819,19 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
               : undefined
           }
         >
-          <span className="tooltip-rune">ᛟ</span>
-          <span className="tooltip-icon">{hoveredTileInfo.owner ? '👑' : '⚡'}</span>
-          <span className="tooltip-name">{hoveredTileInfo.tile.name}</span>
+                              <span className="tooltip-name">{hoveredTileInfo.tile.name}</span>
           {hoveredTileInfo.owner ? (
             <span className="tooltip-owner-status" style={{ color: hoveredTileInfo.owner.color }}>
-              • ĐÃ CÓ CHỦ: <strong>{hoveredTileInfo.owner.name}</strong> ({hoveredTileInfo.owner.house}) — Thuế:{' '}
-              {((hoveredTileInfo.tile.baseRent || hoveredTileInfo.tile.rentTiers?.[0] || 0) * (gameState.rentMultiplier || 1))}G
+              · Chủ: <strong>{hoveredTileInfo.owner.name}</strong> ({hoveredTileInfo.owner.house}) — Thuế:{' '}
+              {g(((hoveredTileInfo.tile.baseRent || hoveredTileInfo.tile.rentTiers?.[0] || 0) * (gameState.rentMultiplier || 1)))}
             </span>
           ) : hoveredTileInfo.tile.price ? (
             <span className="tooltip-unowned-status">
-              • Còn trống: <strong>{hoveredTileInfo.tile.price} Galleons</strong>
+              · Còn trống: <strong>{galleons(hoveredTileInfo.tile.price)}</strong>
             </span>
           ) : null}
-          <span className="tooltip-hint">(Nhấp để soi lá bài)</span>
-          <span className="tooltip-rune">ᛟ</span>
-        </div>
+          <span className="tooltip-hint">· nhấp để xem</span>
+                  </div>
       )}
 
       {/* Floating 3D Camera Controls */}
@@ -948,27 +841,27 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           onClick={() => setCameraPreset('overview')}
           title="Góc nghiêng 2.5D toàn cảnh chuẩn — Nhìn rõ toàn bộ 40 lá bài"
         >
-          👑 Toàn Cảnh (2.5D Tilt)
+          Toàn cảnh
         </button>
         <button
           className={`control-pill ${currentView === 'follow' ? 'active' : ''}`}
           onClick={() => setCameraPreset('follow')}
           title="Tự động bám và xoay bàn cờ theo quân cờ"
         >
-          🎥 Bám Quân Cờ (Auto-Follow)
+          Bám quân
         </button>
         <button
           className={`control-pill ${currentView === 'topdown' ? 'active' : ''}`}
           onClick={() => setCameraPreset('topdown')}
           title="Góc nhìn thẳng từ trên xuống 90°"
         >
-          📐 Top-Down (Phẳng)
+          Nhìn từ trên
         </button>
       </div>
 
       {/* Interactive Helper Hint */}
       <div className="three-interaction-hint">
-        <span>🖱️ Click vào lá bài bất kỳ để phóng to xem chi tiết | Kéo chuột xoay 360° | Cuộn chuột để zoom</span>
+        <span>Nhấp lá bài để xem · Kéo để xoay · Cuộn để phóng to</span>
       </div>
 
       {/* 3D Card Inspection Modal */}

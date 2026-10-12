@@ -1,16 +1,17 @@
-import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate } from './types';
+import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate, TileConfig } from './types';
 import { HOGWARTS_TILES, HOUSE_INFO, CHARMS_CARDS, POTIONS_CARDS } from './boardData';
 import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost } from './rulesEngine';
 import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate } from './reducerHelpers';
 import { getBotAction } from './botAI';
+import { g, galleons } from '../hpvn/money';
 
 export function createInitialState(
-  playerConfigs: Array<{ name: string; house: HouseType; isAI: boolean }>
+  playerConfigs: Array<{ name: string; house: HouseType; isAI: boolean; id?: string }>
 ): GameState {
   const players: Player[] = playerConfigs.map((cfg, idx) => {
     const houseData = HOUSE_INFO[cfg.house] || HOUSE_INFO.Gryffindor;
     return {
-      id: `p-${idx}`,
+      id: cfg.id || `p-${idx}`,
       name: cfg.name,
       house: cfg.house,
       color: houseData.color,
@@ -50,7 +51,7 @@ export function createInitialState(
     charmsDeck: [...CHARMS_CARDS].sort(() => Math.random() - 0.5),
     potionsDeck: [...POTIONS_CARDS].sort(() => Math.random() - 0.5),
     activeCard: null,
-    events: [createEvent('Trận đấu Hogwarts Monopoly chính thức bắt đầu! Chúc các phù thủy may mắn!', 'success')],
+    events: [createEvent('Ván Cờ Tỷ Phú Hogwarts bắt đầu! Chúc các phù thủy may mắn!', 'success')],
     winner: null,
     freeParkingPot: 0,
     lastRentPayment: null,
@@ -90,8 +91,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           turnPhase: 'GAME_OVER',
           winner,
           events: limitEvents([
-            createEvent(`⌛ HẾT THỜI GIAN 30 PHÚT! Trận đấu kết thúc!`, 'warning'),
-            createEvent(`🏆 ${winner?.name} giành chức VÔ ĐỊCH với Tổng tài sản ${winner?.netWorth} Galleons!`, 'success'),
+            createEvent(`Hết 30 phút, ván kết thúc.`, 'warning'),
+            createEvent(`🏆 ${winner?.name} thắng ván với tổng tài sản ${galleons(winner?.netWorth)}!`, 'success'),
             ...state.events,
           ]),
         };
@@ -296,7 +297,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         propertyOwnership: { ...state.propertyOwnership, [tile.id]: currentPlayer.id },
         turnPhase: 'END_TURN',
         events: [
-          createEvent(`🏰 ${currentPlayer.name} đã mua "${tile.name}" với giá ${tile.price} Galleons!`, 'success', currentPlayer.id),
+          createEvent(`🏰 ${currentPlayer.name} đã mua "${tile.name}" với giá ${galleons(tile.price)}!`, 'success', currentPlayer.id),
           ...state.events,
         ],
       });
@@ -343,7 +344,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         auction,
         turnPhase: 'AUCTION',
         events: [
-          createEvent(`📢 ${currentPlayer.name} bỏ qua "${tile.name}". BẮT ĐẦU ĐẤU GIÁ CÔNG KHAI!`, 'warning'),
+          createEvent(`📢 ${currentPlayer.name} bỏ qua "${tile.name}", bắt đầu đấu giá.`, 'warning'),
           ...state.events,
         ],
       };
@@ -403,7 +404,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turnPhase: 'END_TURN',
         events: [
           createEvent(
-            `⚡ THÂU TÓM CƯỠNG CHẾ! ${currentPlayer.name} đã chi ${cost} Galleons (x2 giá trị) mua đứt "${tile.name}" từ tay ${previousOwner.name}!`,
+            `⚡ ${currentPlayer.name} đã chi ${galleons(cost)} (x2 giá trị) mua đứt "${tile.name}" từ tay ${previousOwner.name}!`,
             'success',
             currentPlayer.id
           ),
@@ -435,7 +436,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           timerSeconds: state.turboMode ? 4 : 5,
         },
         events: [
-          createEvent(`💰 ${bidder.name} nâng giá lên ${action.amount} Galleons!`, 'info', bidder.id),
+          createEvent(`💰 ${bidder.name} nâng giá lên ${galleons(action.amount)}!`, 'info', bidder.id),
           ...state.events,
         ],
       };
@@ -561,8 +562,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BUILD_HOUSE': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
-      const ownerId = action.playerId || (tile ? state.propertyOwnership[tile.id] : undefined) || state.players[state.currentPlayerIndex].id;
-      const player = state.players.find((p) => p.id === ownerId);
+      const player = actingOwner(state, tile, action.playerId);
       if (!tile || !tile.houseCost || !player) return state;
 
       const check = canBuildHouse(player, tile.id, state);
@@ -585,7 +585,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
         upgradeCandidate: isLandedUpgrade ? null : state.upgradeCandidate,
         events: [
-          createEvent(`🛖 ${player.name} xây thêm 1 Túp Lều tại "${tile.name}" (-${tile.houseCost}G)`, 'success', player.id),
+          createEvent(`🛖 ${player.name} xây thêm 1 Túp Lều tại "${tile.name}" (−${g(tile.houseCost)})`, 'success', player.id),
           ...state.events,
         ],
       });
@@ -593,8 +593,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'BUILD_HOTEL': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
-      const ownerId = action.playerId || (tile ? state.propertyOwnership[tile.id] : undefined) || state.players[state.currentPlayerIndex].id;
-      const player = state.players.find((p) => p.id === ownerId);
+      const player = actingOwner(state, tile, action.playerId);
       if (!tile || !tile.houseCost || !player) return state;
 
       const check = canBuildHotel(player, tile.id, state);
@@ -617,7 +616,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
         upgradeCandidate: isLandedUpgrade ? null : state.upgradeCandidate,
         events: [
-          createEvent(`🏰 ${player.name} nâng cấp lên Lâu Đài Hogwarts tại "${tile.name}" (-${tile.houseCost}G)`, 'success', player.id),
+          createEvent(`🏰 ${player.name} nâng cấp lên Lâu Đài Hogwarts tại "${tile.name}" (−${g(tile.houseCost)})`, 'success', player.id),
           ...state.events,
         ],
       });
@@ -626,8 +625,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SELL_HOUSE': {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
       if (!tile || !tile.houseCost) return state;
-      const ownerId = action.playerId || state.propertyOwnership[tile.id] || state.players[state.currentPlayerIndex].id;
-      const player = state.players.find((p) => p.id === ownerId);
+      const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
 
       const hasHotel = (player.hotels[tile.id] || 0) > 0;
@@ -646,7 +644,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state,
           players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
           events: [
-            createEvent(`🏚️ ${player.name} hạ cấp Lâu Đài xuống 4 Túp Lều tại "${tile.name}" (+${refund}G)`, 'info', player.id),
+            createEvent(`🏚️ ${player.name} hạ cấp Lâu Đài xuống 4 Túp Lều tại "${tile.name}" (+${g(refund)})`, 'info', player.id),
             ...state.events,
           ],
         });
@@ -667,7 +665,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         events: [
-          createEvent(`🏚️ ${player.name} dỡ bớt 1 Túp Lều tại "${tile.name}" (+${refund}G)`, 'info', player.id),
+          createEvent(`🏚️ ${player.name} dỡ bớt 1 Túp Lều tại "${tile.name}" (+${g(refund)})`, 'info', player.id),
           ...state.events,
         ],
       });
@@ -679,8 +677,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
       if (!tile || !tile.mortgageValue || state.mortgagedProperties[tile.id]) return state;
 
-      const ownerId = state.propertyOwnership[tile.id];
-      const player = state.players.find((p) => p.id === ownerId);
+      const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
 
       // Check if any property in color group has houses or hotels
@@ -702,7 +699,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         mortgagedProperties: { ...state.mortgagedProperties, [tile.id]: true },
         events: [
-          createEvent(`📜 ${player.name} thế chấp "${tile.name}" nhận ${tile.mortgageValue} Galleons.`, 'warning', player.id),
+          createEvent(`📜 ${player.name} thế chấp "${tile.name}" nhận ${galleons(tile.mortgageValue)}.`, 'warning', player.id),
           ...state.events,
         ],
       });
@@ -714,8 +711,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
       if (!tile || !tile.mortgageValue || !state.mortgagedProperties[tile.id]) return state;
 
-      const ownerId = state.propertyOwnership[tile.id];
-      const player = state.players.find((p) => p.id === ownerId);
+      const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
 
       const cost = Math.floor(tile.mortgageValue * 1.1); // 10% interest
@@ -734,7 +730,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         mortgagedProperties: newMortgages,
         events: [
-          createEvent(`✨ ${player.name} chuộc lại "${tile.name}" với ${cost} Galleons.`, 'success', player.id),
+          createEvent(`✨ ${player.name} chuộc lại "${tile.name}" với ${galleons(cost)}.`, 'success', player.id),
           ...state.events,
         ],
       });
@@ -910,8 +906,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         events: [
           createEvent(
             isNowTurbo
-              ? '⚡ ĐÃ BẬT CHẾ ĐỘ SIÊU TỐC (2X SPEED)! Quân cờ lướt nhanh, bot đi chớp nhoáng, đấu giá 4s.'
-              : '⏱️ Đã chuyển về Tốc độ Chuẩn (1X).',
+              ? 'Đã bật siêu tốc 2x: bot đi nhanh hơn, đấu giá còn 4 giây.'
+              : 'Đã về tốc độ thường.',
             'info'
           ),
           ...state.events,
@@ -930,6 +926,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     default:
       return state;
   }
+}
+
+/** The player acting on a tile (the given one, else whoever's turn it is), only when they own it. */
+function actingOwner(state: GameState, tile: TileConfig | undefined, playerId?: string): Player | undefined {
+  const actorId = playerId || state.players[state.currentPlayerIndex]?.id;
+  return tile && actorId && state.propertyOwnership[tile.id] === actorId ? state.players.find((p) => p.id === actorId) : undefined;
 }
 
 function resolveLanding(state: GameState, player: Player, diceTotal: number): GameState {
@@ -951,7 +953,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
           freeParkingPot: 0,
           turnPhase: 'END_TURN',
           events: [
-            createEvent(`🎉 ${player.name} bước vào Phòng Yêu Cầu và nhặt được kho báu ${pot} Galleons!`, 'success', player.id),
+            createEvent(`🎉 ${player.name} bước vào Phòng Yêu Cầu và nhặt được kho báu ${galleons(pot)}!`, 'success', player.id),
             ...state.events,
           ],
         });
@@ -1094,7 +1096,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
                 createEvent(
                   `🏡 ${player.name} trở về dinh thự của mình: "${tile.name}". Bạn có thể nâng cấp thêm ${
                     isHotelUpgrade ? 'Lâu Đài Hogwarts (Cấp tối đa)' : 'Túp Lều'
-                  } với giá ${tile.houseCost}G!`,
+                  } với giá ${g(tile.houseCost)}!`,
                   'info',
                   player.id
                 ),
@@ -1216,7 +1218,7 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
     auction: null,
     turnPhase: 'END_TURN',
     events: [
-      createEvent(`🎉 ĐẤU GIÁ THÀNH CÔNG! ${winner.name} sở hữu "${tile.name}" với giá ${cost} Galleons!`, 'success', winner.id),
+      createEvent(`🎉 ${winner.name} sở hữu "${tile.name}" với giá ${galleons(cost)}!`, 'success', winner.id),
       ...state.events,
     ],
   });
@@ -1288,7 +1290,7 @@ function advanceTurn(state: GameState): GameState {
   if (nextIndex === 0 && nextTurnNumber > state.turnNumber) {
     if (nextTurnNumber >= nextEscalationRound && rentMultiplier < maxRentMultiplier) {
       rentMultiplier = Math.min(maxRentMultiplier, rentMultiplier * 2);
-      const escalationMsg = `☠️ BÃO LỜI NGUYỄN HẮC ÁM (VÒNG ${nextTurnNumber})! Voldemort và Tử Thần Thực Tử trỗi dậy — TOÀN BỘ TIỀN THUÊ ĐẤT VÀ THUẾ NHÂN ĐÔI (X${rentMultiplier})!`;
+      const escalationMsg = `☠️ Lời nguyền Hắc ám, vòng ${nextTurnNumber}: tiền thuê và thuế nhân ${rentMultiplier}.`;
       activeEscalationEvent = {
         multiplier: rentMultiplier,
         round: nextTurnNumber,

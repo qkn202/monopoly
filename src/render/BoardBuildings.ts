@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LOW_POWER } from './quality';
 import { Player } from '../core/types';
 import { HOGWARTS_TILES } from '../core/boardData';
 import { getCardBuildingBasePos } from './BoardCoordinates';
@@ -113,20 +114,20 @@ export class BoardBuildingManager {
     });
 
     this.plinthMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
+      color: 0x1c120a,
       roughness: 0.35,
       metalness: 0.65,
     });
 
     this.brassMat = new THREE.MeshStandardMaterial({
-      color: 0xffd700,
+      color: 0xf3d189,
       metalness: 0.9,
       roughness: 0.15,
     });
 
     this.crystalOrbMat = new THREE.MeshStandardMaterial({
       color: 0xfffbeb,
-      emissive: new THREE.Color(0xffd700),
+      emissive: new THREE.Color(0xf3d189),
       emissiveIntensity: 1.6,
       roughness: 0.1,
       metalness: 0.1,
@@ -261,9 +262,11 @@ export class BoardBuildingManager {
         });
 
         // 5. Point Light casting mystical glow
-        const beaconLight = new THREE.PointLight(new THREE.Color(owner.color), 0.75, 1.4);
-        beaconLight.position.z = 0.52;
-        castleGroup.add(beaconLight);
+        if (!LOW_POWER) {
+          const beaconLight = new THREE.PointLight(new THREE.Color(owner.color), 0.75, 1.4);
+          beaconLight.position.z = 0.52;
+          castleGroup.add(beaconLight);
+        }
 
         // 6. Castle House Pennant atop tower
         const pennantStaff = new THREE.Mesh(this.flagStaffGeom, this.brassMat);
@@ -376,9 +379,11 @@ export class BoardBuildingManager {
         // 5. Subtle magical ownership aura light (dimmer amber if mortgaged)
         const markerLightColor = isMortgaged ? 0xd97706 : owner.color;
         const markerLightIntensity = isMortgaged ? 0.18 : 0.35;
-        const markerLight = new THREE.PointLight(new THREE.Color(markerLightColor), markerLightIntensity, 0.7);
-        markerLight.position.z = 0.22;
-        flagGroup.add(markerLight);
+        if (!LOW_POWER) {
+          const markerLight = new THREE.PointLight(new THREE.Color(markerLightColor), markerLightIntensity, 0.7);
+          markerLight.position.z = 0.22;
+          flagGroup.add(markerLight);
+        }
 
         this.container.add(flagGroup);
       }

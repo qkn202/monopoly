@@ -1,106 +1,118 @@
 import * as THREE from 'three';
+import { LOW_POWER } from './quality';
 
 export interface BoardFrameInstance {
   group: THREE.Group;
   update: (time: number, delta: number) => void;
+  /** Brief brightening of the centre rune ring (dice landing). */
+  flare: () => void;
   dispose: () => void;
 }
 
-/**
- * Calculates a point along the rectangular perimeter of the center panel.
- */
-function getRectPoint(distance: number, hw: number, hh: number, totalLen: number): THREE.Vector3 {
-  let d = ((distance % totalLen) + totalLen) % totalLen;
-  const w = hw * 2;
-  const h = hh * 2;
+const GOLD = '#e8c27a';
+const GOLD_HI = '#fff0c2';
 
-  if (d < w) {
-    return new THREE.Vector3(-hw + d, hh, 0.035);
-  }
-  d -= w;
-  if (d < h) {
-    return new THREE.Vector3(hw, hh - d, 0.035);
-  }
-  d -= h;
-  if (d < w) {
-    return new THREE.Vector3(hw - d, -hh, 0.035);
-  }
-  d -= w;
-  return new THREE.Vector3(-hw, -hh + d, 0.035);
-}
-
-/**
- * Generates an ancient gothic magic rune circle texture
- */
-function createMagicRuneRingTexture(innerR: number, outerR: number): THREE.CanvasTexture {
+/** Engraved gold astrolabe ring: double rim with degree ticks, a band of Elder Futhark runes, diamond markers. */
+function createRuneRingTexture(): THREE.CanvasTexture {
+  const size = 1024;
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-
-  const cx = 512;
-  const cy = 512;
-  const radius = 460;
-
-  ctx.clearRect(0, 0, 1024, 1024);
-
-  // Outer golden rings
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#00f2fe';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius - 16, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius - 45, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Runes glyphs
-  const runes = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟ⚡⚔⚖⚜✦✧★⚝';
-  ctx.font = 'bold 30px "Cinzel", "Times New Roman", serif';
+  const c = size / 2;
+  const R = 486;
+  const ring = (r: number, w: number, a: number) => {
+    ctx.strokeStyle = `rgba(232, 194, 122, ${a})`;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  ctx.shadowColor = 'rgba(255, 214, 140, 0.55)';
+  ctx.shadowBlur = 6;
+  ring(R, 3, 0.95);
+  ring(R - 10, 1.2, 0.7);
+  // Degree ticks between the two rims: every 2.5°, longer every 15° and 45°
+  for (let i = 0; i < 144; i++) {
+    const a = (i / 144) * Math.PI * 2;
+    const len = i % 18 === 0 ? 26 : i % 6 === 0 ? 16 : 8;
+    ctx.strokeStyle = `rgba(232, 194, 122, ${i % 6 === 0 ? 0.9 : 0.5})`;
+    ctx.lineWidth = i % 6 === 0 ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(c + Math.cos(a) * (R - 12), c + Math.sin(a) * (R - 12));
+    ctx.lineTo(c + Math.cos(a) * (R - 12 - len), c + Math.sin(a) * (R - 12 - len));
+    ctx.stroke();
+  }
+  ring(R - 46, 1.5, 0.8);
+  // Rune band
+  const runes = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟ';
+  ctx.font = '600 34px "Noto Sans Runic", "Segoe UI Historic", "Apple Symbols", serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  const count = 36;
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
-    const r = radius - 30;
-    const gx = cx + Math.cos(angle) * r;
-    const gy = cy + Math.sin(angle) * r;
-
+  ctx.shadowBlur = 10;
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    const r = R - 72;
     ctx.save();
-    ctx.translate(gx, gy);
-    ctx.rotate(angle + Math.PI / 2);
-    ctx.fillStyle = i % 2 === 0 ? '#ffd700' : '#4facfe';
-    ctx.shadowColor = '#00f2fe';
-    ctx.shadowBlur = 8;
+    ctx.translate(c + Math.cos(a) * r, c + Math.sin(a) * r);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = i % 4 === 0 ? GOLD_HI : GOLD;
     ctx.fillText(runes[i % runes.length], 0, 0);
     ctx.restore();
   }
-
-  // Inner geometric magic octagon
-  ctx.strokeStyle = 'rgba(255, 215, 0, 0.45)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  const octPoints = 8;
-  for (let i = 0; i <= octPoints; i++) {
-    const angle = (i / octPoints) * Math.PI * 2;
-    const r = radius - 70;
-    const ox = cx + Math.cos(angle) * r;
-    const oy = cy + Math.sin(angle) * r;
-    if (i === 0) ctx.moveTo(ox, oy);
-    else ctx.lineTo(ox, oy);
+  ring(R - 98, 2, 0.85);
+  // Diamond markers on the inner rim
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + Math.PI / 12;
+    const x = c + Math.cos(a) * (R - 98);
+    const y = c + Math.sin(a) * (R - 98);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a);
+    ctx.fillStyle = GOLD_HI;
+    ctx.beginPath();
+    ctx.moveTo(0, -9); ctx.lineTo(6, 0); ctx.lineTo(0, 9); ctx.lineTo(-6, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
-  ctx.stroke();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 
+/** Faint inner sigil: a thin circle with a twelve-point star (two interlaced hexagrams). */
+function createSigilTexture(): THREE.CanvasTexture {
+  const size = 768;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const c = size / 2;
+  const R = 360;
+  ctx.strokeStyle = 'rgba(232, 194, 122, 0.8)';
+  ctx.shadowColor = 'rgba(255, 214, 140, 0.5)';
+  ctx.shadowBlur = 5;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, Math.PI * 2);
+  ctx.stroke();
+  const star = (offset: number) => {
+    ctx.beginPath();
+    for (let i = 0; i <= 12; i++) {
+      const a = offset + (i * 5 * Math.PI * 2) / 12;
+      const x = c + Math.cos(a) * R;
+      const y = c + Math.sin(a) * R;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+  ctx.lineWidth = 1.1;
+  star(-Math.PI / 2);
+  ctx.strokeStyle = 'rgba(232, 194, 122, 0.45)';
+  ctx.beginPath();
+  ctx.arc(c, c, R * 0.52, 0, Math.PI * 2);
+  ctx.stroke();
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -116,7 +128,7 @@ function createBorderFrameMesh(
   outerH: number,
   depth: number,
   zPos: number,
-  color: number = 0x090c14,
+  color: number = 0x120c07,
   roughness: number = 0.22,
   metalness: number = 0.85
 ): THREE.Mesh {
@@ -213,15 +225,15 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
     outerFrameOuter,
     0.14,
     -0.07,
-    0x0a0d14,
+    0x130d08,
     0.2,
     0.9
   );
   group.add(outerMesh);
 
   // Outer Gold & Cyan Trim Lines
-  const outerGoldLine = createRectLine(outerFrameOuter / 2, outerFrameOuter / 2, 0.08, 0xffd700, 0.9);
-  const outerCyanLine = createRectLine(outerFrameInner / 2, outerFrameInner / 2, 0.075, 0x00f2fe, 0.8);
+  const outerGoldLine = createRectLine(outerFrameOuter / 2, outerFrameOuter / 2, 0.08, 0xf3d189, 0.9);
+  const outerCyanLine = createRectLine(outerFrameInner / 2, outerFrameInner / 2, 0.075, 0xe2b866, 0.8);
   group.add(outerGoldLine);
   group.add(outerCyanLine);
 
@@ -233,15 +245,15 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
     innerFrameOuter,
     0.12,
     -0.06,
-    0x0c0f18,
+    0x150f09,
     0.24,
     0.85
   );
   group.add(innerMesh);
 
   // Inner Gold & Cyan Trim Lines
-  const innerCyanLine = createRectLine(innerFrameOuter / 2, innerFrameOuter / 2, 0.065, 0x00f2fe, 0.85);
-  const innerGoldLine = createRectLine(innerFrameInner / 2, innerFrameInner / 2, 0.065, 0xffd700, 0.95);
+  const innerCyanLine = createRectLine(innerFrameOuter / 2, innerFrameOuter / 2, 0.065, 0xe2b866, 0.85);
+  const innerGoldLine = createRectLine(innerFrameInner / 2, innerFrameInner / 2, 0.065, 0xf3d189, 0.95);
   group.add(innerCyanLine);
   group.add(innerGoldLine);
 
@@ -255,7 +267,7 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
     outerFrameInner,
     0.04,
     -0.04,
-    0x05070c,
+    0x0a0604,
     0.35,
     0.7
   );
@@ -263,10 +275,11 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
 
   // Base Bottom Slab (Nền móng tổng thể bàn cờ)
   const baseGeom = new THREE.BoxGeometry(outerFrameOuter + 0.2, outerFrameOuter + 0.2, 0.16);
+  // warm dark walnut, so the board sits on the HPVN brown stage instead of a black slab
   const baseMat = new THREE.MeshStandardMaterial({
-    color: 0x030408,
-    roughness: 0.4,
-    metalness: 0.9,
+    color: 0x2a1a0c,
+    roughness: 0.62,
+    metalness: 0.25,
   });
   const baseMesh = new THREE.Mesh(baseGeom, baseMat);
   baseMesh.position.z = -0.15;
@@ -277,158 +290,82 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
   // Perfectly fills the entire interior of the Inner Frame (halfW = 3.71, span = 7.42)
   const centerHalfW = 3.71;
   const centerHalfH = 3.71;
-  const perimeter = 2 * (centerHalfW * 2 + centerHalfH * 2); // 29.68 units
 
-  // 4.1 Center Obsidian Floor Slab (Spans the entire inner rectangle)
+  // 4.1 Centre "table": matte leather with a soft vignette, so the dice and cards are the only bright things.
+  const leather = document.createElement('canvas');
+  leather.width = leather.height = 512;
+  const lctx = leather.getContext('2d')!;
+  const vignette = lctx.createRadialGradient(256, 236, 40, 256, 256, 360);
+  vignette.addColorStop(0, '#3a2613');
+  vignette.addColorStop(0.65, '#21150a');
+  vignette.addColorStop(1, '#120b05');
+  lctx.fillStyle = vignette;
+  lctx.fillRect(0, 0, 512, 512);
+  const leatherTexture = new THREE.CanvasTexture(leather);
+  leatherTexture.colorSpace = THREE.SRGBColorSpace;
   const centerFloorGeom = new THREE.PlaneGeometry(centerHalfW * 2, centerHalfH * 2);
-  const centerFloorMat = new THREE.MeshStandardMaterial({
-    color: 0x09101d,
-    roughness: 0.28,
-    metalness: 0.85,
-  });
+  const centerFloorMat = new THREE.MeshStandardMaterial({ map: leatherTexture, roughness: 0.9, metalness: 0.05 });
   const centerFloorMesh = new THREE.Mesh(centerFloorGeom, centerFloorMat);
   centerFloorMesh.position.set(0, 0, 0.005);
   centerFloorMesh.receiveShadow = true;
   group.add(centerFloorMesh);
 
-  // Subtle interior stepped border lines
-  const centerSteppedLine1 = createRectLine(centerHalfW - 0.15, centerHalfH - 0.15, 0.012, 0xd4af37, 0.65);
-  const centerSteppedLine2 = createRectLine(centerHalfW - 0.35, centerHalfH - 0.35, 0.010, 0x00f2fe, 0.35);
-  group.add(centerSteppedLine1);
-  group.add(centerSteppedLine2);
-
-  // 4.2 Exact Center Hogwarts Crest Emblem Mesh
+  // 4.2 Crest as a faint watermark (no pulsing glow)
   const textureLoader = new THREE.TextureLoader();
-  const crestUrl = (import.meta.env.BASE_URL || '/') + 'hogwarts_center_crest.jpg';
-
+  const crestUrl = (import.meta.env.BASE_URL || '/') + 'hogwarts_center_crest.webp';
   const emblemTexture = textureLoader.load(crestUrl);
   emblemTexture.colorSpace = THREE.SRGBColorSpace;
-
-  const emblemGeom = new THREE.PlaneGeometry(4.8, 4.8);
-  const emblemMat = new THREE.MeshStandardMaterial({
-    map: emblemTexture,
-    roughness: 0.15,
-    metalness: 0.75,
-    emissive: new THREE.Color(0x00f2fe),
-    emissiveMap: emblemTexture,
-    emissiveIntensity: 0.32,
-  });
+  const emblemGeom = new THREE.PlaneGeometry(5.4, 5.4);
+  const emblemMat = new THREE.MeshBasicMaterial({ map: emblemTexture, transparent: true, opacity: 0.16, depthWrite: false });
   const emblemMesh = new THREE.Mesh(emblemGeom, emblemMat);
-  emblemMesh.position.set(0, 0, 0.015);
+  emblemMesh.position.set(0, 0.25, 0.012);
   group.add(emblemMesh);
 
-  // 4.3 Center Perimeter Cyan Border Line
-  const centerBorderLine = createRectLine(centerHalfW, centerHalfH, 0.02, 0x00f2fe, 0.75);
+  // 4.3 One thin gold edge around the table
+  const centerBorderLine = createRectLine(centerHalfW, centerHalfH, 0.016, 0xe2b866, 0.45);
   group.add(centerBorderLine);
 
-  // 4.4 Dynamic Neon Running Tracers along the Center Rectangle
-  const TRAIL_SEGMENTS = 36;
-  const TRAIL_LENGTH = 3.2;
-
-  // Pulse 1 (Clockwise)
-  const trailPositions1 = new Float32Array(TRAIL_SEGMENTS * 3);
-  const trailColors1 = new Float32Array(TRAIL_SEGMENTS * 3);
-  const trailGeom1 = new THREE.BufferGeometry();
-  trailGeom1.setAttribute('position', new THREE.BufferAttribute(trailPositions1, 3));
-  trailGeom1.setAttribute('color', new THREE.BufferAttribute(trailColors1, 3));
-
-  const trailMat1 = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    linewidth: 3,
-  });
-  const trailLine1 = new THREE.Line(trailGeom1, trailMat1);
-  group.add(trailLine1);
-
-  // Pulse 2 (Opposite Phase)
-  const trailPositions2 = new Float32Array(TRAIL_SEGMENTS * 3);
-  const trailColors2 = new Float32Array(TRAIL_SEGMENTS * 3);
-  const trailGeom2 = new THREE.BufferGeometry();
-  trailGeom2.setAttribute('position', new THREE.BufferAttribute(trailPositions2, 3));
-  trailGeom2.setAttribute('color', new THREE.BufferAttribute(trailColors2, 3));
-
-  const trailMat2 = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    linewidth: 3,
-  });
-  const trailLine2 = new THREE.Line(trailGeom2, trailMat2);
-  group.add(trailLine2);
-
-  // 4.5 Dual Concentric Rotating Magic Rune Rings
-  const runeTexture = createMagicRuneRingTexture(2.8, 5.0);
-  const runeGeom = new THREE.PlaneGeometry(6.6, 6.6);
-  const runeMat1 = new THREE.MeshBasicMaterial({
-    map: runeTexture,
-    transparent: true,
-    opacity: 0.60,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const runeMesh1 = new THREE.Mesh(runeGeom, runeMat1);
-  runeMesh1.position.set(0, 0, 0.022);
-  group.add(runeMesh1);
-
-  const runeMat2 = new THREE.MeshBasicMaterial({
-    map: runeTexture,
-    transparent: true,
-    opacity: 0.40,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const runeMesh2 = new THREE.Mesh(runeGeom, runeMat2);
-  runeMesh2.scale.set(0.78, 0.78, 1);
-  runeMesh2.position.set(0, 0, 0.025);
-  group.add(runeMesh2);
+  // 4.4 Desktop only: engraved rune ring + inner sigil, slow counter-rotation, gentle breathing,
+  // flaring when the dice land. Phones skip it (additive full-plaza planes cost fill rate there).
+  let ringTexture: THREE.CanvasTexture | null = null;
+  let sigilTexture: THREE.CanvasTexture | null = null;
+  let ringMat: THREE.MeshBasicMaterial | null = null;
+  let sigilMat: THREE.MeshBasicMaterial | null = null;
+  let ringMesh: THREE.Mesh | null = null;
+  let sigilMesh: THREE.Mesh | null = null;
+  const ringGeom = new THREE.PlaneGeometry(7.0, 7.0);
+  const sigilGeom = new THREE.PlaneGeometry(4.9, 4.9);
+  if (!LOW_POWER) {
+    ringTexture = createRuneRingTexture();
+    sigilTexture = createSigilTexture();
+    const additive = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false } as const;
+    ringMat = new THREE.MeshBasicMaterial({ map: ringTexture, opacity: 0.5, ...additive });
+    sigilMat = new THREE.MeshBasicMaterial({ map: sigilTexture, opacity: 0.22, ...additive });
+    ringMesh = new THREE.Mesh(ringGeom, ringMat);
+    sigilMesh = new THREE.Mesh(sigilGeom, sigilMat);
+    ringMesh.position.set(0, 0, 0.02);
+    sigilMesh.position.set(0, 0, 0.018);
+    group.add(ringMesh, sigilMesh);
+  }
+  let flareLevel = 0;
+  let spin = 0;
 
   return {
     group,
-    update: (time: number, _delta: number) => {
-      // 1. Slow, hypnotic rotation of dual magic rune rings
-      runeMesh1.rotation.z = time * 0.12;
-      runeMesh2.rotation.z = -time * 0.18;
-
-      // 2. Pulse emblem magic emission
-      emblemMat.emissiveIntensity = 0.28 + Math.sin(time * 3) * 0.12;
-
-      // 3. Update Running Neon Tracers along the Center Perimeter
-      const speed = 2.4; // Units per second
-      const headDist1 = (time * speed) % perimeter;
-      const headDist2 = (headDist1 + perimeter * 0.5) % perimeter;
-
-      const posAttr1 = trailGeom1.attributes.position as THREE.BufferAttribute;
-      const colAttr1 = trailGeom1.attributes.color as THREE.BufferAttribute;
-      const posAttr2 = trailGeom2.attributes.position as THREE.BufferAttribute;
-      const colAttr2 = trailGeom2.attributes.color as THREE.BufferAttribute;
-
-      const cyanColor = new THREE.Color(0x00f2fe);
-      const goldColor = new THREE.Color(0xffd700);
-
-      for (let i = 0; i < TRAIL_SEGMENTS; i++) {
-        const segFrac = i / (TRAIL_SEGMENTS - 1);
-        const trailOffset = segFrac * TRAIL_LENGTH;
-
-        // Trail 1
-        const pt1 = getRectPoint(headDist1 - trailOffset, centerHalfW, centerHalfH, perimeter);
-        posAttr1.setXYZ(i, pt1.x, pt1.y, pt1.z);
-        const brightness1 = Math.pow(1 - segFrac, 1.8);
-        const c1 = cyanColor.clone().multiplyScalar(brightness1);
-        colAttr1.setXYZ(i, c1.r, c1.g, c1.b);
-
-        // Trail 2
-        const pt2 = getRectPoint(headDist2 - trailOffset, centerHalfW, centerHalfH, perimeter);
-        posAttr2.setXYZ(i, pt2.x, pt2.y, pt2.z);
-        const brightness2 = Math.pow(1 - segFrac, 1.8);
-        const c2 = goldColor.clone().multiplyScalar(brightness2);
-        colAttr2.setXYZ(i, c2.r, c2.g, c2.b);
-      }
-
-      posAttr1.needsUpdate = true;
-      colAttr1.needsUpdate = true;
-      posAttr2.needsUpdate = true;
-      colAttr2.needsUpdate = true;
+    update: (time: number, delta: number) => {
+      if (!ringMesh || !sigilMesh || !ringMat || !sigilMat) return;
+      flareLevel = Math.max(0, flareLevel - delta * 1.1);
+      spin += delta * (0.045 + flareLevel * 0.6);
+      ringMesh.rotation.z = spin;
+      sigilMesh.rotation.z = -spin * 1.6;
+      const breathe = 0.5 + Math.sin(time * 1.3) * 0.5;
+      ringMat.opacity = 0.56 + breathe * 0.12 + flareLevel * 0.4;
+      sigilMat.opacity = 0.2 + breathe * 0.1 + flareLevel * 0.45;
+      const s = 1 + flareLevel * 0.03;
+      ringMesh.scale.set(s, s, 1);
+    },
+    flare: () => {
+      flareLevel = 1;
     },
     dispose: () => {
       scene.remove(group);
@@ -440,17 +377,18 @@ export function createBoardFrame(scene: THREE.Scene): BoardFrameInstance {
       (trayMesh.material as THREE.Material).dispose();
       baseMesh.geometry.dispose();
       (baseMesh.material as THREE.Material).dispose();
+      centerFloorGeom.dispose();
+      centerFloorMat.dispose();
+      leatherTexture.dispose();
       emblemGeom.dispose();
       emblemMat.dispose();
       emblemTexture.dispose();
-      runeGeom.dispose();
-      runeMat1.dispose();
-      runeMat2.dispose();
-      runeTexture.dispose();
-      trailGeom1.dispose();
-      trailMat1.dispose();
-      trailGeom2.dispose();
-      trailMat2.dispose();
+      ringGeom.dispose();
+      sigilGeom.dispose();
+      ringMat?.dispose();
+      sigilMat?.dispose();
+      ringTexture?.dispose();
+      sigilTexture?.dispose();
     },
   };
 }

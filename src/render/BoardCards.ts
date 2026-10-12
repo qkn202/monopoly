@@ -130,11 +130,11 @@ function createCardCanvasTexture(
 
   // 2. Ornate Golden Filigree Outer Rim (m = 2: right at the physical edge!)
   const m = 2;
-  ctx.strokeStyle = '#ffd700';
+  ctx.strokeStyle = '#f3d189';
   ctx.lineWidth = 4;
   ctx.strokeRect(m, m, canvasW - m * 2, canvasH - m * 2);
 
-  ctx.strokeStyle = '#00f2fe';
+  ctx.strokeStyle = '#e2b866';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(m + 4, m + 4, canvasW - (m + 4) * 2, canvasH - (m + 4) * 2);
 
@@ -147,7 +147,7 @@ function createCardCanvasTexture(
     ctx.fillStyle = headerColor;
     ctx.fillRect(m + 4, m + 4, canvasW - (m + 4) * 2, headerH);
 
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(m + 4, m + 4 + headerH);
@@ -165,7 +165,7 @@ function createCardCanvasTexture(
     // Location Title
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 32px "Cinzel", "Times New Roman", serif';
-    ctx.shadowColor = '#00f2fe';
+    ctx.shadowColor = '#e2b866';
     ctx.shadowBlur = 10;
 
     const words = tile.name.split(' ');
@@ -184,14 +184,14 @@ function createCardCanvasTexture(
     const picH = 730;
 
     // Picture frame border
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 3;
     ctx.strokeRect(picX, picY, picW, picH);
 
     if (img && img.complete && img.naturalWidth > 0) {
       drawImageCover(ctx, img, picX + 2, picY + 2, picW - 4, picH - 4, 4);
     } else {
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = '#160e07';
       ctx.fillRect(picX + 2, picY + 2, picW - 4, picH - 4);
       ctx.font = '80px serif';
       ctx.textAlign = 'center';
@@ -208,14 +208,14 @@ function createCardCanvasTexture(
 
       const plaqueGrad = ctx.createLinearGradient(plaqueX, plaqueY, plaqueX + plaqueW, plaqueY + plaqueH);
       plaqueGrad.addColorStop(0, owner.color);
-      plaqueGrad.addColorStop(0.5, '#0b1120');
+      plaqueGrad.addColorStop(0.5, '#160e07');
       plaqueGrad.addColorStop(1, owner.color);
       ctx.fillStyle = plaqueGrad;
       ctx.beginPath();
       ctx.roundRect(plaqueX, plaqueY, plaqueW, plaqueH, 8);
       ctx.fill();
 
-      ctx.strokeStyle = '#ffd700';
+      ctx.strokeStyle = '#f3d189';
       ctx.lineWidth = 3;
       ctx.stroke();
 
@@ -247,14 +247,14 @@ function createCardCanvasTexture(
     const picW = 350;
     const picH = canvasH - (m + 6) * 2;
 
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 3;
     ctx.strokeRect(picX, picY, picW, picH);
 
     if (img && img.complete && img.naturalWidth > 0) {
       drawImageCover(ctx, img, picX + 2, picY + 2, picW - 4, picH - 4, 4);
     } else {
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = '#160e07';
       ctx.fillRect(picX + 2, picY + 2, picW - 4, picH - 4);
       ctx.font = '80px serif';
       ctx.textAlign = 'center';
@@ -271,7 +271,7 @@ function createCardCanvasTexture(
     ctx.beginPath();
     ctx.roundRect(textStartX, m + 28, textW, 60, 8);
     ctx.fill();
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -287,9 +287,9 @@ function createCardCanvasTexture(
     }
 
     // Location Title
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = '#f3d189';
     ctx.font = 'bold 44px "Cinzel", "Times New Roman", serif';
-    ctx.shadowColor = '#00f2fe';
+    ctx.shadowColor = '#e2b866';
     ctx.shadowBlur = 12;
 
     const words = tile.name.split(' ');
@@ -302,7 +302,7 @@ function createCardCanvasTexture(
     }
 
     // Lore / Subtitle
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#bb9c7c';
     ctx.font = '24px "Cinzel", "Times New Roman", serif';
     ctx.shadowBlur = 0;
     ctx.fillText('ĐỊA DANH PHÙ THỦY CHÍNH THỐNG', textStartX + textW / 2, m + 305);
@@ -344,10 +344,10 @@ function createCardCanvasTexture(
     // CORNER CARD (0, 10, 20, 30) - 1024 x 1024
     // -------------------------------------------------------------------
     // Top Title
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = '#f3d189';
     ctx.font = 'bold 46px "Cinzel", "Times New Roman", serif';
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#00f2fe';
+    ctx.shadowColor = '#e2b866';
     ctx.shadowBlur = 14;
     ctx.fillText(tile.name.toUpperCase(), canvasW / 2, m + 65);
 
@@ -356,14 +356,14 @@ function createCardCanvasTexture(
     const picX = (canvasW - picSize) / 2;
     const picY = m + 90;
 
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 4;
     ctx.strokeRect(picX, picY, picSize, picSize);
 
     if (img && img.complete && img.naturalWidth > 0) {
       drawImageCover(ctx, img, picX + 3, picY + 3, picSize - 6, picSize - 6, 6);
     } else {
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = '#160e07';
       ctx.fillRect(picX + 3, picY + 3, picSize - 6, picSize - 6);
       ctx.font = '140px serif';
       ctx.textAlign = 'center';
@@ -372,9 +372,9 @@ function createCardCanvasTexture(
     }
 
     // Bottom Subtitle
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = '#ecdcc9';
     ctx.font = 'bold 30px "Cinzel", "Times New Roman", serif';
-    ctx.shadowColor = '#ffd700';
+    ctx.shadowColor = '#f3d189';
     ctx.shadowBlur = 8;
     const sub =
       tile.index === 0
@@ -389,7 +389,7 @@ function createCardCanvasTexture(
 
   // 4. Mortgaged Caution Banner & Dark Translucent Wash
   if (isMortgaged) {
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+    ctx.fillStyle = 'rgba(28, 18, 10, 0.72)';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
     ctx.save();
@@ -406,7 +406,7 @@ function createCardCanvasTexture(
     ctx.fillStyle = bGrad;
     ctx.fillRect(-bannerW / 2, -bannerH / 2, bannerW, bannerH);
 
-    ctx.strokeStyle = '#ffd700';
+    ctx.strokeStyle = '#f3d189';
     ctx.lineWidth = 3.5;
     ctx.strokeRect(-bannerW / 2, -bannerH / 2, bannerW, bannerH);
 
@@ -475,7 +475,7 @@ export class BoardCards {
       // 1. Base 3D Slab Mesh (Obsidian card slab)
       const baseGeom = new THREE.BoxGeometry(coord.width, coord.height, cardThickness);
       const baseMat = new THREE.MeshStandardMaterial({
-        color: 0x080b12,
+        color: 0x100a06,
         roughness: 0.22,
         metalness: 0.88,
       });
@@ -495,7 +495,7 @@ export class BoardCards {
         map: cardTexture,
         roughness: 0.2,
         metalness: 0.1,
-        emissive: new THREE.Color(0x00f2fe),
+        emissive: new THREE.Color(0xe2b866),
         emissiveIntensity: 0.04,
       });
 
@@ -507,7 +507,9 @@ export class BoardCards {
 
       // Load Image and update canvas texture cleanly
       const img = new Image();
-      img.src = `${baseUrl}assets/cards/tile_${i}.jpg?v=unified_master`;
+      // the HPVN frame has an opaque origin: a CORS image keeps the card canvas usable as a WebGL texture
+      img.crossOrigin = 'anonymous';
+      img.src = `${baseUrl}assets/cards/tile_${i}.webp?v=unified_master`;
       img.onload = () => {
         this.images.set(i, img);
         // Re-render canvas with loaded image
@@ -527,7 +529,7 @@ export class BoardCards {
       ];
       const borderGeom = new THREE.BufferGeometry().setFromPoints(borderPoints);
       const borderMat = new THREE.LineBasicMaterial({
-        color: 0x00f2fe,
+        color: 0xe2b866,
         transparent: true,
         opacity: 0.4,
         linewidth: 2,
@@ -601,9 +603,9 @@ export class BoardCards {
           card.faceMat.emissive.set(owner.color);
           card.faceMat.emissiveIntensity = 0.12;
         } else {
-          card.borderMat.color.setHex(0x00f2fe);
+          card.borderMat.color.setHex(0xe2b866);
           card.borderMat.opacity = 0.4;
-          card.faceMat.emissive.setHex(0x00f2fe);
+          card.faceMat.emissive.setHex(0xe2b866);
           card.faceMat.emissiveIntensity = 0.04;
         }
       }
@@ -636,7 +638,7 @@ export class BoardCards {
           card.faceMat.emissiveIntensity = isActive ? 0.2 : 0.12;
         } else {
           card.borderMat.opacity = isActive ? 0.75 : 0.4;
-          card.borderMat.color.setHex(isActive ? 0xffd700 : 0x00f2fe);
+          card.borderMat.color.setHex(isActive ? 0xf3d189 : 0xe2b866);
           card.faceMat.emissiveIntensity = isActive ? 0.12 : 0.04;
         }
       }
