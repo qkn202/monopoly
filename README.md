@@ -4,9 +4,9 @@
 [![GitHub Branch](https://img.shields.io/badge/GitHub-hogwarts--monopoly--online-blue?style=for-the-badge&logo=github)](https://github.com/qkn202/monopoly/tree/hogwarts-monopoly-online)
 [![Built with React](https://img.shields.io/badge/React-18.x-61dafb?style=for-the-badge&logo=react)](https://react.dev)
 [![Three.js](https://img.shields.io/badge/Three.js-WebGL%203D-black?style=for-the-badge&logo=three.js)](https://threejs.org)
-[![Supabase Realtime](https://img.shields.io/badge/Supabase-Realtime%20Multiplayer-3ecf8e?style=for-the-badge&logo=supabase)](https://supabase.com)
+[![HPVN Integration](https://img.shields.io/badge/HPVN-Game%20Zone%20Bridge-purple?style=for-the-badge)](https://hpvn-archive.net)
 
-**Hogwarts Monopoly 3D** là phiên bản Cờ Tỷ Phú ma thuật lấy cảm hứng từ thế giới Harry Potter, được xây dựng hoàn toàn bằng **React, TypeScript, Three.js (WebGL 3D)** và tích hợp hệ thống **Multiplayer Realtime Online** qua Supabase.
+**Hogwarts Monopoly 3D** là phiên bản Cờ Tỷ Phú ma thuật lấy cảm hứng từ thế giới Harry Potter, được xây dựng hoàn toàn bằng **React, TypeScript, Three.js (WebGL 3D)**, tối ưu đồ họa **WebP thế hệ mới** và tích hợp hệ thống phòng chơi trực tuyến qua **HPVN Room Bridge**.
 
 Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogwarts-monopoly.vercel.app](https://hogwarts-monopoly.vercel.app)**
 
@@ -16,13 +16,13 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 ### 1. Bàn cờ 3D Three.js & Đồ họa Ma thuật
 - **Bàn cờ 3D WebGL tương tác cao:** Raycasting nhận diện vị trí, hiệu ứng ánh sáng ma thuật theo thời gian thực và đổ bóng chân thực.
-- **3 Chế độ Camera cố định:**
-  - 👁️ **Toàn Cảnh (Overview):** Góc nhìn nghiêng 3D bao quát cả 40 ô đất và lâu đài Hogwarts.
-  - 🎥 **Bám Theo (Follow):** Camera zoom cận vào quân cờ đang di chuyển, theo dõi real-time.
-  - 📐 **Góc Nhìn Từ Trên Xuống (Top-Down):** Phẳng 2D truyền thống, quan sát dễ dàng trên màn hình nhỏ.
-  - *Camera không xoay tự do — chỉ có thể zoom in/out*
-- **Hệ thống màu theo Ownership:** Đất được tô màu theo nhà của chủ sở hữu (Gryffindor=đỏ, Slytherin=xanh lục, Ravenclaw=xanh dương, Hufflepuff=vàng). Đất trống có màu xám trung lập.
-- **Tượng Quân Cờ Phù Thủy 3D:** Mỗi người chơi sở hữu mô hình thu nhỏ mang huy hiệu và màu sắc đặc trưng của từng Nhà, tự động nhảy theo điểm xúc xắc.
+- **Tối ưu tài nguyên WebP:** Toàn bộ 40 thẻ bài, mặt lưng bùa chú/độc dược và huy hiệu Hogwarts trung tâm đều sử dụng định dạng WebP siêu nhẹ, giảm dung lượng tải trang ~80%, build bundle chỉ dưới 1 giây.
+- **3 Chế độ Camera cố định chuẩn mực:**
+  - 👁️ **Toàn Cảnh (Overview):** Góc nghiêng 2.5D bao quát toàn bộ 40 ô đất và lâu đài Hogwarts (tối ưu tự động tỉ lệ màn hình ngang/dọc).
+  - 🎥 **Bám Theo (Follow):** Camera tự động zoom và bám theo từng bước nhảy của quân cờ.
+  - 📐 **Góc Nhìn Từ Trên Xuống (Top-Down):** Góc nhìn phẳng 90° truyền thống, thuận tiện quan sát chiến thuật.
+- **Hệ thống màu theo Quyền sở hữu (Ownership System):** Ô đất đổi màu viền và đèn hiệu theo Nhà của chủ đất (🦁 Gryffindor: Đỏ | 🐍 Slytherin: Xanh lục | 🦅 Ravenclaw: Xanh dương | 🦡 Hufflepuff: Vàng). Đất chưa ai mua hiển thị màu trung tính.
+- **Tượng Quân Cờ Phù Thủy 3D:** Mô hình quân cờ mang huy hiệu Nhà đặc trưng, tự động di chuyển theo điểm gieo xúc xắc.
 
 ### 2. 4 Nhà Phù Thủy Hogwarts
 - 🦁 **Gryffindor:** Đỏ thắm & Vàng kim — Dũng cảm và kiên cường.
@@ -33,83 +33,71 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 ### 3. Hệ thống Kinh tế & Địa danh Ma thuật
 - **Vốn khởi điểm:** Mỗi phù thủy bắt đầu với **5,000 Galleons**.
 - **40 Ô đất kinh điển:** Hẻm Xéo, Tiệm Đũa Phép Ollivander, Ngân Hàng Gringotts, Quán Ba Cây Chổi, Sân Quidditch, Tháp Thiên Văn, Rừng Cấm, v.v.
-- **Nâng cấp Bất động sản linh hoạt:**
-  - Xây từ **1 đến 4 Túp Lều** (`Cottage`) trên bất kỳ mảnh đất nào mình sở hữu.
-  - **Quy tắc xây nhà bắt buộc:**
-    1. **Sở hữu đủ Bộ Màu (Color Set):** Phải sở hữu TOÀN BỘ các ô đất cùng màu trước khi xây bất kỳ nhà nào trên bộ màu đó.
-    2. **Đặt chân vào ô đất:** Phải đặt chân vào ô đất ít nhất 1 lần sau khi mua mới được xây.
-    3. **Quy tắc 1 nhà/lượt:** Mỗi lượt chỉ xây được **1 Túp Lều**.
-    4. **Reset sau xây:** Sau khi xây nhà, phải quay lại đất đó lần nữa (đặt chân) mới được xây thêm.
-  - **🏰 Lâu Đài Hogwarts:** Nâng cấp tối thượng khi ô đất đạt đủ 4 Túp Lều, nâng tiền thuê lên mức kỷ lục!
-- **Hệ thống Thế chấp & Chuộc tài sản:** Hỗ trợ thế chấp nhận ngay 50% giá trị và chuộc lại với lãi suất 10% khi cần dòng tiền.
-- **Giai đoạn Phá Sản (Bankruptcy Phase):** Khi không đủ tiền trả nợ thuế/tiền thuê:
-  1. **Hiển thị danh sách tài sản** có thể thế chấp hoặc bán nhà.
-  2. **Tự động kiểm tra** đủ tiền trả nợ sau mỗi thao tác thế chấp/bán.
-  3. **Auto-pay & continue** khi đã đủ tiền.
-  4. **Timeout 60s**: Hết giờ mà vẫn thiếu tiền → Tự động tuyên bố phá sản.
+- **Định dạng tiền tệ Galleons (`g` / `galleons`):** Hiển thị trực quan, ngắn gọn, có phân cách phần ngàn chuẩn mực.
 
-### 4. Cơ chế Đột biến & Tranh đấu Kịch tính
+---
+
+## 📋 Luật Chơi Chi Tiết & Chuẩn Mực (Game Rules)
+
+### Quy Tắc Sở Hữu & Xây Dựng (Building Rules)
+
+| Quy Tắc | Mô Tả |
+| :--- | :--- |
+| **Bắt buộc đủ Bộ Màu (Color Set)** | Phải sở hữu **TOÀN BỘ các ô đất trong cùng một nhóm màu** mới được phép xây Túp Lều hoặc nâng cấp Lâu Đài. Nếu chưa đủ bộ màu, hệ thống sẽ hiện cảnh báo `⚠️ Cần sở hữu ĐỦ BỘ MÀU trước khi xây nhà`. |
+| **Đặt chân vào ô đất** | Phải đặt chân vào ô đất đã mua ít nhất 1 lần trước khi được xây nhà trên đó. |
+| **Quy tắc 1 nhà / lượt** | Mỗi lượt đi chỉ được phép xây **1 Túp Lều** trên một ô đất. |
+| **Reset sau khi xây** | Sau khi vừa xây nhà xong, người chơi phải đi tiếp một vòng và đặt chân lại vào ô đó mới được nâng cấp tiếp. |
+| **Monopoly Bonus** | Khi sở hữu trọn vẹn bộ màu nhưng chưa xây nhà, tiền thuê cơ bản tự động tăng **GẤP ĐÔI (x2)**. |
+| **🏰 Lâu Đài Hogwarts** | Khi ô đất đạt mốc 4 Túp Lều, người chơi có thể nâng cấp tối thượng lên Lâu Đài Hogwarts để tăng tiền thuê lên mức cao nhất! |
+
+### Quy Tắc Thế Chấp & Thanh Lý (Mortgage Rules)
+
+| Quy Tắc | Mô Tả |
+| :--- | :--- |
+| **Không xây nhà khi thế chấp** | Không thể xây thêm nhà trên ô đất đang bị thế chấp. |
+| **Không thế chấp khi còn nhà** | Phải **bán hết toàn bộ nhà** trên nhóm màu đó trước khi có thể thế chấp bất kỳ ô đất nào. |
+| **Tiền thế chấp & Chuộc lại** | Thế chấp nhận ngay **50% giá mua đất**. Phí chuộc lại = **110% giá trị thế chấp** (10% lãi suất). |
+| **Miễn thu tiền thuê** | Ô đất đang thế chấp sẽ không thu được tiền thuê khi người khác bước vào. |
+
+### Quy Tắc Tù Azkaban & Xúc Xắc
+
+| Quy Tắc | Mô Tả |
+| :--- | :--- |
+| **3 Lần Đôi liên tiếp** | Gieo được 3 lần xúc xắc đôi liên tiếp trong cùng 1 lượt → Vào ngay Tù ngục Azkaban. |
+| **3 Lượt ở Tù** | Người chơi có tối đa 3 lượt trong tù. Có thể thoát bằng cách: gieo xúc xắc đôi, trả tiền bảo lãnh 150G, hoặc dùng Thẻ Miễn Giam. |
+| **Phạt tù lượt 3** | Sau 3 lượt không gieo được đôi, bắt buộc nộp phạt 150G để ra tù. Nếu không đủ tiền, chuyển sang pha Phá Sản. |
+| **Vượt Ga 9¾ (GO)** | Nhận ngay **500 Galleons** trợ cấp mỗi khi hoàn thành 1 vòng bàn cờ. |
+
+### Quy Tắc Phá Sản & Trả Nợ Tự Động (Bankruptcy Phase)
+
+| Quy Tắc | Mô Tả |
+| :--- | :--- |
+| **Kích hoạt Phá Sản** | Khi thiếu tiền nộp thuế, phạt tù hoặc trả tiền thuê đất, game sẽ chuyển sang pha `BANKRUPTCY`. |
+| **Bảng điều khiển tài chính** | Giao diện tự động liệt kê: danh sách **Nhà có thể BÁN** (thu lại 50% tiền xây) và **Tài sản có thể THẾ CHẤP** (+Galleons). |
+| **Auto-Pay (`checkAndPayDebt`)** | Ngay khi người chơi thế chấp hoặc bán nhà đủ số tiền nợ, hệ thống **tự động thanh toán nợ và tiếp tục ván đấu**. |
+| **Timeout 60 giây an toàn** | Hết 60 giây mà người nợ không xoay đủ tiền để trả → Hệ thống tự động tuyên bố phá sản và thanh lý tài sản cho chủ nợ / ngân hàng. |
+
+---
+
+## ⚡ Cơ chế Đột biến & Tranh đấu Kịch tính
+
 - ☠️ **Bão Lời Nguyền Hắc Ám (Dark Curse Escalation):**
-  - Sau một số vòng đấu ngẫu nhiên (từ vòng 4 trở đi), Chúa tể Voldemort và Tử Thần Thực Tử trỗi dậy.
-  - **Toàn bộ tiền thuê đất và thuế trên bàn cờ lập tức nhân đôi (x2)** kèm hiệu ứng sương mù đỏ máu và sấm sét rền vang!
+  - Cứ sau mỗi chu kỳ vòng đấu nhất định, thế lực Hắc Ám trỗi dậy.
+  - **Toàn bộ tiền thuê đất và thuế trên bàn cờ lập tức nhân đôi (x2, x4)** kèm giao diện sấm chớp và âm thanh rùng rợn!
 - ⚡ **Thâu Tóm Cưỡng Chế (Hostile Takeover):**
-  - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ nhà trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
+  - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất + nhà**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ công trình trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
 - 🔨 **Đấu Giá Công Khai (Public Auction):**
   - Khi một người chơi bỏ qua việc mua đất trống, ô đất sẽ được đưa ra sàn đấu giá công khai với đồng hồ đếm ngược.
   - Người trả giá cao nhất sẽ giành được ô đất với mức giá hời.
   - Người rút lui khỏi đấu giá sẽ bị loại khỏi vòng đấu giá hiện tại; những người còn lại tiếp tục đấu giá.
 
-### 5. Thẻ Bài Ma Thuật Huyền Bí
-- 📜 **Thẻ Bùa Chú (Charms Deck):** Thưởng tiền thưởng, dịch chuyển tức thời, vé miễn giam Azkaban, bùa hộ mệnh.
-- 🧪 **Thẻ Độc Dược (Potions Deck):** Sự cố nổ vạc, nộp phạt thuế Bộ Pháp Thuật, nộp tiền sửa chữa nhà cửa, bẫy trộm Gringotts.
-- **Giao diện 3D Flip Card:** Rút thẻ bài chân thực với mặt lưng hoa văn ma thuật, lật thẻ 3D và hiển thị tranh minh họa chi tiết.
-
-### 6. 🌐 Multiplayer Realtime Online (Backend Supabase)
-- **Tạo phòng & Tham gia phòng bằng mã 4 ký tự (Room Code):** Tương tự như phong cách kết nối của các web game nổi tiếng (*7 Potter*, *Undercover*).
-- **Đồng bộ hóa tức thời qua Supabase Realtime Broadcast:** Các lượt gieo xúc xắc, mua đất, nâng cấp nhà, rút thẻ bài và tin nhắn sự kiện được truyền tải song song giữa Host và Khách với độ trễ cực thấp.
-- **Hỗ trợ Bot AI:** Nếu không đủ người chơi thực tế, bạn có thể thêm các đối thủ AI thông minh để luyện tập.
-- **Chống treo ván đấu (Turn Timeout 60s):** Mỗi lượt đi có giới hạn 60 giây suy nghĩ. Hết giờ, Trợ lý Ma thuật sẽ tự động gieo xúc xắc hoặc kết thúc lượt để ván đấu luôn trôi chảy.
-
-### 7. 📱 Hỗ trợ Đa nền tảng & Responsive
-- Hoạt động mượt mà trên **Desktop màn hình rộng**, **Máy tính bảng (Tablet)** và **Điện thoại di động (Mobile Portrait)**.
-- Giao diện màn hình dọc tối ưu với **Bottom Action Dock**, xem nhanh Bảng Xếp Hạng, Danh Mục Tài Sản và Nhật Ký Lịch Sử mà không che khuất bàn cờ 3D.
-
 ---
 
-## 📋 Luật Chơi Chi Tiết (Game Rules)
+## 🌐 Hệ thống Kết nối Phòng & Lưu Trữ HPVN
 
-### Quy Tắc Sở Hữu & Xây Dựng
-
-| Quy Tắc | Mô Tả |
-|----------|--------|
-| **Sở hữu đủ Bộ Màu** | Phải sở hữu TOÀN BỘ các ô đất cùng màu mới được xây nhà |
-| **Đặt chân vào ô đất** | Phải đặt chân vào ô đất đã mua ít nhất 1 lần trước khi xây nhà |
-| **Reset sau xây** | Sau khi xây, phải quay lại đất đó mới được xây tiếp |
-| **Monopoly Bonus** | Khi sở hữu đủ bộ màu, tiền thuê cơ bản tăng **GẤP ĐÔI** |
-
-### Quy Tắc Thế Chấp
-
-| Quy Tắc | Mô Tả |
-|----------|--------|
-| **Không xây nhà khi thế chấp** | Không thể xây nhà trên ô đất đang bị thế chấp |
-| **Không thế chấp khi có nhà** | Phải bán HẾT nhà trên BỘ MÀU trước khi thế chấp bất kỳ ô nào |
-| **Chuộc lại với lãi** | Phí chuộc = 110% giá trị thế chấp |
-
-### Quy Tắc Tù & Xúc Xắc
-
-| Quy Tắc | Mô Tả |
-|----------|--------|
-| **3 Đôi liên tiếp** | Tung 3 lần đôi liên tiếp → Vào tù Azkaban ngay |
-| **Ở tù 3 lượt** | Có 3 lượt để thoát (đợi, trả 150G, dùng thẻ, hoặc tung đôi) |
-| **Qua Ga 9¾** | Nhận 500G khi vượt qua ô GO (chỉ 1 lần) |
-
-### Quy Tắc Phá Sản
-
-| Quy Tắc | Mô Tăng |
-|----------|----------|
-| **Thiếu tiền thuế** | Vào phase Phá Sản → chọn tài sản thế chấp/bán |
-| **Thiếu tiền thuê** | Tương tự, hoặc tuyên bố phá sản |
-| **Auto-trả nợ** | Sau khi thế chấp/bán đủ tiền → Tự động trả nợ |
+- **HPVN Room Bridge (`src/hpvn/bridge.ts`):** Kết nối phòng chơi mượt mà trong hệ sinh thái game HPVN, hỗ trợ cả chơi một mình với Bot AI hoặc chơi nhiều người trực tuyến.
+- **Lưu trữ Ván đấu Tự Động (`saveGame.ts`):** Ván đấu được lưu cục bộ với thuật toán nén snapshot (dưới 16,000 ký tự trên tổng ngân sách 31,200), tự khôi phục ván đấu khi vô tình reload trang.
+- **Tự động hóa & Chống treo:** Turn Timeout 60s cho mỗi lượt đi, hỗ trợ chế độ Siêu Tốc (Turbo 2x speed) cho bot.
 
 ---
 
@@ -129,12 +117,13 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 | Thành phần | Công nghệ |
 | :--- | :--- |
-| **Giao diện (Frontend)** | React 18, TypeScript, Vanilla CSS (Design Tokens, Glassmorphism) |
-| **Đồ họa 3D (3D Engine)** | Three.js, WebGL, Raycasting, OrbitControls |
-| **Realtime Networking** | Supabase Realtime Channels (Broadcast Engine) |
-| **Âm thanh (Audio)** | Web Audio API / Howler sound triggers |
-| **Build & Tooling** | Vite, TypeScript Compiler (`tsc`) |
-| **Triển khai (Deployment)** | Vercel Serverless Edge, GitHub Actions |
+| **Giao diện (Frontend)** | React 18, TypeScript, Vanilla CSS (Design Tokens, Glassmorphism, HPVN Design System) |
+| **Đồ họa 3D (3D Engine)** | Three.js, WebGL, WebP Texture Streaming, Raycasting |
+| **Networking & Bridge** | HPVN Room Bridge, PostMessage Window Protocol, Local Snapshot Engine |
+| **Âm thanh (Audio)** | Web Audio API / Sound Effects ma thuật |
+| **Kiểm thử (Testing)** | `tsx`, Node.js test suites (HPVN core, 11 Audit Tests, Build & Upgrade Rules) |
+| **Build & Tooling** | Vite 5, TypeScript Compiler (`tsc`) |
+| **Triển khai (Deployment)** | Vercel Serverless Production, GitHub Actions |
 
 ---
 
@@ -144,7 +133,7 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 monopoly/
 ├── public/
 │   ├── assets/
-│   │   ├── cards/              # Hình ảnh thẻ bài 40 ô đất ma thuật
+│   │   ├── cards/              # Toàn bộ 40 thẻ bài đất ma thuật chuẩn WebP tối ưu
 │   │   ├── audio/              # Hiệu ứng âm thanh gieo xúc xắc, mua đất, bão lời nguyền
 │   │   └── textures/           # Vân bề mặt bàn cờ, crest 4 nhà Hogwarts
 ├── src/
@@ -153,31 +142,34 @@ monopoly/
 │   ├── core/
 │   │   ├── boardData.ts        # Dữ liệu 40 ô đất, 4 Nhà, thẻ Bùa Chú & Độc Dược
 │   │   ├── botAI.ts            # Thuật toán trí tuệ nhân tạo ra quyết định
-│   │   ├── gameReducer.ts      # Reducer xử lý trạng thái cốt lõi của ván đấu
+│   │   ├── gameReducer.ts      # Reducer xử lý trạng thái cốt lõi, phá sản & trả nợ tự động
 │   │   ├── reducerHelpers.ts   # Xử lý nợ nần, thanh lý tài sản, hiệu ứng thẻ bài
-│   │   ├── rulesEngine.ts      # Luật tính tiền thuê, điều kiện xây nhà, xếp hạng
+│   │   ├── rulesEngine.ts      # Ràng buộc đủ bộ màu, tính tiền thuê, xếp hạng
+│   │   ├── actionAuth.ts       # Xác thực quyền hành động theo lượt
 │   │   └── types.ts            # Hệ thống TypeScript Types & Interfaces
-│   ├── network/
-│   │   ├── supabaseClient.ts   # Khởi tạo Supabase client
-│   │   └── multiplayerSession.ts # Kiến trúc kết nối Host - Guest qua Realtime Broadcast
+│   ├── hpvn/
+│   │   ├── bridge.ts           # Cầu nối phòng chơi HPVN Archive
+│   │   ├── onlineGame.ts       # Điều phối ván đấu online
+│   │   ├── saveGame.ts         # Cơ chế lưu trữ và phục hồi snapshot ván đấu
+│   │   ├── money.ts            # Định dạng tiền tệ Galleons chuẩn
+│   │   ├── OnlineLobby.tsx     # Giao diện sảnh chờ kết nối phòng
+│   │   └── hpvn.css            # Stylesheet chuẩn HPVN
 │   ├── render/
-│   │   ├── BoardCards.ts       # Hệ thống vẽ 40 lá bài đất 3D
+│   │   ├── BoardCards.ts       # Vẽ 40 lá bài đất 3D với texture WebP
 │   │   ├── BoardTokens.ts      # Quản lý quân cờ 3D & animation di chuyển
-│   │   ├── BoardCoordinates.ts # Tính toán tọa độ 40 ô đất
+│   │   ├── Board3DDice.ts      # Mô phỏng xúc xắc 3D vật lý
 │   │   └── BoardFrame.ts       # Khung bàn cờ Hogwarts
 │   ├── ui/
 │   │   ├── BoardThreeJS.tsx    # Thành phần đồ họa 3D Three.js WebGL
-│   │   ├── CardInspectModal.tsx# Modal soi thẻ bài 3D flip card
-│   │   ├── DarkCurseModal.tsx  # Modal cảnh báo Bão Lời Nguyền Hắc Ám Voldemort
-│   │   ├── Lobby.tsx           # Phòng chờ: tạo phòng, nhập mã phòng, chọn Nhà
-│   │   ├── RightSidebar.tsx    # Bảng điều khiển, sàn đấu giá, tài sản & bảng xếp hạng
-│   │   └── WinModal.tsx        # Modal vinh danh nhà vô địch khi hết 30 phút
-│   ├── App.tsx                  # Điểm kết nối logic game, phím tắt & layout chính
+│   │   ├── RightSidebar.tsx    # Bảng điều khiển, sàn đấu giá, quản lý phá sản/thế chấp
+│   │   ├── ActiveCardModal.tsx # Modal thẻ bùa chú / độc dược
+│   │   └── DarkCurseModal.tsx  # Cảnh báo Lời Nguyền Hắc Ám Voldemort
+│   ├── App.tsx                 # Điểm kết nối logic game, phím tắt & layout chính
 │   └── main.tsx                # Entry point
 ├── scripts/
-│   ├── test_upgrade_and_build.ts   # Unit test nâng cấp bất động sản & hạ cánh
+│   ├── test-hpvn-core.ts           # Test suite kiểm tra mạng, quyền ghế và snapshot HPVN
 │   ├── test_audit_fixes.ts         # Test suite 11 bài test kiểm tra logic toàn diện
-│   └── test_multiplayer_supabase.ts# Test suite kiểm tra đồng bộ Realtime
+│   └── test_upgrade_and_build.ts   # Unit test quy tắc đủ bộ màu, nâng cấp và hạ cánh
 ├── package.json
 ├── vite.config.ts
 └── tsconfig.json
@@ -205,31 +197,19 @@ monopoly/
    npm install
    ```
 
-3. **Tạo file cấu hình môi trường `.env` (Tùy chọn cho Multiplayer Online):**
-   ```env
-   VITE_SUPABASE_URL=https://fxucyrofcsuqtlkukcrx.supabase.co
-   VITE_SUPABASE_ANON_KEY=sb_publishable_zEiG2Py5kDmGhkTgw0uWIA_We0rOCGu
-   ```
-
-4. **Khởi chạy máy chủ phát triển:**
+3. **Khởi chạy máy chủ phát triển:**
    ```bash
    npm run dev
    ```
-   Mở trình duyệt tại: `http://localhost:5173`
+   Mở trình duyệt tại: `http://localhost:3000`
 
-5. **Chạy các bộ kiểm thử tự động:**
+4. **Chạy toàn bộ bộ kiểm thử tự động:**
    ```bash
-   # Kiểm tra logic xây nhà và nâng cấp
-   npx tsx scripts/test_upgrade_and_build.ts
-
-   # Kiểm tra toàn bộ 11 kịch bản kiểm toán game
-   npx tsx scripts/test_audit_fixes.ts
-
-   # Kiểm tra kết nối mạng Multiplayer Supabase
-   npx tsx scripts/test_multiplayer_supabase.ts
+   npm run test:hpvn
    ```
+   *(Bao gồm: Test HPVN core + 11 bài test kiểm toán logic + Test kiểm tra quy tắc đủ bộ màu).*
 
-6. **Đóng gói sản phẩm:**
+5. **Đóng gói sản phẩm (Build Production):**
    ```bash
    npm run build
    ```
