@@ -1,4 +1,4 @@
-import { GameState, Player, CardConfig, GameEvent } from './types';
+import { GameState, Player, CardConfig, GameEvent, BankruptcyDraft } from './types';
 import { HOGWARTS_TILES } from './boardData';
 import { calculateNetWorth } from './rulesEngine';
 import { g, galleons } from '../hpvn/money';
@@ -307,7 +307,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     cashFromBuildings += hotelCount * Math.floor((houseCost * 5) / 2);
   });
 
-  const totalTransferCash = debtor.balance + cashFromBuildings;
+  const totalTransferCash = Math.max(0, debtor.balance) + cashFromBuildings;
 
   const updatedDebtor: Player = {
     ...debtor,
@@ -323,102 +323,337 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
   let newMortgages = { ...state.mortgagedProperties };
   let updatedPlayers = state.players.map((p) => (p.id === debtor.id ? updatedDebtor : p));
 
-  if (creditorId) {
-    // Transfer debtor's properties, cash, AND buildings (houses/hotels) to creditor
-    debtor.properties.forEach((tileId) => {
-      newPropertyOwnership[tileId] = creditorId;
-    });
-    updatedPlayers = updatedPlayers.map((p) => {
-      if (p.id === creditorId) {
-        // Merge debtor's houses and hotels with creditor's existing ones
-        const mergedHouses = { ...p.houses };
-        const mergedHotels = { ...p.hotels };
-        debtor.properties.forEach((tileId) => {
-          const housesToAdd = debtor.houses[tileId] || 0;
-          const hotelsToAdd = debtor.hotels[tileId] || 0;
-          mergedHouses[tileId] = (mergedHouses[tileId] || 0) + housesToAdd;
-          mergedHotels[tileId] = (mergedHotels[tileId] || 0) + hotelsToAdd;
-        });
-        return {
-          ...p,
-          balance: p.balance + totalTransferCash,
-          properties: [...p.properties, ...debtor.properties],
-          houses: mergedHouses,
-          hotels: mergedHotels,
-        };
-      }
-      return p;
-    });
-  } else {
-    // Return properties to bank (unowned and unmortgaged)
-    debtor.properties.forEach((tileId) => {
-      delete newPropertyOwnership[tileId];
-      delete newMortgages[tileId];
-    });
-  }
-
   // Check if only 1 active player remains
   const activePlayers = updatedPlayers.filter((p) => !p.isBankrupt);
-  let winner = state.winner;
-  let turnPhase = state.turnPhase;
 
   if (activePlayers.length <= 1) {
-    winner = activePlayers[0] || null;
-    turnPhase = 'GAME_OVER';
-  } else if (debtor.id === state.players[state.currentPlayerIndex]?.id) {
-    // Debtor was current player - need to advance to next non-bankrupt player immediately
-    // We can't just set turnPhase to END_TURN because the bankrupt player might still be "current"
-    // We need to advance the turn immediately
-    const currentIdx = state.currentPlayerIndex;
-    let nextIdx = (currentIdx + 1) % state.players.length;
-    while (nextIdx !== currentIdx && updatedPlayers[nextIdx].isBankrupt) {
-      nextIdx = (nextIdx + 1) % state.players.length;
-    }
-    // If we found a non-bankrupt player, advance to them
-    if (nextIdx !== currentIdx || !updatedPlayers[nextIdx].isBankrupt) {
-      return refreshAllNetWorth({
-        ...state,
-        players: updatedPlayers,
-        propertyOwnership: newPropertyOwnership,
-        mortgagedProperties: newMortgages,
-        winner,
-        currentPlayerIndex: nextIdx,
-        turnPhase: 'ROLL',
-        dice: null,
-        consecutiveDoubles: 0,
-        auction: null,
-        activeCard: null,
-        takeoverCandidate: null,
-        upgradeCandidate: null,
-        lastRentPayment: null,
-        turnSecondsRemaining: state.maxTurnSeconds || 60,
-        events: [
-          createEvent(
-            creditorId
-              ? `💥 ${debtor.name} đã tuyên bố PHÁ SẢN trước ${state.players.find((p) => p.id === creditorId)?.name || 'chủ nợ'}!`
-              : `💥 ${debtor.name} đã tuyên bố PHÁ SẢN và rời khỏi cuộc chơi!`,
-            'error',
-            debtor.id,
-            creditorId
-          ),
-          createEvent(`➡️ Lượt tự động chuyển cho ${updatedPlayers[nextIdx]?.name || 'người chơi tiếp theo'}`, 'info', updatedPlayers[nextIdx]?.id),
-          ...state.events,
-        ],
+    const winner = activePlayers[0] || null;
+    if (winner) {
+      debtor.properties.forEach((tileId) => {
+        newPropertyOwnership[tileId] = winner.id;
+      });
+      updatedPlayers = updatedPlayers.map((p) => {
+        if (p.id === winner.id) {
+          return {
+            ...p,
+            balance: p.balance + totalTransferCash,
+            properties: [...p.properties, ...debtor.properties],
+          };
+        }
+        return p;
       });
     }
+    return refreshAllNetWorth({
+      ...state,
+      players: updatedPlayers,
+      propertyOwnership: newPropertyOwnership,
+      mortgagedProperties: newMortgages,
+      winner,
+      turnPhase: 'GAME_OVER',
+      events: [
+        createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
+        createEvent(
+          `🏆 ${winner ? `${winner.name} là người sống sót duy nhất và chiến thắng ván cờ!` : 'Trò chơi kết thúc!'}`,
+          'success'
+        ),
+        ...state.events,
+      ],
+    });
   }
+
+  // Active players >= 2: Egalitarian Redistribution!
+  // Assets of the bankrupt player are divided equally among surviving players.
+  // Properties are drafted round-robin with poorest (lowest net worth) choosing first.
+  // Uneven remainder properties are converted to cash at 100% price and added to the cash pool.
+  const numSurviving = activePlayers.length;
+  const debtorProps = [...debtor.properties];
+  const totalProps = debtorProps.length;
+  const propsPerPlayer = Math.floor(totalProps / numSurviving);
+
+  // Case A: propsPerPlayer === 0 (debtor has 0 lands, or fewer lands than surviving players)
+  // None can be divided evenly: liquidate ALL debtor lands to cash at 100% face value!
+  if (propsPerPlayer === 0) {
+    let propsLiquidationCash = 0;
+    const liquidatedNames: string[] = [];
+    debtorProps.forEach((propId) => {
+      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+      const price = tile?.price || 100;
+      propsLiquidationCash += price;
+      liquidatedNames.push(tile?.name || propId);
+      delete newPropertyOwnership[propId];
+      delete newMortgages[propId];
+    });
+
+    const totalCashPool = totalTransferCash + propsLiquidationCash;
+    const cashPerPlayer = Math.floor(totalCashPool / numSurviving);
+    const changeCents = totalCashPool % numSurviving;
+
+    const finalPlayers = updatedPlayers.map((p) => {
+      if (p.isBankrupt) return p;
+      return {
+        ...p,
+        balance: p.balance + cashPerPlayer,
+      };
+    });
+
+    // Advance turn if debtor was current player
+    let nextIdx = state.currentPlayerIndex;
+    let nextPhase = state.turnPhase;
+    if (debtor.id === state.players[state.currentPlayerIndex]?.id) {
+      let idx = (nextIdx + 1) % state.players.length;
+      while (idx !== nextIdx && finalPlayers[idx].isBankrupt) {
+        idx = (idx + 1) % state.players.length;
+      }
+      nextIdx = idx;
+      nextPhase = 'ROLL';
+    }
+
+    const explanationMsg =
+      liquidatedNames.length > 0
+        ? `⚖️ ${debtor.name} phá sản! ${liquidatedNames.length} ô đất lẻ (${liquidatedNames.join(', ')}) được bán cho Ngân hàng lấy ${propsLiquidationCash}G. Tổng ${totalCashPool}G được chia đều: mỗi người nhận +${cashPerPlayer}G!`
+        : `⚖️ ${debtor.name} phá sản! Tổng ${totalCashPool}G tiền mặt được chia đều: mỗi người nhận +${cashPerPlayer}G!`;
+
+    return refreshAllNetWorth({
+      ...state,
+      players: finalPlayers,
+      propertyOwnership: newPropertyOwnership,
+      mortgagedProperties: newMortgages,
+      freeParkingPot: state.freeParkingPot + changeCents,
+      currentPlayerIndex: nextIdx,
+      turnPhase: nextPhase,
+      dice: null,
+      consecutiveDoubles: 0,
+      auction: null,
+      activeCard: null,
+      takeoverCandidate: null,
+      upgradeCandidate: null,
+      lastRentPayment: null,
+      turnSecondsRemaining: state.maxTurnSeconds || 60,
+      bankruptcyDraft: null,
+      events: [
+        createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
+        createEvent(explanationMsg, 'success'),
+        ...state.events,
+      ],
+    });
+  }
+
+  // Case B: propsPerPlayer > 0: Evenly draft lands round-robin, starting with the poorest player!
+  // Sort surviving players ascending by net worth (poorest first)
+  const sortedSurviving = [...activePlayers].sort((a, b) => a.netWorth - b.netWorth);
+
+  const draftOrder: string[] = [];
+  for (let round = 0; round < propsPerPlayer; round++) {
+    for (const player of sortedSurviving) {
+      draftOrder.push(player.id);
+    }
+  }
+
+  // Clear debtor's ownership & mortgages while in draft pool
+  debtorProps.forEach((propId) => {
+    delete newPropertyOwnership[propId];
+    delete newMortgages[propId];
+  });
+
+  const bankruptcyDraft: BankruptcyDraft = {
+    debtorId: debtor.id,
+    debtorName: debtor.name,
+    creditorId,
+    availablePropertyIds: [...debtorProps],
+    draftOrder,
+    currentDraftIndex: 0,
+    propsPerPlayer,
+    initialCashPool: totalTransferCash,
+    timerSeconds: 15,
+    history: [],
+  };
+
+  const firstPicker = sortedSurviving[0];
 
   return refreshAllNetWorth({
     ...state,
     players: updatedPlayers,
     propertyOwnership: newPropertyOwnership,
     mortgagedProperties: newMortgages,
-    winner,
-    turnPhase,
+    bankruptcyDraft,
     events: [
-      createEvent(`💥 ${debtor.name} phá sản và rời ván.`, 'error', debtor.id, creditorId),
+      createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
+      createEvent(
+        `🏛️ Bắt đầu chia đều ${debtorProps.length} bất động sản của ${debtor.name}! Mỗi người được chọn ${propsPerPlayer} ô đất. ${firstPicker.name} (ít tài sản nhất: ${firstPicker.netWorth}G) được ưu tiên chọn trước!`,
+        'info',
+        firstPicker.id
+      ),
       ...state.events,
     ],
+  });
+}
+
+/**
+ * Returns the property ID with the highest price among available property IDs.
+ */
+export function getBestDraftProperty(propertyIds: string[]): string {
+  if (propertyIds.length === 0) return '';
+  let bestId = propertyIds[0];
+  let bestPrice = -1;
+  for (const id of propertyIds) {
+    const tile = HOGWARTS_TILES.find((t) => t.id === id);
+    const price = tile?.price || 0;
+    if (price > bestPrice) {
+      bestPrice = price;
+      bestId = id;
+    }
+  }
+  return bestId;
+}
+
+/**
+ * Processes a property pick during a bankruptcy draft.
+ * When all picks are finished, converts any remainder properties into cash at 100% price,
+ * divides the total cash pool equally among all surviving players, and advances/resumes the turn.
+ */
+export function selectDraftProperty(state: GameState, playerId: string, propertyId: string): GameState {
+  if (!state.bankruptcyDraft) return state;
+
+  const draft = state.bankruptcyDraft;
+  const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
+  if (currentDrafterId !== playerId) return state;
+  if (!draft.availablePropertyIds.includes(propertyId)) return state;
+
+  const drafter = state.players.find((p) => p.id === playerId);
+  const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
+  if (!drafter || !tile) return state;
+
+  // 1. Assign property to drafter
+  const newPropertyOwnership = { ...state.propertyOwnership, [propertyId]: playerId };
+  const newMortgages = { ...state.mortgagedProperties };
+  delete newMortgages[propertyId];
+
+  const updatedPlayers = state.players.map((p) => {
+    if (p.id === playerId) {
+      return {
+        ...p,
+        properties: [...p.properties, propertyId],
+      };
+    }
+    return p;
+  });
+
+  const nextAvailable = draft.availablePropertyIds.filter((id) => id !== propertyId);
+  const nextDraftIndex = draft.currentDraftIndex + 1;
+  const historyEntry = {
+    playerId,
+    playerName: drafter.name,
+    propertyId,
+    propertyName: tile.name,
+  };
+  const updatedHistory = [...draft.history, historyEntry];
+
+  // 2. Check if draft continues
+  if (nextDraftIndex < draft.draftOrder.length) {
+    const nextDrafterId = draft.draftOrder[nextDraftIndex];
+    const nextDrafter = updatedPlayers.find((p) => p.id === nextDrafterId);
+
+    return refreshAllNetWorth({
+      ...state,
+      players: updatedPlayers,
+      propertyOwnership: newPropertyOwnership,
+      mortgagedProperties: newMortgages,
+      bankruptcyDraft: {
+        ...draft,
+        availablePropertyIds: nextAvailable,
+        currentDraftIndex: nextDraftIndex,
+        timerSeconds: 15,
+        history: updatedHistory,
+      },
+      events: [
+        createEvent(
+          `🏛️ ${drafter.name} đã chọn "${tile.name}" từ tài sản của ${draft.debtorName}! Lượt tiếp: ${nextDrafter?.name}`,
+          'info',
+          drafter.id,
+          nextDrafter?.id
+        ),
+        ...state.events,
+      ],
+    });
+  }
+
+  // 3. Draft is COMPLETE! Process remainder properties & equal cash division
+  let remainderCash = 0;
+  const remainderNames: string[] = [];
+  for (const remId of nextAvailable) {
+    const remTile = HOGWARTS_TILES.find((t) => t.id === remId);
+    const price = remTile?.price || 100;
+    remainderCash += price;
+    remainderNames.push(remTile?.name || remId);
+    delete newPropertyOwnership[remId];
+    delete newMortgages[remId];
+  }
+
+  const survivingPlayers = updatedPlayers.filter((p) => !p.isBankrupt);
+  const totalCashPool = draft.initialCashPool + remainderCash;
+  const cashPerSurviving = survivingPlayers.length > 0 ? Math.floor(totalCashPool / survivingPlayers.length) : 0;
+  const changeCents = survivingPlayers.length > 0 ? totalCashPool % survivingPlayers.length : 0;
+
+  const finalPlayers = updatedPlayers.map((p) => {
+    if (p.isBankrupt) return p;
+    return {
+      ...p,
+      balance: p.balance + cashPerSurviving,
+    };
+  });
+
+  // Advance turn if debtor was current player
+  let nextIdx = state.currentPlayerIndex;
+  let nextPhase = state.turnPhase;
+  if (draft.debtorId === state.players[state.currentPlayerIndex]?.id) {
+    let idx = (nextIdx + 1) % state.players.length;
+    while (idx !== nextIdx && finalPlayers[idx].isBankrupt) {
+      idx = (idx + 1) % state.players.length;
+    }
+    nextIdx = idx;
+    nextPhase = 'ROLL';
+  } else {
+    nextPhase = 'END_TURN';
+  }
+
+  const eventsToAdd: GameEvent[] = [
+    createEvent(`🏛️ ${drafter.name} đã chọn "${tile.name}" (hoàn tất lượt chọn)!`, 'info', drafter.id),
+  ];
+
+  if (remainderNames.length > 0) {
+    eventsToAdd.push(
+      createEvent(
+        `⚖️ ${remainderNames.length} đất lẻ không chia hết (${remainderNames.join(', ')}) được bán lại cho Ngân hàng lấy ${remainderCash}G.`,
+        'info'
+      )
+    );
+  }
+
+  eventsToAdd.push(
+    createEvent(
+      `💰 Tổng quỹ chia lại (${draft.initialCashPool}G tiền mặt + ${remainderCash}G đất lẻ = ${totalCashPool}G) đã chia đều: mỗi người nhận +${cashPerSurviving}G!`,
+      'success'
+    )
+  );
+
+  return refreshAllNetWorth({
+    ...state,
+    players: finalPlayers,
+    propertyOwnership: newPropertyOwnership,
+    mortgagedProperties: newMortgages,
+    freeParkingPot: state.freeParkingPot + changeCents,
+    currentPlayerIndex: nextIdx,
+    turnPhase: nextPhase,
+    dice: null,
+    consecutiveDoubles: 0,
+    auction: null,
+    activeCard: null,
+    takeoverCandidate: null,
+    upgradeCandidate: null,
+    lastRentPayment: null,
+    turnSecondsRemaining: state.maxTurnSeconds || 60,
+    bankruptcyDraft: null,
+    events: [...eventsToAdd, ...state.events],
   });
 }
 

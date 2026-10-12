@@ -3,11 +3,69 @@ import { HOGWARTS_TILES } from './boardData';
 import { canBuildHouse, canBuildHotel, ownsFullColorSet } from './rulesEngine';
 
 /**
+ * Chooses the most strategic property to draft during a bankruptcy draft:
+ * Prioritizes properties that complete a color set for the bot, then properties
+ * in color groups where the bot already owns land, then highest face price.
+ */
+export function chooseBotDraftProperty(
+  state: GameState,
+  bot: Player,
+  availablePropertyIds: string[]
+): string {
+  if (availablePropertyIds.length === 0) return '';
+  if (availablePropertyIds.length === 1) return availablePropertyIds[0];
+
+  let bestId = availablePropertyIds[0];
+  let bestScore = -1;
+
+  for (const propId of availablePropertyIds) {
+    const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+    if (!tile) continue;
+
+    let score = tile.price || 100;
+
+    // Check if this property completes a color set for the bot
+    if (tile.colorGroup) {
+      const simulatedBot = { ...bot, properties: [...bot.properties, propId] };
+      if (ownsFullColorSet(simulatedBot, tile.colorGroup, state)) {
+        score += 1000; // Top priority: complete monopoly set!
+      } else {
+        const sameGroupOwned = bot.properties.filter((id) => {
+          const t = HOGWARTS_TILES.find((x) => x.id === id);
+          return t?.colorGroup === tile.colorGroup;
+        }).length;
+        score += sameGroupOwned * 200;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestId = propId;
+    }
+  }
+
+  return bestId;
+}
+
+/**
  * Computes the optimal bot action given current game state.
  */
 export function getBotAction(state: GameState, bot: Player): GameAction | null {
   if (bot.isBankrupt) {
     return { type: 'END_TURN' };
+  }
+
+  // 0. If in Bankruptcy Draft and bot is the active drafter:
+  if (state.bankruptcyDraft) {
+    const draft = state.bankruptcyDraft;
+    const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
+    if (currentDrafterId === bot.id) {
+      const bestPropId = chooseBotDraftProperty(state, bot, draft.availablePropertyIds);
+      if (bestPropId) {
+        return { type: 'SELECT_DRAFT_PROPERTY', propertyId: bestPropId, playerId: bot.id };
+      }
+    }
+    return null;
   }
 
   // Dismiss any active card popup

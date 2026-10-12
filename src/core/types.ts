@@ -145,6 +145,24 @@ export interface UpgradeCandidate {
   isHotelUpgrade: boolean;
 }
 
+export interface BankruptcyDraft {
+  debtorId: string;
+  debtorName: string;
+  creditorId?: string;
+  availablePropertyIds: string[];
+  draftOrder: string[]; // array of playerIds in pick order (poorest first, round-robin)
+  currentDraftIndex: number;
+  propsPerPlayer: number;
+  initialCashPool: number;
+  timerSeconds: number;
+  history: Array<{
+    playerId: string;
+    playerName: string;
+    propertyId: string;
+    propertyName: string;
+  }>;
+}
+
 export interface BankruptcyInfo {
   debtorId: string;
   creditorId?: string;
@@ -177,6 +195,7 @@ export interface GameState {
   rentMultiplier: number; // Global rent & tax multiplier (default 1, e.g. 2x)
   nextEscalationRound: number; // Target round number for next random escalation (e.g. 4-7)
   bankruptcyInfo?: BankruptcyInfo | null; // Info when player is in BANKRUPTCY phase
+  bankruptcyDraft?: BankruptcyDraft | null; // Active drafting session for bankrupt player assets
   maxRentMultiplier: number; // Cap (default 2)
   activeEscalationEvent?: EscalationEvent | null;
   takeoverCandidate?: TakeoverCandidate | null;
@@ -215,4 +234,5 @@ export type GameAction =
   | { type: 'TOGGLE_TURBO' }
   | { type: 'SET_TURBO'; enabled: boolean }
   | { type: 'DISMISS_ESCALATION' }
-  | { type: 'DECLARE_BANKRUPTCY' };
+  | { type: 'DECLARE_BANKRUPTCY' }
+  | { type: 'SELECT_DRAFT_PROPERTY'; propertyId: string; playerId?: string };

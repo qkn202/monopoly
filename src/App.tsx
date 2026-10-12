@@ -11,6 +11,7 @@ import { BoardThreeJS } from './ui/BoardThreeJS';
 import { RightSidebar } from './ui/RightSidebar';
 import { ActiveCardModal } from './ui/ActiveCardModal';
 import { DarkCurseModal } from './ui/DarkCurseModal';
+import { BankruptcyDraftModal } from './ui/BankruptcyDraftModal';
 import { Lobby, GameSetupConfig } from './ui/Lobby';
 import { soundManager } from './audio/soundManager';
 import './App.css';
@@ -311,9 +312,18 @@ export function App() {
       gameState.players.find(
         (p) => p.id === gameState.auction?.activeBidders[gameState.auction?.currentBidderIndex || 0]
       )?.isAI;
+    const isDraftBotTurn =
+      !!gameState.bankruptcyDraft &&
+      gameState.players.find(
+        (p) => p.id === gameState.bankruptcyDraft?.draftOrder[gameState.bankruptcyDraft?.currentDraftIndex]
+      )?.isAI;
 
-    if (isBotTurn || isAuctionBotBid) {
-      const activeBot = isAuctionBotBid
+    if (isBotTurn || isAuctionBotBid || isDraftBotTurn) {
+      const activeBot = isDraftBotTurn
+        ? gameState.players.find(
+            (p) => p.id === gameState.bankruptcyDraft?.draftOrder[gameState.bankruptcyDraft?.currentDraftIndex]
+          )
+        : isAuctionBotBid
         ? gameState.players.find(
             (p) => p.id === gameState.auction?.activeBidders[gameState.auction?.currentBidderIndex || 0]
           )
@@ -327,8 +337,8 @@ export function App() {
       // Bot thinking delay: longer when making important decisions (ACTION phase), shorter for quick actions
       const isTurbo = !!gameState.turboMode;
       const thinkingDelay = isTurbo
-        ? (gameState.turnPhase === 'ACTION' ? 350 : 120)  // Turbo: 350ms for decisions, 120ms for quick actions
-        : (gameState.turnPhase === 'ACTION' ? 900 : 350); // Normal: 900ms for decisions, 350ms for quick actions
+        ? (gameState.bankruptcyDraft ? 250 : gameState.turnPhase === 'ACTION' ? 350 : 120)
+        : (gameState.bankruptcyDraft ? 550 : gameState.turnPhase === 'ACTION' ? 900 : 350);
 
       const aiTimer = setTimeout(() => {
         const botAction = getBotAction(gameState, activeBot);
@@ -477,6 +487,16 @@ export function App() {
         <DarkCurseModal
           event={gameState.activeEscalationEvent}
           onDismiss={() => uiDispatch({ type: 'DISMISS_ESCALATION' })}
+        />
+      )}
+
+      {/* Bankruptcy Redistribution Draft Modal */}
+      {gameState.bankruptcyDraft && (
+        <BankruptcyDraftModal
+          draft={gameState.bankruptcyDraft}
+          players={gameState.players}
+          myPlayerId={myPlayerId}
+          onSelectProperty={(propertyId) => uiDispatch({ type: 'SELECT_DRAFT_PROPERTY', propertyId })}
         />
       )}
 

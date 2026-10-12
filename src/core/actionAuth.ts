@@ -41,5 +41,13 @@ export function authorizeAction(state: GameState, input: unknown, playerId: stri
     const amount = action.amount;
     return typeof amount === 'number' && Number.isSafeInteger(amount) && amount > auction.currentBid ? { type, playerId, amount } : null;
   }
+  if (type === 'SELECT_DRAFT_PROPERTY') {
+    const draft = state.bankruptcyDraft;
+    if (!draft) return null;
+    const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
+    if (currentDrafterId !== playerId) return null;
+    if (!propertyId || !draft.availablePropertyIds.includes(propertyId)) return null;
+    return { type, propertyId, playerId };
+  }
   return null;
 }

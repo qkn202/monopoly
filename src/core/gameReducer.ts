@@ -1,7 +1,7 @@
 import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate, TileConfig } from './types';
 import { HOGWARTS_TILES, HOUSE_INFO, CHARMS_CARDS, POTIONS_CARDS } from './boardData';
 import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost } from './rulesEngine';
-import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate } from './reducerHelpers';
+import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate, selectDraftProperty, getBestDraftProperty } from './reducerHelpers';
 import { getBotAction } from './botAI';
 import { g, galleons } from '../hpvn/money';
 
@@ -98,12 +98,38 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // Check Turn Timer (1 minute = 60s limit per turn)
       // When in AUCTION, auction has its own countdown - only tick global timer
       if (state.turnPhase === 'AUCTION') {
         return {
           ...state,
           timer: { ...state.timer, remainingSeconds: nextRemaining },
+        };
+      }
+
+      // When in Bankruptcy Draft, draft has its own 15s turn countdown per pick
+      if (state.bankruptcyDraft) {
+        const draft = state.bankruptcyDraft;
+        const nextDraftSec = draft.timerSeconds - 1;
+        if (nextDraftSec <= 0) {
+          // Current drafter timed out: auto-select the highest-price available property
+          const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
+          const bestPropId = getBestDraftProperty(draft.availablePropertyIds);
+          return selectDraftProperty(
+            {
+              ...state,
+              timer: { ...state.timer, remainingSeconds: nextRemaining },
+            },
+            currentDrafterId,
+            bestPropId
+          );
+        }
+        return {
+          ...state,
+          timer: { ...state.timer, remainingSeconds: nextRemaining },
+          bankruptcyDraft: {
+            ...draft,
+            timerSeconds: nextDraftSec,
+          },
         };
       }
 
@@ -864,6 +890,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...result,
         bankruptcyInfo: null,
       };
+    }
+
+    case 'SELECT_DRAFT_PROPERTY': {
+      if (!state.bankruptcyDraft) return state;
+      const targetPlayerId =
+        action.playerId || state.bankruptcyDraft.draftOrder[state.bankruptcyDraft.currentDraftIndex];
+      return selectDraftProperty(state, targetPlayerId, action.propertyId);
     }
 
     case 'END_TURN': {
