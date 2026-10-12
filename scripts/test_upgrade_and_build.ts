@@ -165,6 +165,97 @@ function runTests() {
     throw new Error('FAIL: Passing upgrade should advance to END_TURN and clear upgradeCandidate');
   }
 
+  // 4. Test Hostile Takeover Immediate Upgrade Scenarios
+  console.log('\n--- Testing Hostile Takeover Immediate Upgrade ---');
+  const takeoverTile = HOGWARTS_TILES[1]; // Borgin & Burkes, price 200, houseCost 150
+  const pHarry = { id: 'p-1', name: 'Harry', balance: 5000, position: 1, properties: [], houses: {}, hotels: {}, visitedProperties: [] };
+  const pDraco = { id: 'p-2', name: 'Draco', balance: 2000, position: 10, properties: [takeoverTile.id], houses: { [takeoverTile.id]: 0 }, hotels: {}, visitedProperties: [] };
+
+  // Scenario 4A: Takeover bare land (0 houses) -> eligible to build house 1 immediately
+  const state4A: GameState = {
+    ...createInitialState([
+      { name: 'Harry', house: 'Gryffindor', isAI: false },
+      { name: 'Draco', house: 'Slytherin', isAI: false },
+    ]),
+    currentPlayerIndex: 0,
+    turnPhase: 'ACTION',
+    propertyOwnership: { [takeoverTile.id]: pDraco.id },
+    players: [pHarry, pDraco] as any,
+    takeoverCandidate: {
+      propertyId: takeoverTile.id,
+      cost: 400,
+      ownerId: pDraco.id,
+      ownerName: pDraco.name,
+    },
+  };
+
+  const afterTakeover4A = gameReducer(state4A, { type: 'TAKEOVER_PROPERTY', propertyId: takeoverTile.id });
+  if (afterTakeover4A.turnPhase !== 'ACTION' || !afterTakeover4A.upgradeCandidate) {
+    throw new Error('FAIL: Takeover of upgradable land must stay in ACTION phase with upgradeCandidate');
+  }
+  if (afterTakeover4A.upgradeCandidate.isHotelUpgrade !== false) {
+    throw new Error('FAIL: 0 houses takeover should not be a hotel upgrade');
+  }
+
+  // Harry builds house 1
+  const afterBuild4A = gameReducer(afterTakeover4A, { type: 'BUILD_HOUSE', propertyId: takeoverTile.id, playerId: pHarry.id });
+  const harry4A = afterBuild4A.players.find(p => p.id === pHarry.id)!;
+  if (harry4A.houses[takeoverTile.id] !== 1 || afterBuild4A.turnPhase !== 'END_TURN' || afterBuild4A.upgradeCandidate !== null) {
+    throw new Error('FAIL: Building house after takeover must set house=1, advance to END_TURN, and clear upgradeCandidate');
+  }
+  console.log('✅ Scenario 4A Passed: Bare land takeover allowed immediate house build.');
+
+  // Scenario 4B: Takeover land with 4 houses -> eligible to build Hotel immediately
+  const pDraco4B = { ...pDraco, houses: { [takeoverTile.id]: 4 } };
+  const state4B: GameState = {
+    ...state4A,
+    players: [pHarry, pDraco4B] as any,
+    takeoverCandidate: {
+      propertyId: takeoverTile.id,
+      cost: 1600, // 2x (200 + 4*150)
+      ownerId: pDraco4B.id,
+      ownerName: pDraco4B.name,
+    },
+  };
+
+  const afterTakeover4B = gameReducer(state4B, { type: 'TAKEOVER_PROPERTY', propertyId: takeoverTile.id });
+  if (!afterTakeover4B.upgradeCandidate || afterTakeover4B.upgradeCandidate.isHotelUpgrade !== true) {
+    throw new Error('FAIL: 4-house land takeover must present Hotel upgrade option');
+  }
+
+  const afterHotel4B = gameReducer(afterTakeover4B, { type: 'BUILD_HOTEL', propertyId: takeoverTile.id, playerId: pHarry.id });
+  const harry4B = afterHotel4B.players.find(p => p.id === pHarry.id)!;
+  if (harry4B.hotels[takeoverTile.id] !== 1 || harry4B.houses[takeoverTile.id] !== 0 || afterHotel4B.turnPhase !== 'END_TURN') {
+    throw new Error('FAIL: Upgrading to hotel after takeover must set hotels=1, houses=0, and advance to END_TURN');
+  }
+  console.log('✅ Scenario 4B Passed: 4-house land takeover allowed immediate Hotel upgrade.');
+
+  // Scenario 4C: Takeover land that ALREADY has a Hotel (max level) -> transitions to END_TURN directly
+  const pDraco4C = { ...pDraco, houses: { [takeoverTile.id]: 0 }, hotels: { [takeoverTile.id]: 1 } };
+  const state4C: GameState = {
+    ...state4A,
+    players: [pHarry, pDraco4C] as any,
+    takeoverCandidate: {
+      propertyId: takeoverTile.id,
+      cost: 1900,
+      ownerId: pDraco4C.id,
+      ownerName: pDraco4C.name,
+    },
+  };
+
+  const afterTakeover4C = gameReducer(state4C, { type: 'TAKEOVER_PROPERTY', propertyId: takeoverTile.id });
+  if (afterTakeover4C.turnPhase !== 'END_TURN' || afterTakeover4C.upgradeCandidate !== null) {
+    throw new Error('FAIL: Land with existing hotel should transition directly to END_TURN without upgradeCandidate');
+  }
+  console.log('✅ Scenario 4C Passed: Hotel max level takeover advances directly to END_TURN.');
+
+  // Scenario 4D: Takeover land, player declines upgrade via PASS_PROPERTY
+  const afterPass4D = gameReducer(afterTakeover4A, { type: 'PASS_PROPERTY' });
+  if (afterPass4D.turnPhase !== 'END_TURN' || afterPass4D.upgradeCandidate !== null) {
+    throw new Error('FAIL: Passing immediate build must advance to END_TURN and clear upgradeCandidate');
+  }
+  console.log('✅ Scenario 4D Passed: Declining immediate upgrade with PASS_PROPERTY cleanly advances to END_TURN.');
+
   console.log('✅ ALL TESTS PASSED SUCCESSFULLY!');
 }
 

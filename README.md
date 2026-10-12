@@ -44,7 +44,7 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 | Quy Tắc | Mô Tả |
 | :--- | :--- |
 | **Chỉ đứng ở property đó mới được xây** | Người chơi chỉ có thể mua nhà / nâng cấp Lâu đài trên đúng ô đất mà nhân vật đang dừng chân (`player.position === tile.index`). Các mảnh đất khác tuyệt đối không được phép nâng cấp. |
-| **Phải đặt chân từ lần 2 trở đi** | Lần 1 (mua đất): chỉ mua quyền sở hữu ô đất thô, chưa được xây nhà. Lần 2+: khi quay lại dừng chân đúng ô đất đã sở hữu, mới được nâng cấp. |
+| **Phải đặt chân từ lần 2 trở đi** | Lần 1 (mua đất thô): chỉ mua quyền sở hữu ô đất, chưa được xây nhà. Lần 2+: khi quay lại dừng chân đúng ô đất đã sở hữu, mới được nâng cấp. **Ngoại lệ Mua Đứt:** Khi mua đứt thành công đất của đối thủ, được quyền xây ngay 1 nhà/lâu đài trong cùng lượt mua. |
 | **Mỗi lần ghé thăm chỉ 1 lần** | Sau khi xây 1 nhà (hoặc chọn Bỏ qua), quyền nâng cấp kết thúc. Phải đi một vòng và dừng chân lại ô đó lần sau mới được nâng cấp tiếp. |
 | **Monopoly Bonus** | Khi sở hữu trọn vẹn bộ màu nhưng chưa xây nhà, tiền thuê cơ bản tự động tăng **GẤP ĐÔI (x2)**. |
 | **🏰 Lâu Đài Hogwarts** | Khi ô đất đạt mốc 4 Túp Lều, người chơi có thể nâng cấp tối thượng lên Lâu Đài Hogwarts để tăng tiền thuê lên mức cao nhất! |
@@ -95,8 +95,9 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 - ☠️ **Biến Động Thuế Hắc Ám (Dark Curse Dynamic Escalation):**
   - Bắt đầu từ **phút thứ 15** của ván đấu, cứ sau **mỗi 5 phút** (phút 15, 20, 25...), thế lực Hắc Ám trỗi dậy khiến mức thuế và tiền thuê trên bàn cờ **ngẫu nhiên thay đổi từ x2 đến x5** (`x2`, `x3`, `x4`, `x5`) cho đến hết ván đấu!
   - Đi kèm giao diện chiếu chỉ ma thuật và hiệu ứng âm thanh sấm chớp rùng rợn.
-- ⚡ **Thâu Tóm Cưỡng Chế (Hostile Takeover):**
+- ⚡ **Thâu Tóm Cưỡng Chế & Đặc Quyền Xây Nhà Ngay (Hostile Takeover & Immediate Build):**
   - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất + nhà**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ công trình trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
+  - **Đặc quyền Xây Thêm 1 Nhà Ngay Trong Lượt Mua:** Ngay sau khi mua đứt, người mua có quyền xây thêm **1 Túp Lều** (hoặc nâng cấp lên **Lâu Đài Hogwarts** nếu đất đã có sẵn 4 lều) với chi phí xây dựng thông thường, hoặc chọn "Bỏ qua" để tiết kiệm tiền. Nếu đất đã có sẵn Lâu Đài tối đa, lượt đi sẽ tự động kết thúc.
 - 🔨 **Đấu Giá Công Khai (Public Auction):**
   - Khi một người chơi bỏ qua việc mua đất trống, ô đất sẽ được đưa ra sàn đấu giá công khai với đồng hồ đếm ngược.
   - Người trả giá cao nhất sẽ giành được ô đất với mức giá hời.

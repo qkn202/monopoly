@@ -483,9 +483,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const buyerId = currentPlayer.id;
       const ownerId = previousOwner.id;
 
-      // Transfer existing buildings intact; new owner must land on it in a subsequent turn to upgrade
+      // Transfer existing buildings intact
       const houses = previousOwner.houses[tile.id] || 0;
       const hotels = previousOwner.hotels[tile.id] || 0;
+
+      // Eligible for immediate 1-building upgrade right in the takeover turn
+      const canUpgradeImmediately =
+        tile.type === 'PROPERTY' &&
+        !!tile.houseCost &&
+        !state.mortgagedProperties[tile.id] &&
+        hotels === 0;
+
+      const isHotelUpgrade = canUpgradeImmediately && houses >= 4;
 
       const updatedBuyer: Player = {
         ...currentPlayer,
@@ -493,6 +502,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         properties: [...currentPlayer.properties, tile.id],
         houses: { ...currentPlayer.houses, [tile.id]: houses },
         hotels: { ...currentPlayer.hotels, [tile.id]: hotels },
+        visitedProperties: canUpgradeImmediately
+          ? [...new Set([...currentPlayer.visitedProperties, tile.id])]
+          : currentPlayer.visitedProperties,
       };
 
       const updatedPrevOwner: Player = {
@@ -501,6 +513,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         properties: previousOwner.properties.filter((id) => id !== tile.id),
         houses: { ...previousOwner.houses, [tile.id]: 0 },
         hotels: { ...previousOwner.hotels, [tile.id]: 0 },
+        visitedProperties: previousOwner.visitedProperties.filter((id) => id !== tile.id),
       };
 
       const newPropertyOwnership = {
@@ -519,7 +532,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         players: updatedPlayers,
         propertyOwnership: newPropertyOwnership,
         takeoverCandidate: null,
-        turnPhase: 'END_TURN',
+        turnPhase: canUpgradeImmediately ? 'ACTION' : 'END_TURN',
+        upgradeCandidate: canUpgradeImmediately
+          ? {
+              propertyId: tile.id,
+              cost: tile.houseCost!,
+              currentHouses: houses,
+              hasHotel: false,
+              isHotelUpgrade,
+            }
+          : null,
         events: [
           createEvent(
             `⚡ ${currentPlayer.name} đã chi ${galleons(cost)} (x2 giá trị) mua đứt "${tile.name}" từ tay ${previousOwner.name}!`,
@@ -527,6 +549,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             currentPlayer.id,
             previousOwner.id
           ),
+          ...(canUpgradeImmediately
+            ? [
+                createEvent(
+                  `🔨 ${currentPlayer.name} được quyền xây thêm 1 ${
+                    isHotelUpgrade ? 'Lâu Đài Hogwarts (Cấp tối đa)' : 'Túp Lều'
+                  } ngay trong lượt mua đứt với giá ${g(tile.houseCost!)}!`,
+                  'info',
+                  currentPlayer.id
+                ),
+              ]
+            : []),
           ...state.events,
         ],
       });

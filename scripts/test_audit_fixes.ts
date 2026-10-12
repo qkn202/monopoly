@@ -238,9 +238,23 @@ function runTests() {
   console.assert(!finalSeller.properties.includes(dracoTile.id), 'Draco properties must not include Tile 1');
   console.assert(finalBuyer.houses[dracoTile.id] === 1, 'Harry should inherit the cottage on the tile');
   console.assert(finalSeller.houses[dracoTile.id] === 0, 'Draco cottage count must be cleared');
-  console.assert(afterTakeover.turnPhase === 'END_TURN', 'Phase should be END_TURN');
+  console.assert(afterTakeover.turnPhase === 'ACTION', 'Phase should be ACTION to allow immediate build');
+  console.assert(afterTakeover.upgradeCandidate !== null, 'upgradeCandidate should be set');
+  console.assert(afterTakeover.upgradeCandidate?.propertyId === dracoTile.id, 'upgradeCandidate propertyId must match');
   console.assert(afterTakeover.takeoverCandidate === null, 'takeoverCandidate should be cleared');
-  console.log('✅ Test 7 Passed: Hostile Takeover transferred ownership, cottage, and 2x funds accurately.\n');
+
+  // Harry builds 1 house immediately in the takeover turn
+  const afterBuild = gameReducer(afterTakeover, {
+    type: 'BUILD_HOUSE',
+    propertyId: dracoTile.id,
+    playerId: p1.id,
+  });
+  const buyerAfterBuild = afterBuild.players.find(p => p.id === p1.id)!;
+  console.assert(buyerAfterBuild.houses[dracoTile.id] === 2, 'Harry should now have 2 houses after immediate build');
+  console.assert(buyerAfterBuild.balance === 1760 - (dracoTile.houseCost || 50), 'Harry balance should deduct houseCost');
+  console.assert(afterBuild.turnPhase === 'END_TURN', 'Phase should advance to END_TURN after building');
+  console.assert(afterBuild.upgradeCandidate === null, 'upgradeCandidate should be cleared after building');
+  console.log('✅ Test 7 Passed: Hostile Takeover transferred ownership, cottage, and allowed immediate house build accurately.\n');
 
   // =========================================================================
   // TEST 8: Hostile Takeover Decline via PASS_PROPERTY
