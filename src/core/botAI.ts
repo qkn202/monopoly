@@ -68,6 +68,45 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
     return null;
   }
 
+  // 0b. If in BANKRUPTCY phase and bot is the debtor:
+  if (state.turnPhase === 'BANKRUPTCY' && state.bankruptcyInfo) {
+    if (state.bankruptcyInfo.debtorId === bot.id) {
+      const info = state.bankruptcyInfo;
+      const debtNeeded = info.amount - bot.balance;
+
+      if (debtNeeded <= 0) {
+        return { type: 'END_TURN' };
+      }
+
+      // 1. Try selling hotels first (yields 5/2 * houseCost)
+      for (const propId of bot.properties) {
+        if ((bot.hotels[propId] || 0) > 0) {
+          return { type: 'SELL_HOUSE', propertyId: propId, playerId: bot.id };
+        }
+      }
+
+      // 2. Try selling houses
+      for (const propId of bot.properties) {
+        if ((bot.houses[propId] || 0) > 0) {
+          return { type: 'SELL_HOUSE', propertyId: propId, playerId: bot.id };
+        }
+      }
+
+      // 3. Try mortgaging unmortgaged properties (without houses/hotels)
+      const mortgagableProps = bot.properties.filter(
+        (id) => !state.mortgagedProperties[id] && (bot.houses[id] || 0) === 0 && (bot.hotels[id] || 0) === 0
+      );
+
+      if (mortgagableProps.length > 0) {
+        return { type: 'MORTGAGE_PROPERTY', propertyId: mortgagableProps[0], playerId: bot.id };
+      }
+
+      // 4. Cannot raise any more funds -> declare bankruptcy
+      return { type: 'DECLARE_BANKRUPTCY' };
+    }
+    return null;
+  }
+
   // Dismiss any active card popup
   if (state.activeCard) {
     return { type: 'DISMISS_CARD' };

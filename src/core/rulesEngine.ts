@@ -109,13 +109,13 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Đã có 4 Túp Lều, cần nâng cấp lên Lâu Đài' };
   }
 
-  // CRITICAL RULE: Can only upgrade land WHERE the player is currently standing
+  // RULE: Can only upgrade WHERE the player is currently standing
   const currentTile = HOGWARTS_TILES[player.position];
   if (!currentTile || currentTile.id !== propertyId) {
     return { allowed: false, reason: 'Chỉ được nâng cấp mảnh đất nơi bạn đang đặt chân đến' };
   }
 
-  // RULE: Must land on this property in a subsequent turn (visit 2+) to build/upgrade (1 upgrade per visit)
+  // RULE: Must land on this property in a subsequent turn (visit 2+) to build/upgrade
   if (!player.visitedProperties.includes(propertyId)) {
     return { allowed: false, reason: 'Chỉ được nâng cấp khi đặt chân vào ô đất này từ lần 2 (mỗi lần ghé thăm được nâng cấp 1 lần)' };
   }

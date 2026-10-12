@@ -43,10 +43,10 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 | Quy Tắc | Mô Tả |
 | :--- | :--- |
-| **Bắt buộc đủ Bộ Màu (Color Set)** | Phải sở hữu **TOÀN BỘ các ô đất trong cùng một nhóm màu** mới được phép xây Túp Lều hoặc nâng cấp Lâu Đài. Nếu chưa đủ bộ màu, hệ thống sẽ hiện cảnh báo `⚠️ Cần sở hữu ĐỦ BỘ MÀU trước khi xây nhà`. |
-| **Đặt chân vào ô đất** | Phải đặt chân vào ô đất đã mua ít nhất 1 lần trước khi được xây nhà trên đó. |
-| **Quy tắc 1 nhà / lượt** | Mỗi lượt đi chỉ được phép xây **1 Túp Lều** trên một ô đất. |
-| **Reset sau khi xây** | Sau khi vừa xây nhà xong, người chơi phải đi tiếp một vòng và đặt chân lại vào ô đó mới được nâng cấp tiếp. |
+| **Chỉ đứng ở property đó mới được xây** | Người chơi chỉ có thể mua nhà / nâng cấp Lâu đài trên đúng ô đất mà nhân vật đang dừng chân (`player.position === tile.index`). Các mảnh đất khác tuyệt đối không được phép nâng cấp. |
+| **Phải đặt chân từ lần 2 trở đi** | Lần 1 (mua đất): chỉ mua quyền sở hữu ô đất thô, chưa được xây nhà. Lần 2+: khi quay lại dừng chân đúng ô đất đã sở hữu, mới được nâng cấp. |
+| **Bắt buộc đủ Bộ Màu (Color Set)** | Phải sở hữu **TOÀN BỘ các ô đất trong cùng một nhóm màu** mới được phép xây Túp Lều hoặc nâng cấp Lâu Đài. |
+| **Mỗi lần ghé thăm chỉ 1 lần** | Sau khi xây 1 nhà (hoặc chọn Bỏ qua), quyền nâng cấp kết thúc. Phải đi một vòng và dừng chân lại ô đó lần sau mới được nâng cấp tiếp. |
 | **Monopoly Bonus** | Khi sở hữu trọn vẹn bộ màu nhưng chưa xây nhà, tiền thuê cơ bản tự động tăng **GẤP ĐÔI (x2)**. |
 | **🏰 Lâu Đài Hogwarts** | Khi ô đất đạt mốc 4 Túp Lều, người chơi có thể nâng cấp tối thượng lên Lâu Đài Hogwarts để tăng tiền thuê lên mức cao nhất! |
 

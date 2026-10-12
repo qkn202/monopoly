@@ -656,151 +656,178 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         {/* ============================================
             BANKRUPTCY PHASE: Player must mortgage/sell to pay debt
             ============================================ */}
-        {gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo && currentPlayer && (
-          <div className="end-turn-action-box">
-            <div className="landed-receipt-card tax-paid magical-receipt">
-              <div className="receipt-corner tl" />
-              <div className="receipt-corner tr" />
-              <div className="receipt-corner bl" />
-              <div className="receipt-corner br" />
-              <div className="receipt-header">
-                <span className="receipt-badge-rent">⚠️ CẢNH BÁO PHÁ SẢN ⚠️</span>
-              </div>
-              <div className="receipt-status-msg" style={{ color: '#f87171', textAlign: 'center' }}>
-                Bạn cần thanh toán <strong>{gameState.bankruptcyInfo.amount} Galleons</strong><br/>
-                cho {gameState.bankruptcyInfo.reason}<br/>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                  (Số dư hiện tại: {currentPlayer.balance}G)
-                </span>
-              </div>
-            </div>
+        {gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo && (() => {
+          const debtor = gameState.players.find((p) => p.id === gameState.bankruptcyInfo?.debtorId) || currentPlayer;
+          const isDebtorTurn = !myPlayerId || myPlayerId === debtor.id;
 
-            {/* Tài sản có thể bán nhà */}
-            {currentPlayer.properties.some(propId => {
-              const tile = HOGWARTS_TILES.find(t => t.id === propId);
-              return tile && ((currentPlayer.houses[propId] || 0) > 0 || (currentPlayer.hotels[propId] || 0) > 0);
-            }) && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '6px' }}>
-                  🏠 Nhà có thể BÁN:
+          if (!isDebtorTurn) {
+            return (
+              <div className="end-turn-action-box">
+                <div className="landed-receipt-card tax-paid magical-receipt">
+                  <div className="receipt-corner tl" /><div className="receipt-corner tr" />
+                  <div className="receipt-corner bl" /><div className="receipt-corner br" />
+                  <div className="receipt-header">
+                    <span className="receipt-badge-rent">⚠️ CẢNH BÁO PHÁ SẢN ⚠️</span>
+                  </div>
+                  <div className="receipt-status-msg" style={{ color: '#f87171', textAlign: 'center' }}>
+                    <strong>{debtor.name}</strong> cần thanh toán <strong>{gameState.bankruptcyInfo.amount} Galleons</strong><br/>
+                    cho {gameState.bankruptcyInfo.reason}<br/>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                      ⏳ Đang đợi {debtor.name} {debtor.isAI ? '(Bot)' : ''} thế chấp tài sản hoặc bán nhà để trả nợ...
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {currentPlayer.properties.map(propId => {
-                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
-                    if (!tile) return null;
-                    const houseCount = currentPlayer.houses[propId] || 0;
-                    const hotelCount = currentPlayer.hotels[propId] || 0;
-                    const refundAmount = Math.floor((tile.houseCost || 50) / 2);
+              </div>
+            );
+          }
 
-                    if (hotelCount > 0) {
+          return (
+            <div className="end-turn-action-box">
+              <div className="landed-receipt-card tax-paid magical-receipt">
+                <div className="receipt-corner tl" /><div className="receipt-corner tr" />
+                <div className="receipt-corner bl" /><div className="receipt-corner br" />
+                <div className="receipt-header">
+                  <span className="receipt-badge-rent">⚠️ CẢNH BÁO PHÁ SẢN ⚠️</span>
+                </div>
+                <div className="receipt-status-msg" style={{ color: '#f87171', textAlign: 'center' }}>
+                  Bạn cần thanh toán <strong>{gameState.bankruptcyInfo.amount} Galleons</strong><br/>
+                  cho {gameState.bankruptcyInfo.reason}<br/>
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                    (Số dư hiện tại: {debtor.balance}G)
+                  </span>
+                </div>
+              </div>
+
+              {/* Tài sản có thể bán nhà */}
+              {debtor.properties.some((propId) => {
+                const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                return tile && ((debtor.houses[propId] || 0) > 0 || (debtor.hotels[propId] || 0) > 0);
+              }) && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '6px' }}>
+                    🏠 Nhà có thể BÁN:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {debtor.properties.map((propId) => {
+                      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                      if (!tile) return null;
+                      const houseCount = debtor.houses[propId] || 0;
+                      const hotelCount = debtor.hotels[propId] || 0;
+                      const refundAmount = Math.floor((tile.houseCost || 50) / 2);
+
+                      if (hotelCount > 0) {
+                        return (
+                          <button
+                            key={propId}
+                            className="btn-fold"
+                            style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
+                            onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: debtor.id })}
+                          >
+                            🏰 Hạ Lâu Đài (+{refundAmount * 5}G)
+                          </button>
+                        );
+                      }
+                      if (houseCount > 0) {
+                        return (
+                          <button
+                            key={propId}
+                            className="btn-fold"
+                            style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
+                            onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: debtor.id })}
+                          >
+                            🏚️ Dỡ {houseCount} lều (+{refundAmount * houseCount}G)
+                          </button>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Tài sản có thể thế chấp */}
+              {debtor.properties.some((propId) => {
+                const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                return tile && tile.mortgageValue && !gameState.mortgagedProperties[propId];
+              }) && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ color: '#34d399', fontSize: '0.85rem', marginBottom: '6px' }}>
+                    📜 Tài sản có thể THẾ CHẤP:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {debtor.properties.map((propId) => {
+                      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                      if (!tile || !tile.mortgageValue || gameState.mortgagedProperties[propId]) return null;
+
+                      const hasBuildings = (debtor.houses[propId] || 0) > 0 || (debtor.hotels[propId] || 0) > 0;
+
                       return (
                         <button
                           key={propId}
-                          className="btn-fold"
-                          style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
-                          onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: currentPlayer.id })}
+                          className="btn-bid"
+                          disabled={hasBuildings}
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '6px 8px',
+                            flex: '1 1 45%',
+                            opacity: hasBuildings ? 0.4 : 1,
+                            cursor: hasBuildings ? 'not-allowed' : 'pointer',
+                          }}
+                          onClick={() => !hasBuildings && dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: propId, playerId: debtor.id })}
+                          title={hasBuildings ? 'Cần bán hết nhà trước khi thế chấp' : ''}
                         >
-                          🏰 Hạ Lâu Đài (+{refundAmount * 5}G)
+                          📋 {tile.name.substring(0, 12)}... (+{tile.mortgageValue}G)
                         </button>
                       );
-                    }
-                    if (houseCount > 0) {
-                      return (
-                        <button
-                          key={propId}
-                          className="btn-fold"
-                          style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
-                          onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: currentPlayer.id })}
-                        >
-                          🏚️ Dỡ {houseCount} lều (+{refundAmount * houseCount}G)
-                        </button>
-                      );
-                    }
-                    return null;
-                  })}
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Tài sản có thể thế chấp */}
-            {currentPlayer.properties.some(propId => {
-              const tile = HOGWARTS_TILES.find(t => t.id === propId);
-              return tile && tile.mortgageValue && !gameState.mortgagedProperties[propId];
-            }) && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ color: '#34d399', fontSize: '0.85rem', marginBottom: '6px' }}>
-                  📜 Tài sản có thể THẾ CHẤP:
+              {/* Tài sản đã thế chấp */}
+              {debtor.properties.some((propId) => gameState.mortgagedProperties[propId]) && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '6px' }}>
+                    🔒 Đã thế chấp:
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                    {debtor.properties
+                      .filter((propId) => gameState.mortgagedProperties[propId])
+                      .map((propId) => {
+                        const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                        return tile ? tile.name : null;
+                      })
+                      .filter(Boolean)
+                      .join(', ')}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {currentPlayer.properties.map(propId => {
-                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
-                    if (!tile || !tile.mortgageValue || gameState.mortgagedProperties[propId]) return null;
+              )}
 
-                    // Kiểm tra có nhà không - nếu có thì hiển thị nhưng disable
-                    const hasBuildings = (currentPlayer.houses[propId] || 0) > 0 || (currentPlayer.hotels[propId] || 0) > 0;
-
-                    return (
-                      <button
-                        key={propId}
-                        className="btn-bid"
-                        disabled={hasBuildings}
-                        style={{
-                          fontSize: '0.7rem',
-                          padding: '6px 8px',
-                          flex: '1 1 45%',
-                          opacity: hasBuildings ? 0.4 : 1,
-                          cursor: hasBuildings ? 'not-allowed' : 'pointer',
-                        }}
-                        onClick={() => !hasBuildings && dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: propId })}
-                        title={hasBuildings ? 'Cần bán hết nhà trước khi thế chấp' : ''}
-                      >
-                        📋 {tile.name.substring(0, 12)}... (+{tile.mortgageValue}G)
-                      </button>
-                    );
-                  })}
+              {/* Nút hành động */}
+              {debtor.balance >= (gameState.bankruptcyInfo?.amount || 0) ? (
+                <button
+                  className="btn-primary-roll"
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', marginTop: '12px' }}
+                  onClick={() => dispatch({ type: 'END_TURN' })}
+                >
+                  ✅ TRẢ NỢ VÀ TIẾP TỤC ({debtor.balance}G → {Math.max(0, debtor.balance - (gameState.bankruptcyInfo?.amount || 0))}G)
+                </button>
+              ) : (
+                <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#fbbf24', textAlign: 'center' }}>
+                  💡 Bạn cần thế chấp thêm tài sản hoặc bán nhà để đủ tiền trả nợ!
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Tài sản đã thế chấp */}
-            {currentPlayer.properties.some(propId => gameState.mortgagedProperties[propId]) && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '6px' }}>
-                  🔒 Đã thế chấp:
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                  {currentPlayer.properties.filter(propId => gameState.mortgagedProperties[propId]).map(propId => {
-                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
-                    return tile ? tile.name : null;
-                  }).filter(Boolean).join(', ')}
-                </div>
-              </div>
-            )}
-
-            {/* Nút hành động */}
-            {currentPlayer.balance >= (gameState.bankruptcyInfo?.amount || 0) ? (
               <button
-                className="btn-primary-roll"
-                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', marginTop: '12px' }}
-                onClick={() => dispatch({ type: 'END_TURN' })}
+                className="btn-pass-auction"
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', marginTop: '8px' }}
+                onClick={() => dispatch({ type: 'DECLARE_BANKRUPTCY' })}
               >
-                ✅ TRẢ NỢ VÀ TIẾP TỤC ({currentPlayer.balance}G → {Math.max(0, currentPlayer.balance - (gameState.bankruptcyInfo?.amount || 0))}G)
+                💥 TUYÊN BỐ PHÁ SẢN
               </button>
-            ) : (
-              <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#fbbf24', textAlign: 'center' }}>
-                💡 Bạn cần thế chấp thêm tài sản hoặc bán nhà để đủ tiền trả nợ!
-              </div>
-            )}
-
-            <button
-              className="btn-pass-auction"
-              style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', marginTop: '8px' }}
-              onClick={() => dispatch({ type: 'DECLARE_BANKRUPTCY' })}
-            >
-              💥 TUYÊN BỐ PHÁ SẢN
-            </button>
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {/* Quick Rule Footnote & Shortcut hints */}
         <div className="rules-tax-footnote">

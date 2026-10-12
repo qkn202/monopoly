@@ -317,12 +317,18 @@ export function App() {
       gameState.players.find(
         (p) => p.id === gameState.bankruptcyDraft?.draftOrder[gameState.bankruptcyDraft?.currentDraftIndex]
       )?.isAI;
+    const isBankruptcyBotTurn =
+      gameState.turnPhase === 'BANKRUPTCY' &&
+      gameState.bankruptcyInfo &&
+      gameState.players.find((p) => p.id === gameState.bankruptcyInfo?.debtorId)?.isAI;
 
-    if (isBotTurn || isAuctionBotBid || isDraftBotTurn) {
+    if (isBotTurn || isAuctionBotBid || isDraftBotTurn || isBankruptcyBotTurn) {
       const activeBot = isDraftBotTurn
         ? gameState.players.find(
             (p) => p.id === gameState.bankruptcyDraft?.draftOrder[gameState.bankruptcyDraft?.currentDraftIndex]
           )
+        : isBankruptcyBotTurn
+        ? gameState.players.find((p) => p.id === gameState.bankruptcyInfo?.debtorId)
         : isAuctionBotBid
         ? gameState.players.find(
             (p) => p.id === gameState.auction?.activeBidders[gameState.auction?.currentBidderIndex || 0]
@@ -337,8 +343,8 @@ export function App() {
       // Bot thinking delay: longer when making important decisions (ACTION phase), shorter for quick actions
       const isTurbo = !!gameState.turboMode;
       const thinkingDelay = isTurbo
-        ? (gameState.bankruptcyDraft ? 250 : gameState.turnPhase === 'ACTION' ? 350 : 120)
-        : (gameState.bankruptcyDraft ? 550 : gameState.turnPhase === 'ACTION' ? 900 : 350);
+        ? (gameState.bankruptcyDraft ? 250 : gameState.turnPhase === 'BANKRUPTCY' ? 200 : gameState.turnPhase === 'ACTION' ? 350 : 120)
+        : (gameState.bankruptcyDraft ? 550 : gameState.turnPhase === 'BANKRUPTCY' ? 450 : gameState.turnPhase === 'ACTION' ? 900 : 350);
 
       const aiTimer = setTimeout(() => {
         const botAction = getBotAction(gameState, activeBot);

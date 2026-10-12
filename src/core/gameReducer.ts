@@ -229,7 +229,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               players: state.players.map((p) => (p.id === currentPlayer.id ? pFreed : p)),
             };
             const debtRes = resolveDebtOrLiquidate(sFreed, pFreed, 150, undefined, 'tiền phạt mãn hạn Azkaban');
-            if (debtRes.isBankrupt) {
+            if (debtRes.isBankrupt || debtRes.state.turnPhase === 'BANKRUPTCY') {
               return {
                 ...debtRes.state,
                 dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
@@ -1005,8 +1005,8 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
       const taxAmt = baseTax * (state.rentMultiplier || 1);
       const res = resolveDebtOrLiquidate(state, player, taxAmt, undefined, `thuế tại "${tile.name}"`);
 
-      // If player went bankrupt, don't override bankruptcy state
-      if (res.isBankrupt) {
+      // If player went bankrupt or entered BANKRUPTCY phase, do NOT override with END_TURN!
+      if (res.isBankrupt || res.state.turnPhase === 'BANKRUPTCY') {
         return res.state;
       }
 
@@ -1178,6 +1178,12 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
       }
 
       const debtRes = resolveDebtOrLiquidate(state, player, rent, owner.id, `tiền thuê "${tile.name}"`);
+
+      // If player went bankrupt or entered BANKRUPTCY phase, do NOT override with takeover or END_TURN!
+      if (debtRes.isBankrupt || debtRes.state.turnPhase === 'BANKRUPTCY') {
+        return debtRes.state;
+      }
+
       const afterDebtPlayer = debtRes.state.players.find((p) => p.id === player.id);
 
       // Check Hostile Takeover: If debtor survived and property is not mortgaged
