@@ -80,11 +80,12 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 ## ⚡ Cơ chế Đột biến & Tranh đấu Kịch tính
 
-- 💰 **Quản lý Thu Chi & Vua Thu Thuế Bàn Cờ (Cashflow & Top Property Tab):**
-  - Tab **"Thu chi"** nằm ngay cạnh tab "Nhật ký" trên thanh điều hướng bên phải (desktop, collapsed rail và mobile).
-  - **👑 VUA THU THUẾ BÀN CỜ:** Tự động phát hiện và vinh danh bất động sản tạo ra doanh thu thuế/thuê cao nhất ván đấu, hiển thị chủ sở hữu, tổng tiền đã thu, số lần khách ghé thăm, tiền thu lớn nhất trong 1 lần và bảng xếp hạng Top 5 tài sản sinh lời nhất.
-  - **Hero KPI Cards:** Thống kê Tổng Tiền Thu Vào, Tổng Tiền Chi Ra và Dòng Tiền Ròng (+/- Galleons) theo thời gian thực cho từng người chơi.
-  - **Sổ cái Lượt đấu (Turn-by-Turn Ledger):** Ghi chép chi tiết từng lượt đi phát sinh bao nhiêu thu/chi (mua đất, nâng cấp nhà, nộp phạt tù, lương Ga 9¾, thẻ thần chú, tiền thuê, v.v.) với bộ lọc thông minh (Tất cả, Của tôi, Có phát sinh).
+- 💰 **Quản lý Thu Chi Cá Nhân & Tài Sản Thu Thuế Nhiều Nhất (Personal Cashflow Tab):**
+  - Tab **"Thu chi"** nằm ngay cạnh tab "Nhật ký" trên thanh điều hướng bên phải (desktop, collapsed rail và mobile drawer).
+  - **Khóa thông tin cá nhân 100%:** Chỉ hiển thị duy nhất dữ liệu tài chính của chính bạn, hoàn toàn không hiển thị thông tin hay nút chuyển đổi của người chơi khác.
+  - **👑 TÀI SẢN THU THUẾ / THUÊ NHIỀU NHẤT CỦA BẠN:** Tự động vinh danh mảnh đất **thuộc sở hữu của bạn** mà đối thủ đã nộp tiền thuê nhiều nhất (tổng tiền đã thu, số lượt khách ghé, tiền thu bình quân, lần nộp gần nhất).
+  - **Hero KPI Cards:** Thống kê Tổng Tiền Thu Vào, Tổng Tiền Chi Ra và Dòng Tiền Ròng (+/- Galleons) theo thời gian thực của bạn.
+  - **Sổ cái Lượt đấu Cá nhân (Personal Turn Ledger):** Ghi chép chi tiết từng lượt đi của bạn hoặc các lượt mà đối thủ tương tác tiền tệ với bạn (ví dụ nộp tiền thuê cho bạn), loại bỏ các lượt không liên quan. Hỗ trợ 2 chế độ lọc: *Tất cả lượt* hoặc *Chỉ lượt có thu/chi*.
 - 📜 **Nhật Ký Cá Nhân Hóa (Personalized Event Logs):**
   - Mỗi người chơi sở hữu một dòng thời gian nhật ký riêng biệt, chỉ lưu giữ và hiển thị những sự kiện liên quan trực tiếp đến bản thân (tiền thuê đã nhận/đã trả, bất động sản bị mua đứt/mua lại, nâng cấp công trình của mình), loại bỏ hoàn toàn các thông báo rác không liên quan.
 - ⚖️ **Phân Bổ Tài Sản Khi Phá Sản (Bankruptcy Redistribution):**
@@ -92,7 +93,7 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
   - Người chơi có tổng tài sản (Net Worth) **thấp nhất được ưu tiên chọn đất trước** (Poorest-first snake draft).
   - Những mảnh đất lẻ không thể chia đều sẽ được thanh lý thành tiền mặt theo giá niêm yết và chia đều 100% cho mọi người còn sống sót.
 - ☠️ **Biến Động Thuế Hắc Ám (Dark Curse Dynamic Escalation):**
-  - Bắt đầu từ **phút thứ 15** của ván đấu, cứ sau **mỗi 5 phút** (phút 15, 20, 25...), thế lực Hắc Ám trỗi dậy khiến mức thuế và tiền thuê trên bàn cờ **ngẫu nhiên thay đổi từ x2 đến x5** cho đến hết ván đấu!
+  - Bắt đầu từ **phút thứ 15** của ván đấu, cứ sau **mỗi 5 phút** (phút 15, 20, 25...), thế lực Hắc Ám trỗi dậy khiến mức thuế và tiền thuê trên bàn cờ **ngẫu nhiên thay đổi từ x2 đến x5** (`x2`, `x3`, `x4`, `x5`) cho đến hết ván đấu!
   - Đi kèm giao diện chiếu chỉ ma thuật và hiệu ứng âm thanh sấm chớp rùng rợn.
 - ⚡ **Thâu Tóm Cưỡng Chế (Hostile Takeover):**
   - Khi bước vào ô đất của đối thủ, nếu bạn có đủ tiềm lực tài chính (trả **gấp đôi x2 giá trị đất + nhà**), bạn có quyền **MUA ĐỨT** ô đất đó cùng toàn bộ công trình trên đất! Chủ đất cũ bắt buộc phải nhượng lại và nhận toàn bộ số tiền này.
@@ -177,9 +178,13 @@ monopoly/
 │   ├── App.tsx                 # Điểm kết nối logic game, phím tắt & layout chính
 │   └── main.tsx                # Entry point
 ├── scripts/
-│   ├── test-hpvn-core.ts           # Test suite kiểm tra mạng, quyền ghế và snapshot HPVN
-│   ├── test_audit_fixes.ts         # Test suite 11 bài test kiểm tra logic toàn diện
-│   └── test_upgrade_and_build.ts   # Unit test quy tắc đủ bộ màu, nâng cấp và hạ cánh
+│   ├── test-hpvn-core.ts               # Test suite kiểm tra mạng, quyền ghế và snapshot HPVN
+│   ├── test_audit_fixes.ts             # Test suite 11 bài test kiểm tra logic toàn diện
+│   ├── test_upgrade_and_build.ts       # Unit test quy tắc đặt chân lần 2, nâng cấp và hạ cánh
+│   ├── test_personal_event_logs.ts     # Unit test nhật ký cá nhân hóa cho từng người chơi
+│   ├── test_bankruptcy_distribution.ts # Unit test chia đều tài sản & draft khi phá sản
+│   ├── test_finances_cashflow.ts       # Unit test sổ thu chi cá nhân & tài sản thu thuế nhiều nhất
+│   └── test_dynamic_tax_escalation.ts  # Unit test biến động thuế ngẫu nhiên từ phút 15 cứ sau 5'
 ├── package.json
 ├── vite.config.ts
 └── tsconfig.json
@@ -213,11 +218,11 @@ monopoly/
    ```
    Mở trình duyệt tại: `http://localhost:3000`
 
-4. **Chạy toàn bộ bộ kiểm thử tự động:**
+4. **Chạy toàn bộ 7 bộ kiểm thử tự động:**
    ```bash
    npm run test:hpvn
    ```
-   *(Bao gồm: Test HPVN core + 11 bài test kiểm toán logic + Test kiểm tra quy tắc đủ bộ màu).*
+   *(Bao gồm: Test HPVN core + 11 bài test audit logic + Quy tắc nâng cấp lần 2 + Nhật ký cá nhân + Phân bổ phá sản + Thu chi cá nhân + Biến động thuế ngẫu nhiên phút 15).*
 
 5. **Đóng gói sản phẩm (Build Production):**
    ```bash
