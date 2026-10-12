@@ -40,6 +40,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const [copied, setCopied] = useState(false);
   const [selectedPropertyPlayerId, setSelectedPropertyPlayerId] = useState<string | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isMyTurn = myPlayerId ? currentPlayer?.id === myPlayerId : true;
@@ -1059,121 +1060,221 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       {/* ========================================================
           1. DESKTOP SIDEBAR VIEW (Active on min-width: 901px)
           ======================================================== */}
-      <aside className="right-sidebar right-sidebar-desktop hpvn-cmd">
-        {/* Top bar: name, clock, round, then icon controls */}
-        <header className="hpvn-cmd-top">
-          <span className="game-logo-title">Cờ Tỷ Phú</span>
-          <span className={`hpvn-pill timer-pill ${timerClass}`} title={`Vòng ${gameState.turnNumber} · thời gian còn lại của ván (30 phút)`}>
-            <Icon name="clock" size={14} />{timeFormatted}<span className="hpvn-pill-sub">V{gameState.turnNumber}</span>
-          </span>
-          {gameState.rentMultiplier > 1 && (
-            <span className="hpvn-pill is-curse" title="Lời nguyền Hắc ám: tiền thuê và thuế tăng">x{gameState.rentMultiplier}</span>
-          )}
-          <button className={`hpvn-pill hpvn-iconbtn ${gameState.turboMode ? 'is-on' : ''}`} disabled={!isHost}
-            onClick={() => dispatch({ type: 'TOGGLE_TURBO' })} aria-pressed={gameState.turboMode}
-            title={gameState.turboMode ? 'Siêu tốc đang bật (phím T)' : 'Bật siêu tốc 2x (phím T)'} aria-label="Siêu tốc">
-            <Icon name="bolt" size={16} />
-          </button>
-          <button className="hpvn-pill hpvn-iconbtn" onClick={toggleSound} title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-            aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}>
-            <Icon name={muted ? 'soundOff' : 'soundOn'} size={16} />
-          </button>
-          {onExit && (
-            <button className="hpvn-pill hpvn-iconbtn hpvn-exit" onClick={() => setConfirmExit(true)} title="Thoát ván" aria-label="Thoát ván">
-              <Icon name="exit" size={16} />
+      {/* ========================================================
+          1. DESKTOP SIDEBAR VIEW (Active on min-width: 901px)
+          ======================================================== */}
+      <aside className={`right-sidebar right-sidebar-desktop hpvn-cmd ${isCollapsed ? 'is-collapsed' : ''}`}>
+        {isCollapsed ? (
+          <div className="hpvn-collapsed-rail">
+            <button
+              className="hpvn-rail-btn hpvn-rail-toggle"
+              onClick={() => setIsCollapsed(false)}
+              title="Mở rộng bảng điều khiển"
+              aria-label="Mở rộng bảng điều khiển"
+            >
+              <Icon name="chevronRight" size={18} />
             </button>
-          )}
-        </header>
-        {(roomCode || phoneFloo) && (
-          <div className="hpvn-cmd-room">
-            {roomCode && (
-              <button className="room-badge" onClick={copyRoomCode} title="Chép mã phòng">
-                {copied ? 'Đã chép mã' : `Phòng ${roomCode}`}
-              </button>
-            )}
-            {phoneFloo && <button className="hpvn-floo-btn" onClick={openFloo}>Floo</button>}
+
+            <div
+              className={`hpvn-rail-turn-indicator ${isMyTurn ? 'is-my-turn' : ''}`}
+              title={isMyTurn ? 'Lượt của bạn!' : `Lượt: ${currentPlayer?.name || ''}`}
+              onClick={() => setIsCollapsed(false)}
+            >
+              <span
+                className="player-avatar-circle mini-avatar"
+                style={{ borderColor: currentPlayer?.color, background: `${currentPlayer?.color}22` }}
+              >
+                {currentPlayer?.tokenIcon}
+              </span>
+              {isMyTurn && <span className="hpvn-rail-dot" />}
+            </div>
+
+            <div className="hpvn-rail-divider" />
+
+            <button
+              className={`hpvn-rail-btn ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
+              onClick={() => { setActiveTab('leaderboard'); setIsCollapsed(false); }}
+              title="Bảng xếp hạng"
+              aria-label="Bảng xếp hạng"
+            >
+              <Icon name="trophy" size={16} />
+            </button>
+
+            <button
+              className={`hpvn-rail-btn ${activeTab === 'properties' ? 'is-active' : ''}`}
+              onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); setIsCollapsed(false); }}
+              title={`Đất và nhà (${me?.properties.length || 0})`}
+              aria-label="Đất và nhà"
+            >
+              <Icon name="land" size={16} />
+              {me && me.properties.length > 0 && <span className="hpvn-rail-badge">{me.properties.length}</span>}
+            </button>
+
+            <button
+              className={`hpvn-rail-btn ${activeTab === 'events' ? 'is-active' : ''}`}
+              onClick={() => { setActiveTab('events'); setIsCollapsed(false); }}
+              title="Nhật ký ván"
+              aria-label="Nhật ký ván"
+            >
+              <Icon name="scroll" size={16} />
+            </button>
+
+            <div className="hpvn-rail-spacer" />
+
+            <button
+              className="hpvn-rail-btn"
+              onClick={toggleSound}
+              title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+              aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+            >
+              <Icon name={muted ? 'soundOff' : 'soundOn'} size={15} />
+            </button>
+
+            <div className="hpvn-rail-timer" title={`Thời gian còn lại · Vòng ${gameState.turnNumber}`}>
+              {timeFormatted}
+            </div>
           </div>
-        )}
-
-        {/* You: always this screen's seat, even while bots play */}
-        {me && (
-          <section className="hpvn-you">
-            <div className="player-avatar-circle" style={{ borderColor: me.color, background: `${me.color}22` }}>{me.tokenIcon}</div>
-            <div className="hpvn-you-name">
-              <strong>{me.name}</strong>
-              <span>{me.house}{me.isBankrupt ? ' · phá sản' : me.inJail ? ' · Azkaban' : ''}</span>
-            </div>
-            <div className="hpvn-you-worth">
-              <strong>{g(me.netWorth)}</strong>
-              <span>tổng tài sản</span>
-            </div>
-            <div className="hpvn-you-stats">
-              <div><b>{g(me.balance)}</b><span>tiền mặt</span></div>
-              <div><b>{me.properties.length} ô</b><span>đất</span></div>
-              <div><b>{myBuildings}</b><span>nhà</span></div>
-            </div>
-            <div className="hpvn-sets">
-              {colorSets.map((cs) => (
-                <i key={cs.g} title={`${cs.name}: ${cs.owned}/${cs.total}`}
-                  style={{ background: `linear-gradient(90deg, ${cs.color} ${cs.frac * 100}%, rgba(255, 255, 255, 0.08) ${cs.frac * 100}%)` }} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* One "what to do now" block */}
-        {currentPlayer && (
-          <section className={`turn-action-card hpvn-act ${isMyTurn ? 'is-mine' : ''}`}>
-            <div className="hpvn-act-head">
-              {!isMyTurn && (
-                <div className="player-avatar-circle mini-avatar" style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}>
-                  {currentPlayer.tokenIcon}
-                </div>
+        ) : (
+          <>
+            {/* Top bar: Collapse toggle, clock, then quick icon controls */}
+            <header className="hpvn-cmd-top">
+              <button
+                className="hpvn-collapse-btn"
+                onClick={() => setIsCollapsed(true)}
+                title="Thu gọn bảng điều khiển để phóng to bàn cờ 3D"
+                aria-label="Thu gọn"
+              >
+                <Icon name="chevronLeft" size={16} />
+              </button>
+              <span className={`hpvn-pill timer-pill ${timerClass}`} title={`Vòng ${gameState.turnNumber} · thời gian còn lại của ván (30 phút)`}>
+                <Icon name="clock" size={13} />{timeFormatted}<span className="hpvn-pill-sub">V{gameState.turnNumber}</span>
+              </span>
+              {gameState.rentMultiplier > 1 && (
+                <span className="hpvn-pill is-curse" title="Lời nguyền Hắc ám: tiền thuê và thuế tăng">x{gameState.rentMultiplier}</span>
               )}
-              <div className="hpvn-act-title">
-                <span>
-                  {isMyTurn ? 'Lượt của bạn' : `Lượt của ${currentPlayer.name}`}
-                  {gameState.dice ? ` · gieo ${gameState.dice.die1} + ${gameState.dice.die2}` : ''}
-                </span>
+              <div style={{ flex: 1 }} />
+              <button className={`hpvn-pill hpvn-iconbtn ${gameState.turboMode ? 'is-on' : ''}`} disabled={!isHost}
+                onClick={() => dispatch({ type: 'TOGGLE_TURBO' })} aria-pressed={gameState.turboMode}
+                title={gameState.turboMode ? 'Siêu tốc đang bật (phím T)' : 'Bật siêu tốc 2x (phím T)'} aria-label="Siêu tốc">
+                <Icon name="bolt" size={15} />
+              </button>
+              <button className="hpvn-pill hpvn-iconbtn" onClick={toggleSound} title={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}
+                aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'}>
+                <Icon name={muted ? 'soundOff' : 'soundOn'} size={15} />
+              </button>
+              {onExit && (
+                <button className="hpvn-pill hpvn-iconbtn hpvn-exit" onClick={() => setConfirmExit(true)} title="Thoát ván" aria-label="Thoát ván">
+                  <Icon name="exit" size={15} />
+                </button>
+              )}
+            </header>
+
+            {(roomCode || phoneFloo) && (
+              <div className="hpvn-cmd-room">
+                {roomCode && (
+                  <button className="room-badge" onClick={copyRoomCode} title="Chép mã phòng">
+                    {copied ? 'Đã chép mã' : `Phòng ${roomCode}`}
+                  </button>
+                )}
+                {phoneFloo && <button className="hpvn-floo-btn" onClick={openFloo}>Floo</button>}
               </div>
-              {timerRing()}
-            </div>
-            {renderTurnActions(false)}
-            <div className="hpvn-tools">
-              <button className={activeTab === 'properties' ? 'is-active' : ''}
-                onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab(activeTab === 'properties' ? 'leaderboard' : 'properties'); }}>
-                <Icon name="land" size={16} />Đất và nhà · {me?.properties.length || 0}
-              </button>
-              <button className={activeTab === 'events' ? 'is-active' : ''}
-                onClick={() => setActiveTab(activeTab === 'events' ? 'leaderboard' : 'events')}>
-                <Icon name="scroll" size={16} />Nhật ký
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* Players (or the land / log panel the tools opened) */}
-        <section className="hpvn-list">
-          <div className="hpvn-list-head">
-            <span>{activeTab === 'leaderboard' ? 'Người chơi' : activeTab === 'properties' ? 'Đất và nhà' : 'Nhật ký'}</span>
-            {activeTab !== 'leaderboard' && (
-              <button onClick={() => setActiveTab('leaderboard')}>Người chơi</button>
             )}
-          </div>
-          <div className="tab-content-area">
-            {activeTab === 'leaderboard' && renderLeaderboard()}
-            {activeTab === 'properties' && renderProperties()}
-            {activeTab === 'events' && renderEventLogs()}
-          </div>
-        </section>
 
-        {activeTab !== 'events' && recentEvents.length > 0 && (
-          <button className="hpvn-recent" onClick={() => setActiveTab('events')} title="Xem nhật ký">
-            <span className="hpvn-recent-label">Gần đây</span>
-            {recentEvents.map((evt) => (
-              <span key={evt.id} className="hpvn-recent-line">{evt.message.replace(LEADING_EMOJI, '')}</span>
-            ))}
-          </button>
+            {/* You: compact 1-card snapshot */}
+            {me && (
+              <section className="hpvn-you hpvn-you-compact">
+                <div className="player-avatar-circle" style={{ borderColor: me.color, background: `${me.color}22` }}>{me.tokenIcon}</div>
+                <div className="hpvn-you-name">
+                  <strong>{me.name}</strong>
+                  <span>{me.house}{me.isBankrupt ? ' · phá sản' : me.inJail ? ' · Azkaban' : ''}</span>
+                </div>
+                <div className="hpvn-you-worth">
+                  <strong>{g(me.netWorth)}</strong>
+                  <span>tài sản</span>
+                </div>
+                <div className="hpvn-you-stats">
+                  <div><b>{g(me.balance)}</b><span>tiền mặt</span></div>
+                  <div><b>{me.properties.length} ô</b><span>đất</span></div>
+                  <div><b>{myBuildings}</b><span>nhà</span></div>
+                </div>
+                <div className="hpvn-sets">
+                  {colorSets.map((cs) => (
+                    <i key={cs.g} title={`${cs.name}: ${cs.owned}/${cs.total}`}
+                      style={{ background: `linear-gradient(90deg, ${cs.color} ${cs.frac * 100}%, rgba(255, 255, 255, 0.08) ${cs.frac * 100}%)` }} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Turn Action Block */}
+            {currentPlayer && (
+              <section className={`turn-action-card hpvn-act ${isMyTurn ? 'is-mine' : ''}`}>
+                <div className="hpvn-act-head">
+                  {!isMyTurn && (
+                    <div className="player-avatar-circle mini-avatar" style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}>
+                      {currentPlayer.tokenIcon}
+                    </div>
+                  )}
+                  <div className="hpvn-act-title">
+                    <span>
+                      {isMyTurn ? 'Lượt của bạn' : `Lượt của ${currentPlayer.name}`}
+                      {gameState.dice ? ` · ${gameState.dice.die1}+${gameState.dice.die2}` : ''}
+                    </span>
+                  </div>
+                  {timerRing()}
+                </div>
+                {renderTurnActions(false)}
+              </section>
+            )}
+
+            {/* Segmented Hogwarts Tabs */}
+            <div className="hpvn-segmented-tabs" role="tablist">
+              <button
+                className={`hpvn-seg-tab ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
+                onClick={() => setActiveTab('leaderboard')}
+                role="tab"
+                aria-selected={activeTab === 'leaderboard'}
+              >
+                <Icon name="trophy" size={13} />
+                <span>Bảng điểm</span>
+              </button>
+              <button
+                className={`hpvn-seg-tab ${activeTab === 'properties' ? 'is-active' : ''}`}
+                onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); }}
+                role="tab"
+                aria-selected={activeTab === 'properties'}
+              >
+                <Icon name="land" size={13} />
+                <span>Đất ({me?.properties.length || 0})</span>
+              </button>
+              <button
+                className={`hpvn-seg-tab ${activeTab === 'events' ? 'is-active' : ''}`}
+                onClick={() => setActiveTab('events')}
+                role="tab"
+                aria-selected={activeTab === 'events'}
+              >
+                <Icon name="scroll" size={13} />
+                <span>Nhật ký</span>
+              </button>
+            </div>
+
+            {/* Active Tab Content Area */}
+            <section className="hpvn-list hpvn-list-tabbed">
+              <div className="tab-content-area">
+                {activeTab === 'leaderboard' && renderLeaderboard()}
+                {activeTab === 'properties' && renderProperties()}
+                {activeTab === 'events' && renderEventLogs()}
+              </div>
+            </section>
+
+            {/* Quick recent event ticker when not on events tab */}
+            {activeTab !== 'events' && recentEvents.length > 0 && (
+              <button className="hpvn-recent hpvn-recent-compact" onClick={() => setActiveTab('events')} title="Xem đầy đủ nhật ký">
+                <span className="hpvn-recent-label">Gần đây:</span>
+                <span className="hpvn-recent-line">{recentEvents[0].message.replace(LEADING_EMOJI, '')}</span>
+              </button>
+            )}
+          </>
         )}
       </aside>
 

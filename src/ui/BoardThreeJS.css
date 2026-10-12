@@ -448,55 +448,6 @@
 }
 
 
-/* ============================================
-   NEW: Camera Mode Indicator (Enhanced)
-   ============================================ */
-.camera-mode-indicator {
-  position: absolute;
-  bottom: 48px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  z-index: 40;
-  pointer-events: none;
-}
-
-.camera-mode-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-family: 'Cinzel', serif;
-  letter-spacing: 0.5px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(100, 100, 100, 0.4);
-  color: #6b7280;
-  transition: all 0.3s ease;
-  opacity: 0.5;
-}
-
-.camera-mode-badge.active {
-  opacity: 1;
-  border-color: #ffd700;
-  color: #ffd700;
-  background: rgba(30, 25, 10, 0.9);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5);
-  animation: cameraPulse 2s ease-in-out infinite;
-}
-
-@keyframes cameraPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5); }
-  50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.5); }
-}
-
-.camera-mode-badge .mode-icon {
-  font-size: 0.95rem;
-}
 
 /* ============================================
    NEW: Mini-Map
@@ -672,9 +623,7 @@
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
 }
 
-@media (max-width: 640px), (orientation: portrait) {
-  .camera-mode-indicator { display: none; }
-}
+
 
 @media (max-width: 640px), (orientation: portrait) {
   .three-controls-bar {
@@ -750,15 +699,6 @@
     right: 8px;
   }
 
-  .camera-mode-indicator {
-    bottom: 36px;
-    transform: translateX(-50%) scale(0.85);
-  }
-
-  .camera-mode-badge {
-    padding: 4px 10px;
-    font-size: 0.7rem;
-  }
 
   .corner-card-label {
     padding: 4px 6px;

@@ -280,42 +280,95 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 
 /* ===== Command panel (layout B): you on top, one action block, players, recent events =====
    The aside itself is transparent; each section is its own card, 10px apart. */
-.right-sidebar.hpvn-cmd { background: none !important; border: 0 !important; box-shadow: none !important; display: flex; flex-direction: column; gap: 10px;
-  margin: 14px 0 14px 16px; overflow: hidden; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.right-sidebar.hpvn-cmd {
+  width: 265px !important;
+  min-width: 265px !important;
+  max-width: 265px !important;
+  margin: 10px 0 10px 10px !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.22s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.right-sidebar.hpvn-cmd.is-collapsed {
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  margin: 10px 0 10px 8px !important;
+  gap: 0;
+}
 .hpvn-cmd > * { flex-shrink: 0; }
-.hpvn-cmd-top, .hpvn-you, .hpvn-act, .hpvn-list, .hpvn-recent {
+.hpvn-cmd-top, .hpvn-you, .turn-action-card.hpvn-act, .hpvn-list, .hpvn-recent, .hpvn-collapsed-rail {
   background: radial-gradient(120% 120% at 0% 0%, rgba(243, 210, 122, 0.07), rgba(0, 0, 0, 0) 55%), linear-gradient(160deg, rgba(40, 27, 12, 0.96), rgba(16, 10, 5, 0.97));
-  border: 1px solid var(--hp-rim); border-radius: 16px; box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 236, 190, 0.07); }
-.hpvn-cmd-top { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
-.hpvn-cmd-top .game-logo-title { flex: 1; min-width: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hpvn-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--hp-rim);
-  background: rgba(0, 0, 0, 0.25); color: var(--hp-text); font: 600 13px 'Be Vietnam Pro', Arial, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  border: 1px solid var(--hp-rim); border-radius: 14px; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 236, 190, 0.07);
+}
+.hpvn-cmd-top { display: flex; align-items: center; gap: 5px; padding: 6px 8px; }
+.hpvn-collapse-btn {
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--hp-rim);
+  background: rgba(0, 0, 0, 0.25); color: var(--hp-muted); display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+}
+.hpvn-collapse-btn:hover { color: var(--hp-gold-hi); border-color: var(--hp-ring); background: rgba(243, 209, 137, 0.12); }
+.hpvn-pill { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--hp-rim);
+  background: rgba(0, 0, 0, 0.25); color: var(--hp-text); font: 600 12px 'Be Vietnam Pro', Arial, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hpvn-pill.timer-pill.warning { color: #fbbf24; } .hpvn-pill.timer-pill.danger { color: #f87171; border-color: rgba(248, 113, 113, 0.5); }
 .hpvn-pill.is-curse { color: #fca5a5; border-color: rgba(194, 69, 63, 0.6); }
-.hpvn-iconbtn { width: 32px; padding: 0; justify-content: center; cursor: pointer; color: var(--hp-muted); }
+.hpvn-iconbtn { width: 26px; height: 26px; padding: 0; justify-content: center; cursor: pointer; color: var(--hp-muted); }
 .hpvn-iconbtn:hover:not(:disabled) { color: var(--hp-gold-hi); border-color: var(--hp-ring); }
 .hpvn-iconbtn.is-on { color: #1d1204; background: var(--hp-cta); border-color: transparent; }
-.hpvn-cmd-room { display: flex; gap: 8px; }
-.hpvn-cmd-room > * { flex: 1; min-height: 32px; border-radius: 999px; }
+.hpvn-cmd-room { display: flex; gap: 6px; }
+.hpvn-cmd-room > * { flex: 1; min-height: 28px; border-radius: 999px; font-size: 11px; }
 
-.hpvn-you { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 14px; }
-.hpvn-you .player-avatar-circle { width: 44px; height: 44px; font-size: 22px; }
+/* Collapsed vertical rail */
+.hpvn-collapsed-rail {
+  width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 8px 4px; box-sizing: border-box;
+}
+.hpvn-rail-btn {
+  width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(243, 220, 154, 0.12);
+  background: rgba(0, 0, 0, 0.25); color: var(--hp-muted); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; position: relative; transition: all 0.2s ease;
+}
+.hpvn-rail-btn:hover { color: var(--hp-gold-hi); border-color: var(--hp-ring); background: rgba(243, 209, 137, 0.08); }
+.hpvn-rail-btn.is-active { color: #1d1204; background: var(--hp-cta); border-color: transparent; box-shadow: 0 0 10px rgba(243, 209, 137, 0.35); }
+.hpvn-rail-toggle { background: rgba(243, 209, 137, 0.12); color: var(--hp-gold-hi); border-color: var(--hp-ring); }
+.hpvn-rail-toggle:hover { background: var(--hp-cta); color: #1d1204; }
+.hpvn-rail-turn-indicator { position: relative; cursor: pointer; padding: 2px; border-radius: 50%; transition: transform 0.2s ease; }
+.hpvn-rail-turn-indicator:hover { transform: scale(1.08); }
+.hpvn-rail-turn-indicator .mini-avatar { width: 32px !important; height: 32px !important; font-size: 16px !important; }
+.hpvn-rail-turn-indicator.is-my-turn { box-shadow: 0 0 12px rgba(243, 209, 137, 0.6); }
+.hpvn-rail-dot { position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: #10b981; border: 1.5px solid #160e08; border-radius: 50%; }
+.hpvn-rail-badge { position: absolute; top: 2px; right: 2px; min-width: 13px; height: 13px; padding: 0 3px; background: var(--hp-gold); color: #160e08; border-radius: 7px; font: 700 9px sans-serif; display: flex; align-items: center; justify-content: center; }
+.hpvn-rail-divider { width: 20px; height: 1px; background: rgba(243, 220, 154, 0.15); margin: 2px 0; }
+.hpvn-rail-spacer { flex: 1; }
+.hpvn-rail-timer { font: 700 9px 'Be Vietnam Pro', monospace; color: var(--hp-muted); letter-spacing: -0.5px; padding-bottom: 4px; text-align: center; }
+
+/* You: compact 1-card snapshot */
+.hpvn-you { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 8px 10px; }
+.hpvn-you-compact .player-avatar-circle { width: 34px !important; height: 34px !important; font-size: 18px !important; }
 .hpvn-you-name { display: grid; min-width: 0; }
-.hpvn-you-name strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hpvn-you-name span, .hpvn-you-worth span { font-size: 11px; color: var(--hp-muted); }
+.hpvn-you-name strong { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+.hpvn-you-name span, .hpvn-you-worth span { font-size: 10px; color: var(--hp-muted); }
 .hpvn-you-worth { display: grid; text-align: right; }
-.hpvn-you-worth strong { font-size: 22px; line-height: 1.1; color: var(--hp-gold-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hpvn-you-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 8px; }
-.hpvn-you-stats > div { display: grid; padding-left: 10px; border-left: 1px solid rgba(243, 220, 154, 0.14); min-width: 0; }
+.hpvn-you-worth strong { font-size: 15px; line-height: 1.1; color: var(--hp-gold-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hpvn-you-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(243, 220, 154, 0.1); }
+.hpvn-you-stats > div { display: grid; padding-left: 6px; border-left: 1px solid rgba(243, 220, 154, 0.12); min-width: 0; }
 .hpvn-you-stats > div:first-child { padding-left: 0; border-left: 0; }
-.hpvn-you-stats b { font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hpvn-you-stats span { font-size: 11px; color: var(--hp-muted); }
-.hpvn-sets { grid-column: 1 / -1; display: flex; gap: 4px; margin-top: 6px; }
-.hpvn-sets i { flex: 1; height: 5px; border-radius: 3px; }
+.hpvn-you-stats b { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hpvn-you-stats span { font-size: 9px; color: var(--hp-muted); }
+.hpvn-sets { grid-column: 1 / -1; display: flex; gap: 3px; margin-top: 4px; }
+.hpvn-sets i { flex: 1; height: 3px; border-radius: 2px; }
 
-.turn-action-card.hpvn-act { margin: 0; padding: 12px 14px; display: grid; gap: 10px; }
+/* Turn action card */
+.turn-action-card.hpvn-act { margin: 0; padding: 8px 10px; display: grid; gap: 6px; }
 .turn-action-card.hpvn-act.is-mine { border-color: var(--hp-ring); }
-.hpvn-act-head { display: flex; align-items: center; gap: 10px; }
+.hpvn-act-head { display: flex; align-items: center; gap: 8px; }
 .hpvn-act-title { flex: 1; min-width: 0; }
 .hpvn-act-title span { display: block; font-size: 12px; font-weight: 700; color: var(--hp-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hpvn-ring { position: relative; flex-shrink: 0; }
@@ -324,26 +377,65 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 .hpvn-ring-track { stroke: rgba(255, 255, 255, 0.1); }
 .hpvn-ring-fill { stroke: var(--hp-gold); stroke-linecap: round; transition: stroke-dashoffset 0.9s linear; }
 .hpvn-ring.is-low .hpvn-ring-fill { stroke: #f87171; }
-.hpvn-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-variant-numeric: tabular-nums; }
-.hpvn-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.hpvn-tools button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: 10px; cursor: pointer;
-  border: 1px solid rgba(243, 220, 154, 0.12); background: transparent; color: var(--hp-muted); font: 600 12px 'Be Vietnam Pro', Arial, sans-serif; white-space: nowrap; }
-.hpvn-tools button:hover, .hpvn-tools button.is-active { color: var(--hp-gold-hi); border-color: var(--hp-ring); background: rgba(243, 209, 137, 0.06); }
-.hpvn-act .player-turn-header, .hpvn-act .turn-timer-track, .hpvn-act .dice-result-box { display: none; }
+.hpvn-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-variant-numeric: tabular-nums; }
+.hpvn-act .btn-primary-roll { min-height: 42px !important; font-size: 13px !important; padding: 6px 12px !important; }
+.hpvn-act .btn-primary-roll .hpvn-key { font-size: 10px; padding: 2px 5px; }
 
-.hpvn-list { flex: 1 1 auto !important; min-height: 120px; display: flex; flex-direction: column; padding: 10px 6px 6px; overflow: hidden; }
-.hpvn-list-head { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 6px; font-size: 12px; font-weight: 700; color: var(--hp-gold); }
-.hpvn-list-head button { border: 0; background: none; color: var(--hp-muted); font: 600 12px 'Be Vietnam Pro', Arial, sans-serif; cursor: pointer; }
-.hpvn-list-head button:hover { color: var(--hp-gold-hi); }
+/* Hogwarts Segmented Tabs */
+.hpvn-segmented-tabs {
+  display: flex; background: rgba(14, 8, 4, 0.85); border: 1px solid rgba(243, 220, 154, 0.16);
+  border-radius: 10px; padding: 2px; gap: 2px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.hpvn-seg-tab {
+  flex: 1; min-width: 0; height: 28px; border: 0; background: transparent; color: var(--hp-muted);
+  border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  gap: 4px; font: 600 11px 'Be Vietnam Pro', Arial, sans-serif; transition: all 0.2s ease; white-space: nowrap; padding: 0 4px;
+}
+.hpvn-seg-tab span { overflow: hidden; text-overflow: ellipsis; }
+.hpvn-seg-tab:hover { color: var(--hp-gold-hi); background: rgba(243, 209, 137, 0.05); }
+.hpvn-seg-tab.is-active {
+  background: linear-gradient(180deg, rgba(243, 209, 137, 0.22) 0%, rgba(202, 156, 74, 0.12) 100%);
+  color: var(--hp-gold-hi); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(243, 209, 137, 0.35); font-weight: 700;
+}
+
+/* List Tabbed Section & custom sleek gold scrollbars */
+.hpvn-list { flex: 1 1 auto !important; min-height: 120px; display: flex; flex-direction: column; padding: 8px 4px 6px 6px; overflow: hidden; }
 .hpvn-list .tab-content-area { flex: 1; min-height: 0; overflow-y: auto; padding: 0 2px; }
-.hpvn-list .player-list-item { padding: 6px 8px; gap: 8px; border-radius: 10px; border: 0; background: transparent; margin: 0; }
+.hpvn-list .player-list-item { padding: 5px 6px; gap: 6px; border-radius: 8px; border: 0; background: transparent; margin: 0; }
 .hpvn-list .player-list-item.active-turn { background: rgba(243, 209, 137, 0.07); box-shadow: inset 0 0 0 1px var(--hp-rim); }
-.hpvn-list .leaderboard-rank { width: 16px; font-size: 12px; color: var(--hp-muted); text-align: center; background: none; border: 0; }
-.hpvn-list .player-list-item .player-avatar-circle { width: 28px !important; height: 28px !important; font-size: 14px !important; }
+.hpvn-list .leaderboard-rank { width: 14px; font-size: 11px; color: var(--hp-muted); text-align: center; background: none; border: 0; }
+.hpvn-list .player-list-item .player-avatar-circle { width: 26px !important; height: 26px !important; font-size: 13px !important; }
 
-.hpvn-recent { display: grid; gap: 4px; padding: 10px 14px; text-align: left; cursor: pointer; color: var(--hp-muted); font: 400 12px/1.4 'Be Vietnam Pro', Arial, sans-serif; }
-.hpvn-recent-label { font-weight: 700; color: var(--hp-gold); }
-.hpvn-recent-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Custom Dark-Gold Scrollbars to eliminate ugly default white browser scrollbars */
+.tab-content-area::-webkit-scrollbar,
+.right-sidebar::-webkit-scrollbar,
+.event-feed::-webkit-scrollbar {
+  width: 4px; height: 4px;
+}
+.tab-content-area::-webkit-scrollbar-track,
+.right-sidebar::-webkit-scrollbar-track,
+.event-feed::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.25); border-radius: 2px;
+}
+.tab-content-area::-webkit-scrollbar-thumb,
+.right-sidebar::-webkit-scrollbar-thumb,
+.event-feed::-webkit-scrollbar-thumb {
+  background: rgba(243, 209, 137, 0.25); border-radius: 2px;
+}
+.tab-content-area::-webkit-scrollbar-thumb:hover,
+.right-sidebar::-webkit-scrollbar-thumb:hover,
+.event-feed::-webkit-scrollbar-thumb:hover {
+  background: rgba(243, 209, 137, 0.55);
+}
+.tab-content-area, .right-sidebar, .event-feed {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(243, 209, 137, 0.25) rgba(0, 0, 0, 0.25);
+}
+
+.hpvn-recent { display: grid; gap: 3px; padding: 6px 10px; text-align: left; cursor: pointer; color: var(--hp-muted); font: 400 11px/1.3 'Be Vietnam Pro', Arial, sans-serif; }
+.hpvn-recent.hpvn-recent-compact { display: flex; align-items: center; gap: 6px; border-radius: 10px; }
+.hpvn-recent-label { font-weight: 700; color: var(--hp-gold); font-size: 11px; flex-shrink: 0; }
+.hpvn-recent-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; flex: 1; }
 .hpvn-recent:hover { border-color: var(--hp-ring); }
 
 /* Phone: player strip under the top bar; everything that sat under the top bar moves down by its height. */
@@ -368,9 +460,13 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
   background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
 .decision-corner { display: none !important; }
 .hpvn-act .decision-card-thumb-img { border-radius: 8px; border: 1px solid var(--hp-rim); }
-.hpvn-act .rules-tax-footnote { display: none; }
 /* The primary choice is the last button in a row (HPVN convention). */
 .decision-button-row .btn-buy, .decision-button-row .btn-upgrade-hotel, .decision-button-row .btn-takeover { order: 2; }
+.hpvn-act .decision-button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+.hpvn-act .decision-button-row button {
+  padding: 8px 4px !important; font-size: 11px !important; line-height: 1.25 !important;
+  min-height: 38px !important; white-space: normal !important; word-break: break-word !important; text-align: center !important;
+}
 
 /* Event toast (rent, tax, purchase): one quiet line at the top of the board. */
 .hpvn-toast { position: absolute; top: 18px; left: 50%; z-index: 120; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
@@ -507,7 +603,7 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 }
 /* Landscape 641–1100 px (PC with HPVN's Floo column, phones turned sideways): narrower command panel. */
 @media (min-width: 641px) and (max-width: 1100px) and (orientation: landscape) {
-  .right-sidebar { width: clamp(280px, 34vw, 330px) !important; }
+  .right-sidebar:not(.hpvn-cmd) { width: clamp(280px, 34vw, 330px) !important; }
 }
 @media (orientation: landscape) and (max-height: 560px) {
   .right-sidebar { overflow-y: auto; }

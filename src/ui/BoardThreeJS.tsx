@@ -662,23 +662,6 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       {/* 3D Canvas Mount Point */}
       <div ref={mountRef} className="three-canvas-container" />
 
-      {/* ============================================
-          NEW: Camera Mode Indicator
-          ============================================ */}
-      <div className="camera-mode-indicator">
-        <div className={`camera-mode-badge ${currentView === 'overview' ? 'active' : ''}`}>
-          <span className="mode-icon">👁️</span>
-          <span>OVERVIEW</span>
-        </div>
-        <div className={`camera-mode-badge ${currentView === 'follow' ? 'active' : ''}`}>
-          <span className="mode-icon">🎥</span>
-          <span>FOLLOW</span>
-        </div>
-        <div className={`camera-mode-badge ${currentView === 'topdown' ? 'active' : ''}`}>
-          <span className="mode-icon">📐</span>
-          <span>TOP-DOWN</span>
-        </div>
-      </div>
 
       {rollBadge && (
         <div key={rollBadge.id} className={`hpvn-roll-badge ${rollBadge.double ? 'is-double' : ''}`} aria-live="polite">
