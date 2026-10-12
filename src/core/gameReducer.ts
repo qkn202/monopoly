@@ -1,7 +1,7 @@
 import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate, TileConfig } from './types';
 import { HOGWARTS_TILES, HOUSE_INFO, CHARMS_CARDS, POTIONS_CARDS } from './boardData';
 import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost } from './rulesEngine';
-import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate, selectDraftProperty, getBestDraftProperty } from './reducerHelpers';
+import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate, selectDraftProperty, getBestDraftProperty, recordTransaction, finalizeTurnFinances } from './reducerHelpers';
 import { getBotAction } from './botAI';
 import { g, galleons } from '../hpvn/money';
 
@@ -64,6 +64,19 @@ export function createInitialState(
     activeEscalationEvent: null,
     takeoverCandidate: null,
     upgradeCandidate: null,
+    turnFinances: [],
+    currentTurnTransactions: [],
+    playerFinances: players.reduce<Record<string, import('./types').PlayerFinanceStats>>((acc, p) => {
+      acc[p.id] = {
+        totalIncome: 0,
+        totalExpense: 0,
+        rentIncome: 0,
+        rentExpense: 0,
+        taxExpense: 0,
+      };
+      return acc;
+    }, {}),
+    propertyRevenue: {},
   };
 }
 
@@ -206,7 +219,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           const passGoEvent = passedGO
             ? createEvent(`${currentPlayer.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', currentPlayer.id)
             : null;
-          return resolveLanding({
+          let sFreedMove: GameState = {
             ...state,
             players: state.players.map((p) => (p.id === currentPlayer.id ? freedPlayer : p)),
             dice: { die1: d1, die2: d2, total, isDouble },
@@ -214,7 +227,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             events: passGoEvent
               ? [passGoEvent, createEvent(`✨ ${currentPlayer.name} tung số đôi (${d1}-${d2})! Thoát khỏi Azkaban và di chuyển!`, 'success', currentPlayer.id), ...state.events]
               : [createEvent(`✨ ${currentPlayer.name} tung số đôi (${d1}-${d2})! Thoát khỏi Azkaban và di chuyển!`, 'success', currentPlayer.id), ...state.events],
-          }, freedPlayer, total);
+          };
+          if (passedGO) {
+            sFreedMove = recordTransaction(sFreedMove, {
+              playerId: currentPlayer.id,
+              amount: 500,
+              type: 'INCOME',
+              category: 'GO',
+              description: 'Lương qua Ga 9¾ (Khởi Hành)',
+            });
+          }
+          return resolveLanding(sFreedMove, freedPlayer, total);
         } else {
           const turnsLeft = currentPlayer.jailTurnsRemaining - 1;
           if (turnsLeft <= 0) {
@@ -251,7 +274,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             const passGoEvent = passedGO
               ? createEvent(`${afterP.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', afterP.id)
               : null;
-            return resolveLanding({
+            let sTurn3Move: GameState = {
               ...debtRes.state,
               players: debtRes.state.players.map((p) => (p.id === currentPlayer.id ? movedPlayer : p)),
               dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
@@ -260,7 +283,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               events: passGoEvent
                 ? [passGoEvent, createEvent(`${afterP.name} hết hạn giam, nộp 150G tiền phạt và di chuyển ${total} ô.`, 'info', afterP.id), ...debtRes.state.events]
                 : [createEvent(`${afterP.name} hết hạn giam, nộp 150G tiền phạt và di chuyển ${total} ô.`, 'info', afterP.id), ...debtRes.state.events],
-            }, movedPlayer, total);
+            };
+            if (passedGO) {
+              sTurn3Move = recordTransaction(sTurn3Move, {
+                playerId: afterP.id,
+                amount: 500,
+                type: 'INCOME',
+                category: 'GO',
+                description: 'Lương qua Ga 9¾ (Khởi Hành)',
+              });
+            }
+            return resolveLanding(sTurn3Move, movedPlayer, total);
           } else {
             const pStay: Player = { ...currentPlayer, jailTurnsRemaining: turnsLeft };
             return refreshAllNetWorth({
@@ -292,7 +325,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const movedPlayer: Player = { ...currentPlayer, position: newPos, balance };
       const updatedPlayers = state.players.map((p) => (p.id === currentPlayer.id ? movedPlayer : p));
-      const sWithMove: GameState = {
+      let sWithMove: GameState = {
         ...state,
         players: updatedPlayers,
         dice: { die1: d1, die2: d2, total, isDouble },
@@ -300,6 +333,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lastRentPayment: null,
         events: passGoEvent ? [passGoEvent, ...state.events] : state.events,
       };
+
+      if (newPos < oldPos) {
+        sWithMove = recordTransaction(sWithMove, {
+          playerId: currentPlayer.id,
+          amount: 500,
+          type: 'INCOME',
+          category: 'GO',
+          description: 'Lương qua Ga 9¾ (Khởi Hành)',
+        });
+      }
 
       return resolveLanding(sWithMove, movedPlayer, total);
     }
@@ -316,7 +359,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         properties: [...currentPlayer.properties, tile.id],
       };
 
-      return refreshAllNetWorth({
+      let nextBuyState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === currentPlayer.id ? updatedPlayer : p)),
         propertyOwnership: { ...state.propertyOwnership, [tile.id]: currentPlayer.id },
@@ -325,6 +368,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`🏰 ${currentPlayer.name} đã mua "${tile.name}" với giá ${galleons(tile.price)}!`, 'success', currentPlayer.id),
           ...state.events,
         ],
+      });
+
+      return recordTransaction(nextBuyState, {
+        playerId: currentPlayer.id,
+        amount: tile.price,
+        type: 'EXPENSE',
+        category: 'BUY',
+        description: `Mua đất "${tile.name}"`,
+        tileId: tile.id,
       });
     }
 
@@ -426,7 +478,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return p;
       });
 
-      return refreshAllNetWorth({
+      let nextTakeoverState = refreshAllNetWorth({
         ...state,
         players: updatedPlayers,
         propertyOwnership: newPropertyOwnership,
@@ -442,6 +494,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.events,
         ],
       });
+
+      nextTakeoverState = recordTransaction(nextTakeoverState, {
+        playerId: currentPlayer.id,
+        amount: cost,
+        type: 'EXPENSE',
+        category: 'TAKEOVER',
+        description: `Mua đứt "${tile.name}" từ ${previousOwner.name}`,
+        tileId: tile.id,
+        counterpartyPlayerId: previousOwner.id,
+      });
+
+      nextTakeoverState = recordTransaction(nextTakeoverState, {
+        playerId: previousOwner.id,
+        amount: cost,
+        type: 'INCOME',
+        category: 'TAKEOVER',
+        description: `Bị mua đứt "${tile.name}" bởi ${currentPlayer.name}`,
+        tileId: tile.id,
+        counterpartyPlayerId: currentPlayer.id,
+      });
+
+      return nextTakeoverState;
     }
 
     case 'PLACE_BID': {
@@ -610,7 +684,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const isLandedUpgrade = state.turnPhase === 'ACTION' && state.upgradeCandidate?.propertyId === tile.id;
 
-      return refreshAllNetWorth({
+      let nextBuildState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
@@ -619,6 +693,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`🛖 ${player.name} xây thêm 1 Túp Lều tại "${tile.name}" (−${g(tile.houseCost)})`, 'success', player.id),
           ...state.events,
         ],
+      });
+
+      return recordTransaction(nextBuildState, {
+        playerId: player.id,
+        amount: tile.houseCost,
+        type: 'EXPENSE',
+        category: 'BUILD',
+        description: `Xây túp lều tại "${tile.name}"`,
+        tileId: tile.id,
       });
     }
 
@@ -641,7 +724,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const isLandedUpgrade = state.turnPhase === 'ACTION' && state.upgradeCandidate?.propertyId === tile.id;
 
-      return refreshAllNetWorth({
+      let nextHotelState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         turnPhase: isLandedUpgrade ? 'END_TURN' : state.turnPhase,
@@ -650,6 +733,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`🏰 ${player.name} nâng cấp lên Lâu Đài Hogwarts tại "${tile.name}" (−${g(tile.houseCost)})`, 'success', player.id),
           ...state.events,
         ],
+      });
+
+      return recordTransaction(nextHotelState, {
+        playerId: player.id,
+        amount: tile.houseCost,
+        type: 'EXPENSE',
+        category: 'BUILD',
+        description: `Nâng cấp Lâu Đài Hogwarts tại "${tile.name}"`,
+        tileId: tile.id,
       });
     }
 
@@ -679,6 +771,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             ...state.events,
           ],
         });
+        nextState = recordTransaction(nextState, {
+          playerId: player.id,
+          amount: refund,
+          type: 'INCOME',
+          category: 'MORTGAGE',
+          description: `Hạ cấp Lâu Đài tại "${tile.name}"`,
+          tileId: tile.id,
+        });
         // Auto-check if player can now pay debt after selling
         return checkAndPayDebt(nextState);
       }
@@ -699,6 +799,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`🏚️ ${player.name} dỡ bớt 1 Túp Lều tại "${tile.name}" (+${g(refund)})`, 'info', player.id),
           ...state.events,
         ],
+      });
+      nextState = recordTransaction(nextState, {
+        playerId: player.id,
+        amount: refund,
+        type: 'INCOME',
+        category: 'MORTGAGE',
+        description: `Dỡ 1 Túp Lều tại "${tile.name}"`,
+        tileId: tile.id,
       });
       // Auto-check if player can now pay debt after selling
       return checkAndPayDebt(nextState);
@@ -734,6 +842,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.events,
         ],
       });
+      nextState = recordTransaction(nextState, {
+        playerId: player.id,
+        amount: tile.mortgageValue,
+        type: 'INCOME',
+        category: 'MORTGAGE',
+        description: `Thế chấp "${tile.name}"`,
+        tileId: tile.id,
+      });
       // Auto-check if player can now pay debt after mortgaging
       return checkAndPayDebt(nextState);
     }
@@ -756,7 +872,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const newMortgages = { ...state.mortgagedProperties };
       delete newMortgages[tile.id];
 
-      return refreshAllNetWorth({
+      let nextUnmState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         mortgagedProperties: newMortgages,
@@ -764,6 +880,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`✨ ${player.name} chuộc lại "${tile.name}" với ${galleons(cost)}.`, 'success', player.id),
           ...state.events,
         ],
+      });
+
+      return recordTransaction(nextUnmState, {
+        playerId: player.id,
+        amount: cost,
+        type: 'EXPENSE',
+        category: 'MORTGAGE',
+        description: `Chuộc thế chấp "${tile.name}"`,
+        tileId: tile.id,
       });
     }
 
@@ -778,7 +903,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         balance: player.balance - 150,
       };
 
-      const stateAfterPayment: GameState = {
+      const stateAfterPayment: GameState = recordTransaction({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         freeParkingPot: state.freeParkingPot + 150,
@@ -786,7 +911,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(`${player.name} nộp 150G tiền bảo lãnh rời khỏi Ngục Azkaban!`, 'success', player.id),
           ...state.events,
         ],
-      };
+      }, {
+        playerId: player.id,
+        amount: 150,
+        type: 'EXPENSE',
+        category: 'JAIL',
+        description: 'Nộp phạt bảo lãnh rời Ngục Azkaban',
+      });
 
       // Player paid bail and is freed - they can now roll and move in the same turn
       // Auto-roll dice for them (similar to when rolling doubles in jail)
@@ -915,7 +1046,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             );
           }
           const creditor = creditorId ? state.players.find((p) => p.id === creditorId) : null;
-          return refreshAllNetWorth({
+          let debtPaidState = refreshAllNetWorth({
             ...state,
             players: updatedPlayers,
             turnPhase: 'END_TURN',
@@ -930,6 +1061,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               ...state.events,
             ],
           });
+
+          debtPaidState = recordTransaction(debtPaidState, {
+            playerId: debtor.id,
+            amount,
+            type: 'EXPENSE',
+            category: creditorId ? 'RENT' : 'TAX',
+            description: `Thanh toán nợ ${amount}G (${reason})`,
+            counterpartyPlayerId: creditorId,
+          });
+
+          if (creditorId) {
+            debtPaidState = recordTransaction(debtPaidState, {
+              playerId: creditorId,
+              amount,
+              type: 'INCOME',
+              category: 'RENT',
+              description: `Thu hồi nợ ${amount}G từ ${debtor.name}`,
+              counterpartyPlayerId: debtor.id,
+            });
+          }
+
+          return debtPaidState;
         }
         // Not enough money - stay in bankruptcy phase
         return state;
@@ -986,7 +1139,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
       const pot = state.freeParkingPot;
       if (pot > 0) {
         const luckyPlayer: Player = { ...player, balance: player.balance + pot };
-        return refreshAllNetWorth({
+        let nextPotState = refreshAllNetWorth({
           ...state,
           players: state.players.map((p) => (p.id === player.id ? luckyPlayer : p)),
           freeParkingPot: 0,
@@ -996,6 +1149,13 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
             ...state.events,
           ],
         });
+        return recordTransaction(nextPotState, {
+          playerId: player.id,
+          amount: pot,
+          type: 'INCOME',
+          category: 'PARKING',
+          description: 'Nhận kho báu Phòng Yêu Cầu (Free Parking)',
+        });
       }
       return { ...state, turnPhase: 'END_TURN' };
     }
@@ -1003,7 +1163,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
     case 'TAX': {
       const baseTax = tile.price || 100;
       const taxAmt = baseTax * (state.rentMultiplier || 1);
-      const res = resolveDebtOrLiquidate(state, player, taxAmt, undefined, `thuế tại "${tile.name}"`);
+      const res = resolveDebtOrLiquidate(state, player, taxAmt, undefined, `thuế tại "${tile.name}"`, tile.id);
 
       // If player went bankrupt or entered BANKRUPTCY phase, do NOT override with END_TURN!
       if (res.isBankrupt || res.state.turnPhase === 'BANKRUPTCY') {
@@ -1177,7 +1337,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
         });
       }
 
-      const debtRes = resolveDebtOrLiquidate(state, player, rent, owner.id, `tiền thuê "${tile.name}"`);
+      const debtRes = resolveDebtOrLiquidate(state, player, rent, owner.id, `tiền thuê "${tile.name}"`, tile.id);
 
       // If player went bankrupt or entered BANKRUPTCY phase, do NOT override with takeover or END_TURN!
       if (debtRes.isBankrupt || debtRes.state.turnPhase === 'BANKRUPTCY') {
@@ -1255,7 +1415,7 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
     properties: [...winner.properties, tile.id],
   };
 
-  return refreshAllNetWorth({
+  let nextAuctionWinState = refreshAllNetWorth({
     ...state,
     players: state.players.map((p) => (p.id === winner.id ? updatedWinner : p)),
     propertyOwnership: { ...state.propertyOwnership, [tile.id]: winner.id },
@@ -1266,20 +1426,35 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
       ...state.events,
     ],
   });
+
+  return recordTransaction(nextAuctionWinState, {
+    playerId: winner.id,
+    amount: cost,
+    type: 'EXPENSE',
+    category: 'AUCTION',
+    description: `Thắng đấu giá "${tile.name}"`,
+    tileId: tile.id,
+  });
 }
 
 function advanceTurn(state: GameState): GameState {
-  const activePlayers = state.players.filter((p) => !p.isBankrupt);
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  let finalizedState = state;
+  if (currentPlayer) {
+    finalizedState = finalizeTurnFinances(state, currentPlayer);
+  }
+
+  const activePlayers = finalizedState.players.filter((p) => !p.isBankrupt);
 
   // Edge case: No active players remaining - game ends with no winner
   if (activePlayers.length === 0) {
     return {
-      ...state,
+      ...finalizedState,
       turnPhase: 'GAME_OVER',
       winner: null,
       events: [
         createEvent('💀 Tất cả người chơi đã phá sản! Không có người chiến thắng!', 'error'),
-        ...state.events,
+        ...finalizedState.events,
       ],
     };
   }
@@ -1287,21 +1462,20 @@ function advanceTurn(state: GameState): GameState {
   // Only 1 active player remaining - they win!
   if (activePlayers.length === 1) {
     return {
-      ...state,
+      ...finalizedState,
       turnPhase: 'GAME_OVER',
       winner: activePlayers[0],
       events: [
         createEvent(`🏆 ${activePlayers[0].name} là người chiến thắng duy nhất còn lại!`, 'success'),
-        ...state.events,
+        ...finalizedState.events,
       ],
     };
   }
 
   // If the player rolled a double and is not in jail, they get another turn!
-  const currentPlayer = state.players[state.currentPlayerIndex];
-  if (state.consecutiveDoubles > 0 && !currentPlayer.inJail && !currentPlayer.isBankrupt) {
+  if (finalizedState.consecutiveDoubles > 0 && !currentPlayer.inJail && !currentPlayer.isBankrupt) {
     return refreshAllNetWorth({
-      ...state,
+      ...finalizedState,
       turnPhase: 'ROLL',
       dice: null,
       auction: null,
@@ -1309,29 +1483,29 @@ function advanceTurn(state: GameState): GameState {
       takeoverCandidate: null,
       upgradeCandidate: null,
       lastRentPayment: null,
-      turnSecondsRemaining: state.maxTurnSeconds || 60,
+      turnSecondsRemaining: finalizedState.maxTurnSeconds || 60,
       events: [
-        createEvent(`🎲 ${currentPlayer.name} được gieo tiếp vì tung số đôi! (Lần ${state.consecutiveDoubles})`, 'info', currentPlayer.id),
-        ...state.events,
+        createEvent(`🎲 ${currentPlayer.name} được gieo tiếp vì tung số đôi! (Lần ${finalizedState.consecutiveDoubles})`, 'info', currentPlayer.id),
+        ...finalizedState.events,
       ],
     });
   }
 
-  let nextIndex = (state.currentPlayerIndex + 1) % state.players.length;
-  while (state.players[nextIndex].isBankrupt) {
-    nextIndex = (nextIndex + 1) % state.players.length;
+  let nextIndex = (finalizedState.currentPlayerIndex + 1) % finalizedState.players.length;
+  while (finalizedState.players[nextIndex].isBankrupt) {
+    nextIndex = (nextIndex + 1) % finalizedState.players.length;
   }
 
-  const nextTurnNumber = nextIndex === 0 ? state.turnNumber + 1 : state.turnNumber;
+  const nextTurnNumber = nextIndex === 0 ? finalizedState.turnNumber + 1 : finalizedState.turnNumber;
 
-  let rentMultiplier = state.rentMultiplier || 1;
-  const maxRentMultiplier = state.maxRentMultiplier || 2;
-  let nextEscalationRound = state.nextEscalationRound || (Math.floor(Math.random() * 4) + 4);
-  let activeEscalationEvent = state.activeEscalationEvent || null;
-  let newEvents = state.events;
+  let rentMultiplier = finalizedState.rentMultiplier || 1;
+  const maxRentMultiplier = finalizedState.maxRentMultiplier || 2;
+  let nextEscalationRound = finalizedState.nextEscalationRound || (Math.floor(Math.random() * 4) + 4);
+  let activeEscalationEvent = finalizedState.activeEscalationEvent || null;
+  let newEvents = finalizedState.events;
 
   // When crossing into a new round, check if randomized escalation milestone is met
-  if (nextIndex === 0 && nextTurnNumber > state.turnNumber) {
+  if (nextIndex === 0 && nextTurnNumber > finalizedState.turnNumber) {
     if (nextTurnNumber >= nextEscalationRound && rentMultiplier < maxRentMultiplier) {
       rentMultiplier = Math.min(maxRentMultiplier, rentMultiplier * 2);
       const escalationMsg = `☠️ Lời nguyền Hắc ám, vòng ${nextTurnNumber}: tiền thuê và thuế nhân ${rentMultiplier}.`;
@@ -1343,13 +1517,13 @@ function advanceTurn(state: GameState): GameState {
       };
       newEvents = [
         createEvent(escalationMsg, 'error'),
-        ...state.events,
+        ...finalizedState.events,
       ];
     }
   }
 
   return refreshAllNetWorth({
-    ...state,
+    ...finalizedState,
     currentPlayerIndex: nextIndex,
     turnPhase: 'ROLL',
     turnNumber: nextTurnNumber,
@@ -1360,7 +1534,7 @@ function advanceTurn(state: GameState): GameState {
     takeoverCandidate: null,
     upgradeCandidate: null,
     lastRentPayment: null,
-    turnSecondsRemaining: state.maxTurnSeconds || 60,
+    turnSecondsRemaining: finalizedState.maxTurnSeconds || 60,
     rentMultiplier,
     nextEscalationRound,
     maxRentMultiplier,
@@ -1406,7 +1580,7 @@ function checkAndPayDebt(state: GameState): GameState {
       updatedState = { ...state, freeParkingPot: state.freeParkingPot + amount };
     }
 
-    return refreshAllNetWorth({
+    let nextPaidState = refreshAllNetWorth({
       ...updatedState,
       players: updatedPlayers,
       turnPhase: 'END_TURN',
@@ -1421,6 +1595,28 @@ function checkAndPayDebt(state: GameState): GameState {
         ...state.events,
       ],
     });
+
+    nextPaidState = recordTransaction(nextPaidState, {
+      playerId: debtor.id,
+      amount,
+      type: 'EXPENSE',
+      category: creditorId ? 'RENT' : 'TAX',
+      description: `Thanh toán nợ ${amount}G (${reason})`,
+      counterpartyPlayerId: creditorId,
+    });
+
+    if (creditorId) {
+      nextPaidState = recordTransaction(nextPaidState, {
+        playerId: creditorId,
+        amount,
+        type: 'INCOME',
+        category: 'RENT',
+        description: `Thu hồi nợ ${amount}G từ ${debtor.name}`,
+        counterpartyPlayerId: debtor.id,
+      });
+    }
+
+    return nextPaidState;
   }
 
   // Not enough money yet - stay in bankruptcy phase

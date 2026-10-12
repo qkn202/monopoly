@@ -45,7 +45,6 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 | :--- | :--- |
 | **Chỉ đứng ở property đó mới được xây** | Người chơi chỉ có thể mua nhà / nâng cấp Lâu đài trên đúng ô đất mà nhân vật đang dừng chân (`player.position === tile.index`). Các mảnh đất khác tuyệt đối không được phép nâng cấp. |
 | **Phải đặt chân từ lần 2 trở đi** | Lần 1 (mua đất): chỉ mua quyền sở hữu ô đất thô, chưa được xây nhà. Lần 2+: khi quay lại dừng chân đúng ô đất đã sở hữu, mới được nâng cấp. |
-| **Bắt buộc đủ Bộ Màu (Color Set)** | Phải sở hữu **TOÀN BỘ các ô đất trong cùng một nhóm màu** mới được phép xây Túp Lều hoặc nâng cấp Lâu Đài. |
 | **Mỗi lần ghé thăm chỉ 1 lần** | Sau khi xây 1 nhà (hoặc chọn Bỏ qua), quyền nâng cấp kết thúc. Phải đi một vòng và dừng chân lại ô đó lần sau mới được nâng cấp tiếp. |
 | **Monopoly Bonus** | Khi sở hữu trọn vẹn bộ màu nhưng chưa xây nhà, tiền thuê cơ bản tự động tăng **GẤP ĐÔI (x2)**. |
 | **🏰 Lâu Đài Hogwarts** | Khi ô đất đạt mốc 4 Túp Lều, người chơi có thể nâng cấp tối thượng lên Lâu Đài Hogwarts để tăng tiền thuê lên mức cao nhất! |
@@ -81,6 +80,17 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 ## ⚡ Cơ chế Đột biến & Tranh đấu Kịch tính
 
+- 💰 **Quản lý Thu Chi & Vua Thu Thuế Bàn Cờ (Cashflow & Top Property Tab):**
+  - Tab **"Thu chi"** nằm ngay cạnh tab "Nhật ký" trên thanh điều hướng bên phải (desktop, collapsed rail và mobile).
+  - **👑 VUA THU THUẾ BÀN CỜ:** Tự động phát hiện và vinh danh bất động sản tạo ra doanh thu thuế/thuê cao nhất ván đấu, hiển thị chủ sở hữu, tổng tiền đã thu, số lần khách ghé thăm, tiền thu lớn nhất trong 1 lần và bảng xếp hạng Top 5 tài sản sinh lời nhất.
+  - **Hero KPI Cards:** Thống kê Tổng Tiền Thu Vào, Tổng Tiền Chi Ra và Dòng Tiền Ròng (+/- Galleons) theo thời gian thực cho từng người chơi.
+  - **Sổ cái Lượt đấu (Turn-by-Turn Ledger):** Ghi chép chi tiết từng lượt đi phát sinh bao nhiêu thu/chi (mua đất, nâng cấp nhà, nộp phạt tù, lương Ga 9¾, thẻ thần chú, tiền thuê, v.v.) với bộ lọc thông minh (Tất cả, Của tôi, Có phát sinh).
+- 📜 **Nhật Ký Cá Nhân Hóa (Personalized Event Logs):**
+  - Mỗi người chơi sở hữu một dòng thời gian nhật ký riêng biệt, chỉ lưu giữ và hiển thị những sự kiện liên quan trực tiếp đến bản thân (tiền thuê đã nhận/đã trả, bất động sản bị mua đứt/mua lại, nâng cấp công trình của mình), loại bỏ hoàn toàn các thông báo rác không liên quan.
+- ⚖️ **Phân Bổ Tài Sản Khi Phá Sản (Bankruptcy Redistribution):**
+  - Khi một người chơi phá sản với chủ nợ là Ngân hàng, toàn bộ bất động sản được chia đều cho các phù thủy còn lại.
+  - Người chơi có tổng tài sản (Net Worth) **thấp nhất được ưu tiên chọn đất trước** (Poorest-first snake draft).
+  - Những mảnh đất lẻ không thể chia đều sẽ được thanh lý thành tiền mặt theo giá niêm yết và chia đều 100% cho mọi người còn sống sót.
 - ☠️ **Bão Lời Nguyền Hắc Ám (Dark Curse Escalation):**
   - Cứ sau mỗi chu kỳ vòng đấu nhất định, thế lực Hắc Ám trỗi dậy.
   - **Toàn bộ tiền thuê đất và thuế trên bàn cờ lập tức nhân đôi (x2, x4)** kèm giao diện sấm chớp và âm thanh rùng rợn!

@@ -170,6 +170,63 @@ export interface BankruptcyInfo {
   reason: string;
 }
 
+export type TransactionCategory =
+  | 'RENT'
+  | 'TAX'
+  | 'GO'
+  | 'BUY'
+  | 'BUILD'
+  | 'CARD'
+  | 'JAIL'
+  | 'TAKEOVER'
+  | 'AUCTION'
+  | 'PARKING'
+  | 'MORTGAGE'
+  | 'OTHER';
+
+export interface CashTransaction {
+  id: string;
+  turnIndex: number;
+  roundNumber: number;
+  timestamp: number;
+  playerId: string;
+  amount: number;
+  type: 'INCOME' | 'EXPENSE';
+  category: TransactionCategory;
+  description: string;
+  tileId?: string;
+  counterpartyPlayerId?: string;
+}
+
+export interface TurnCashflow {
+  turnIndex: number;
+  roundNumber: number;
+  playerId: string;
+  playerName: string;
+  playerColor: string;
+  playerHouse: HouseType;
+  totalIncome: number;
+  totalExpense: number;
+  net: number;
+  transactions: CashTransaction[];
+  timestamp: number;
+}
+
+export interface PlayerFinanceStats {
+  totalIncome: number;
+  totalExpense: number;
+  rentIncome: number;
+  rentExpense: number;
+  taxExpense: number;
+}
+
+export interface PropertyRevenueStat {
+  totalRentCollected: number;
+  rentCount: number;
+  lastRentCollected?: number;
+  lastPayerName?: string;
+}
+
 export interface GameState {
   players: Player[];
   currentPlayerIndex: number;
@@ -200,6 +257,10 @@ export interface GameState {
   activeEscalationEvent?: EscalationEvent | null;
   takeoverCandidate?: TakeoverCandidate | null;
   upgradeCandidate?: UpgradeCandidate | null;
+  turnFinances?: TurnCashflow[];
+  currentTurnTransactions?: CashTransaction[];
+  playerFinances?: Record<string, PlayerFinanceStats>;
+  propertyRevenue?: Record<string, PropertyRevenueStat>;
 }
 
 export interface EscalationEvent {

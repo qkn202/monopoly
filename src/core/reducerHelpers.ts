@@ -1,4 +1,15 @@
-import { GameState, Player, CardConfig, GameEvent, BankruptcyDraft } from './types';
+import {
+  GameState,
+  Player,
+  CardConfig,
+  GameEvent,
+  BankruptcyDraft,
+  TransactionCategory,
+  CashTransaction,
+  TurnCashflow,
+  PlayerFinanceStats,
+  PropertyRevenueStat,
+} from './types';
 import { HOGWARTS_TILES } from './boardData';
 import { calculateNetWorth } from './rulesEngine';
 import { g, galleons } from '../hpvn/money';
@@ -123,6 +134,13 @@ export function executeCardEffect(
       } else {
         p.balance += amt;
         s.players = s.players.map((item) => (item.id === p.id ? p : item));
+        s = recordTransaction(s, {
+          playerId: p.id,
+          amount: amt,
+          type: 'INCOME',
+          category: 'CARD',
+          description: `Thẻ ma thuật: "${card.title}"`,
+        });
       }
       break;
     }
@@ -136,6 +154,13 @@ export function executeCardEffect(
         // Passed GO
         p.balance += 500;
         s.events = [createEvent(`${p.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', p.id), ...s.events];
+        s = recordTransaction(s, {
+          playerId: p.id,
+          amount: 500,
+          type: 'INCOME',
+          category: 'GO',
+          description: 'Lương qua Ga 9¾ (Khởi Hành)',
+        });
       }
       p.position = newPos;
       s.players = s.players.map((item) => (item.id === p.id ? p : item));
@@ -149,6 +174,13 @@ export function executeCardEffect(
         // Passed GO (except when sent to Jail at 10)
         p.balance += 500;
         s.events = [createEvent(`${p.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', p.id), ...s.events];
+        s = recordTransaction(s, {
+          playerId: p.id,
+          amount: 500,
+          type: 'INCOME',
+          category: 'GO',
+          description: 'Lương qua Ga 9¾ (Khởi Hành)',
+        });
       }
       p.position = target;
       s.players = s.players.map((item) => (item.id === p.id ? p : item));
@@ -205,6 +237,109 @@ export function executeCardEffect(
   return { nextState: s };
 }
 
+export function recordTransaction(
+  state: GameState,
+  tx: {
+    playerId: string;
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
+    category: TransactionCategory;
+    description: string;
+    tileId?: string;
+    counterpartyPlayerId?: string;
+  }
+): GameState {
+  if (!tx.amount || tx.amount <= 0) return state;
+
+  const playerFinances = { ...(state.playerFinances || {}) };
+  const currentPf: PlayerFinanceStats = playerFinances[tx.playerId]
+    ? { ...playerFinances[tx.playerId] }
+    : {
+        totalIncome: 0,
+        totalExpense: 0,
+        rentIncome: 0,
+        rentExpense: 0,
+        taxExpense: 0,
+      };
+
+  if (tx.type === 'INCOME') {
+    currentPf.totalIncome += tx.amount;
+    if (tx.category === 'RENT') currentPf.rentIncome += tx.amount;
+  } else {
+    currentPf.totalExpense += tx.amount;
+    if (tx.category === 'RENT') currentPf.rentExpense += tx.amount;
+    if (tx.category === 'TAX') currentPf.taxExpense += tx.amount;
+  }
+  playerFinances[tx.playerId] = currentPf;
+
+  let propertyRevenue = state.propertyRevenue ? { ...state.propertyRevenue } : {};
+  if (tx.tileId && tx.category === 'RENT' && tx.type === 'INCOME') {
+    const currentPr: PropertyRevenueStat = propertyRevenue[tx.tileId]
+      ? { ...propertyRevenue[tx.tileId] }
+      : { totalRentCollected: 0, rentCount: 0 };
+
+    const payer = tx.counterpartyPlayerId
+      ? state.players.find((p) => p.id === tx.counterpartyPlayerId)?.name
+      : undefined;
+
+    propertyRevenue[tx.tileId] = {
+      totalRentCollected: currentPr.totalRentCollected + tx.amount,
+      rentCount: currentPr.rentCount + 1,
+      lastRentCollected: tx.amount,
+      lastPayerName: payer,
+    };
+  }
+
+  const currentTurnTransactions: CashTransaction[] = [
+    ...(state.currentTurnTransactions || []),
+    {
+      ...tx,
+      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      turnIndex: (state.turnFinances?.length || 0) + 1,
+      roundNumber: state.turnNumber,
+      timestamp: Date.now(),
+    },
+  ];
+
+  return {
+    ...state,
+    playerFinances,
+    propertyRevenue,
+    currentTurnTransactions,
+  };
+}
+
+export function finalizeTurnFinances(state: GameState, activePlayer: Player): GameState {
+  const txs = state.currentTurnTransactions || [];
+
+  const totalIncome = txs
+    .filter((t) => t.playerId === activePlayer.id && t.type === 'INCOME')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = txs
+    .filter((t) => t.playerId === activePlayer.id && t.type === 'EXPENSE')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const turnRecord: TurnCashflow = {
+    turnIndex: (state.turnFinances?.length || 0) + 1,
+    roundNumber: state.turnNumber,
+    playerId: activePlayer.id,
+    playerName: activePlayer.name,
+    playerColor: activePlayer.color,
+    playerHouse: activePlayer.house,
+    totalIncome,
+    totalExpense,
+    net: totalIncome - totalExpense,
+    transactions: txs,
+    timestamp: Date.now(),
+  };
+
+  return {
+    ...state,
+    turnFinances: [turnRecord, ...(state.turnFinances || [])].slice(0, 40),
+    currentTurnTransactions: [],
+  };
+}
+
 /**
  * Handles debt settlement:
  * If debtor has sufficient cash: pays debt directly.
@@ -216,7 +351,8 @@ export function resolveDebtOrLiquidate(
   debtor: Player,
   amount: number,
   creditorId?: string,
-  reason: string = 'tiền phạt/thuê'
+  reason: string = 'tiền phạt/thuê',
+  tileId?: string
 ): { state: GameState; isBankrupt: boolean } {
   // Case 1: Debtor has sufficient cash on hand
   if (debtor.balance >= amount) {
@@ -234,12 +370,36 @@ export function resolveDebtOrLiquidate(
       ? `💸 ${debtor.name} dừng chân tại đất của ${creditor.name} và đã trả ${galleons(amount)} ${reason}!`
       : `⚖️ ${debtor.name} đã nộp ${galleons(amount)} ${reason}!`;
 
+    let nextState = refreshAllNetWorth({
+      ...state,
+      players: updatedPlayers,
+      events: [createEvent(notice, creditorId ? 'warning' : 'info', debtor.id, creditorId), ...state.events],
+    });
+
+    nextState = recordTransaction(nextState, {
+      playerId: debtor.id,
+      amount,
+      type: 'EXPENSE',
+      category: creditorId ? 'RENT' : 'TAX',
+      description: creditor ? `Trả ${galleons(amount)} ${reason} cho ${creditor.name}` : `Nộp ${galleons(amount)} ${reason}`,
+      tileId,
+      counterpartyPlayerId: creditorId,
+    });
+
+    if (creditorId) {
+      nextState = recordTransaction(nextState, {
+        playerId: creditorId,
+        amount,
+        type: 'INCOME',
+        category: 'RENT',
+        description: `Thu ${galleons(amount)} ${reason} từ ${debtor.name}`,
+        tileId,
+        counterpartyPlayerId: debtor.id,
+      });
+    }
+
     return {
-      state: refreshAllNetWorth({
-        ...state,
-        players: updatedPlayers,
-        events: [createEvent(notice, creditorId ? 'warning' : 'info', debtor.id, creditorId), ...state.events],
-      }),
+      state: nextState,
       isBankrupt: false,
     };
   }
@@ -661,4 +821,8 @@ export function selectDraftProperty(state: GameState, playerId: string, property
 export const withVisitList = (state: GameState): GameState => ({
   ...state,
   players: state.players.map((p) => (Array.isArray(p.visitedProperties) ? p : { ...p, visitedProperties: [] })),
+  turnFinances: Array.isArray(state.turnFinances) ? state.turnFinances : [],
+  playerFinances: state.playerFinances || {},
+  propertyRevenue: state.propertyRevenue || {},
+  currentTurnTransactions: Array.isArray(state.currentTurnTransactions) ? state.currentTurnTransactions : [],
 });
