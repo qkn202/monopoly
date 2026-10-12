@@ -99,6 +99,8 @@ export interface GameEvent {
   timestamp: number;
   message: string;
   playerId?: string;
+  targetPlayerId?: string;
+  involvedPlayerIds?: string[];
   type: 'info' | 'success' | 'warning' | 'error';
 }
 

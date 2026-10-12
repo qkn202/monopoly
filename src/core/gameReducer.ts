@@ -410,7 +410,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           createEvent(
             `⚡ ${currentPlayer.name} đã chi ${galleons(cost)} (x2 giá trị) mua đứt "${tile.name}" từ tay ${previousOwner.name}!`,
             'success',
-            currentPlayer.id
+            currentPlayer.id,
+            previousOwner.id
           ),
           ...state.events,
         ],
@@ -890,7 +891,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               createEvent(
                 `💸 ${debtor.name} đã thanh toán ${amount}G cho ${reason}${creditor ? ` cho ${creditor.name}` : ''}!`,
                 'success',
-                debtor.id
+                debtor.id,
+                creditor?.id
               ),
               ...state.events,
             ],
@@ -1136,7 +1138,7 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
           upgradeCandidate: null,
           takeoverCandidate: null,
           events: [
-            createEvent(`"${tile.name}" đang bị thế chấp. ${player.name} được miễn tiền thuê!`, 'info', player.id),
+            createEvent(`"${tile.name}" đang bị thế chấp. ${player.name} được miễn tiền thuê!`, 'info', player.id, owner.id),
             ...state.events,
           ],
         });
@@ -1374,7 +1376,8 @@ function checkAndPayDebt(state: GameState): GameState {
         createEvent(
           `💸 ${debtor.name} đã thanh toán ${amount}G cho ${reason}${creditor ? ` cho ${creditor.name}` : ''}!`,
           'success',
-          debtor.id
+          debtor.id,
+          creditor?.id
         ),
         ...state.events,
       ],

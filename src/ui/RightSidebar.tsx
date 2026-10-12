@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GameState, GameAction } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES } from '../core/boardData';
 import { determineLeaderboard, canBuildHouse, canBuildHotel } from '../core/rulesEngine';
+import { isEventRelevantToPlayer } from '../core/reducerHelpers';
 import { soundManager } from '../audio/soundManager';
 import { openFloo, usePhoneFloo } from '../hpvn/usePhoneFloo';
 import { Icon } from '../hpvn/Icon';
@@ -129,7 +130,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     );
   };
 
-  const recentEvents = gameState.events.slice(0, 2);
+  const targetPlayerForLog = viewingPlayer || me;
+  const myEventsCount = targetPlayerForLog
+    ? gameState.events.filter((e) => isEventRelevantToPlayer(e, targetPlayerForLog, gameState.players)).length
+    : 0;
+
+  const userRelevantEvents = targetPlayerForLog
+    ? gameState.events.filter((e) => isEventRelevantToPlayer(e, targetPlayerForLog, gameState.players))
+    : gameState.events;
+  const recentEvents = userRelevantEvents.length > 0 ? userRelevantEvents.slice(0, 2) : gameState.events.slice(0, 2);
 
   const openDrawerWithTab = (tab: 'leaderboard' | 'properties' | 'events') => {
     setActiveTab(tab);
@@ -1045,15 +1054,60 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     );
   };
 
-  const renderEventLogs = () => (
-    <div className="event-feed">
-      {gameState.events.slice(0, 40).map((evt) => (
-        <div key={evt.id} className={`event-log-item ${evt.type}`}>
-          {evt.message.replace(LEADING_EMOJI, '')}
-        </div>
-      ))}
-    </div>
-  );
+  const renderEventLogs = () => {
+    if (!viewingPlayer) return null;
+
+    const relevantEvents = gameState.events.filter((evt) =>
+      isEventRelevantToPlayer(evt, viewingPlayer, gameState.players)
+    );
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Player Switcher Tabs */}
+        {gameState.players.length > 1 && (
+          <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '8px' }}>
+            {gameState.players.map((p) => {
+              const isSelected = p.id === viewingPlayer.id;
+              const pCount = gameState.events.filter((e) => isEventRelevantToPlayer(e, p, gameState.players)).length;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedPropertyPlayerId(p.id)}
+                  style={{
+                    background: isSelected ? 'rgba(243, 209, 137, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    border: isSelected ? `1px solid ${p.color}` : '1px solid rgba(255, 255, 255, 0.1)',
+                    color: isSelected ? '#f3d189' : '#bb9c7c',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={`Xem nhật ký của ${p.name}`}
+                >
+                  {p.tokenIcon} {p.name.split(' ')[0]} · {pCount}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {relevantEvents.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#8a7356', padding: '40px 10px', fontSize: '0.85rem' }}>
+            Chưa có sự kiện nào liên quan đến {viewingPlayer.name}.
+          </div>
+        ) : (
+          <div className="event-feed">
+            {relevantEvents.slice(0, 50).map((evt) => (
+              <div key={evt.id} className={`event-log-item ${evt.type}`}>
+                {evt.message.replace(LEADING_EMOJI, '')}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -1253,12 +1307,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </button>
               <button
                 className={`hpvn-seg-tab ${activeTab === 'events' ? 'is-active' : ''}`}
-                onClick={() => setActiveTab('events')}
+                onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('events'); }}
                 role="tab"
                 aria-selected={activeTab === 'events'}
               >
                 <Icon name="scroll" size={14} />
-                <span>Nhật ký ván</span>
+                <span>Nhật ký ({myEventsCount})</span>
               </button>
             </div>
 

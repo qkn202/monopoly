@@ -3,14 +3,94 @@ import { HOGWARTS_TILES } from './boardData';
 import { calculateNetWorth } from './rulesEngine';
 import { g, galleons } from '../hpvn/money';
 
-export function createEvent(message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', playerId?: string): GameEvent {
+export function createEvent(
+  message: string,
+  type: 'info' | 'success' | 'warning' | 'error' = 'info',
+  playerId?: string,
+  targetPlayerId?: string,
+  involvedPlayerIds?: string[]
+): GameEvent {
+  const allInvolved = new Set<string>();
+  if (playerId) allInvolved.add(playerId);
+  if (targetPlayerId) allInvolved.add(targetPlayerId);
+  if (involvedPlayerIds) involvedPlayerIds.forEach((id) => allInvolved.add(id));
+
   return {
     id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     timestamp: Date.now(),
     message,
     type,
     playerId,
+    targetPlayerId,
+    involvedPlayerIds: allInvolved.size > 0 ? Array.from(allInvolved) : undefined,
   };
+}
+
+/**
+ * Determines whether a game event is relevant to a specific player's personal log.
+ * An event is relevant if:
+ * 1. The player is the primary actor (event.playerId === player.id)
+ * 2. The player is the target/beneficiary (event.targetPlayerId === player.id)
+ * 3. The player is in the list of involved players (event.involvedPlayerIds?.includes(player.id))
+ * 4. Or the message specifically mentions the player's name
+ * 5. Truly global events that affect everyone (game start, round-end, dark curse, etc.)
+ */
+export function isEventRelevantToPlayer(
+  event: GameEvent,
+  player: Player,
+  allPlayers: Player[]
+): boolean {
+  if (!player) return false;
+
+  // 1. Explicit ID matches
+  if (event.playerId === player.id) return true;
+  if (event.targetPlayerId === player.id) return true;
+  if (event.involvedPlayerIds && event.involvedPlayerIds.includes(player.id)) return true;
+
+  // 2. Name matching in message
+  const pName = player.name.trim();
+  const firstName = pName.split(' ')[0];
+  const mentionsPlayer =
+    (pName.length > 0 && event.message.includes(pName)) ||
+    (firstName.length >= 3 && event.message.includes(firstName));
+
+  if (mentionsPlayer) return true;
+
+  // 3. Victory / Game-over / Round-timeout announcements affect everyone
+  if (
+    event.message.includes('thắng ván') ||
+    event.message.includes('chiến thắng') ||
+    event.message.includes('kết thúc') ||
+    event.message.includes('Tất cả người chơi đã phá sản')
+  ) {
+    return true;
+  }
+
+  // 4. Truly global announcements that don't belong to any specific player
+  const hasSpecificActors =
+    !!event.playerId ||
+    !!event.targetPlayerId ||
+    (!!event.involvedPlayerIds && event.involvedPlayerIds.length > 0);
+
+  if (!hasSpecificActors) {
+    // If it mentions any other player exclusively, it belongs to them
+    const mentionsOtherPlayer = allPlayers.some((other) => {
+      if (other.id === player.id) return false;
+      const otherName = other.name.trim();
+      const otherFirst = otherName.split(' ')[0];
+      return (
+        (otherName.length > 0 && event.message.includes(otherName)) ||
+        (otherFirst.length >= 3 && event.message.includes(otherFirst))
+      );
+    });
+
+    if (!mentionsOtherPlayer) {
+      // Truly global event (e.g. game start, dark curse, turbo toggle)
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function refreshAllNetWorth(state: GameState): GameState {
@@ -158,7 +238,7 @@ export function resolveDebtOrLiquidate(
       state: refreshAllNetWorth({
         ...state,
         players: updatedPlayers,
-        events: [createEvent(notice, creditorId ? 'warning' : 'info', debtor.id), ...state.events],
+        events: [createEvent(notice, creditorId ? 'warning' : 'info', debtor.id, creditorId), ...state.events],
       }),
       isBankrupt: false,
     };
@@ -313,7 +393,14 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
         lastRentPayment: null,
         turnSecondsRemaining: state.maxTurnSeconds || 60,
         events: [
-          createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN và rời khỏi cuộc chơi!`, 'error', debtor.id),
+          createEvent(
+            creditorId
+              ? `💥 ${debtor.name} đã tuyên bố PHÁ SẢN trước ${state.players.find((p) => p.id === creditorId)?.name || 'chủ nợ'}!`
+              : `💥 ${debtor.name} đã tuyên bố PHÁ SẢN và rời khỏi cuộc chơi!`,
+            'error',
+            debtor.id,
+            creditorId
+          ),
           createEvent(`➡️ Lượt tự động chuyển cho ${updatedPlayers[nextIdx]?.name || 'người chơi tiếp theo'}`, 'info', updatedPlayers[nextIdx]?.id),
           ...state.events,
         ],
@@ -329,7 +416,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     winner,
     turnPhase,
     events: [
-      createEvent(`💥 ${debtor.name} phá sản và rời ván.`, 'error', debtor.id),
+      createEvent(`💥 ${debtor.name} phá sản và rời ván.`, 'error', debtor.id, creditorId),
       ...state.events,
     ],
   });
