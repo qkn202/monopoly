@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GameState, GameAction } from '../core/types';
-import { HOGWARTS_TILES, COLOR_GROUP_STYLES } from '../core/boardData';
+import { HOGWARTS_TILES, COLOR_GROUP_STYLES, HOUSE_INFO } from '../core/boardData';
 import { determineLeaderboard, canBuildHouse, canBuildHotel } from '../core/rulesEngine';
 import { isEventRelevantToPlayer } from '../core/reducerHelpers';
 import { soundManager } from '../audio/soundManager';
@@ -1139,7 +1139,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   };
 
   const renderFinances = () => {
-    const targetPlayer = viewingPlayer || me;
+    // Strictly personal to the controlling player
+    const targetPlayer = me;
     if (!targetPlayer) return null;
 
     const pf = gameState.playerFinances?.[targetPlayer.id] || {
@@ -1151,74 +1152,80 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     };
     const netCashflow = pf.totalIncome - pf.totalExpense;
 
-    // Rank properties by total rent/tax revenue
-    const revenueList = Object.entries(gameState.propertyRevenue || {})
+    // Rank properties owned by THIS PLAYER by total rent/tax revenue
+    const myRevenueList = Object.entries(gameState.propertyRevenue || {})
       .map(([propId, stat]) => {
         const tile = HOGWARTS_TILES.find((t) => t.id === propId);
         const ownerId = gameState.propertyOwnership[propId];
-        const owner = gameState.players.find((p) => p.id === ownerId);
-        return { propId, tile, stat, owner };
+        const isOwner = ownerId === targetPlayer.id;
+        return { propId, tile, stat, isOwner };
       })
-      .filter((item) => item.tile && item.stat.totalRentCollected > 0)
+      .filter((item) => item.tile && item.isOwner && item.stat.totalRentCollected > 0)
       .sort((a, b) => b.stat.totalRentCollected - a.stat.totalRentCollected);
 
-    const topProperty = revenueList.length > 0 ? revenueList[0] : null;
+    const myTopProperty = myRevenueList.length > 0 ? myRevenueList[0] : null;
 
-    // Filter turn finances
-    const turns = gameState.turnFinances || [];
-    const filteredTurns = turns.filter((t) => {
-      if (financeFilter === 'mine') return t.playerId === targetPlayer.id;
-      if (financeFilter === 'active') return t.transactions.length > 0;
+    // Turn-by-turn cashflow: only include turns and transactions directly involving targetPlayer
+    const myTurnLedger = (gameState.turnFinances || [])
+      .map((turn) => {
+        const isMyTurn = turn.playerId === targetPlayer.id;
+        // Transactions that directly involve targetPlayer
+        const myTxs = turn.transactions.filter((tx) => tx.playerId === targetPlayer.id);
+
+        // If this wasn't my turn and no transactions involved me, omit entirely
+        if (!isMyTurn && myTxs.length === 0) return null;
+
+        const myIncome = myTxs
+          .filter((tx) => tx.type === 'INCOME')
+          .reduce((sum, tx) => sum + tx.amount, 0);
+        const myExpense = myTxs
+          .filter((tx) => tx.type === 'EXPENSE')
+          .reduce((sum, tx) => sum + tx.amount, 0);
+        const myNet = myIncome - myExpense;
+
+        return {
+          turnIndex: turn.turnIndex,
+          roundNumber: turn.roundNumber,
+          isMyTurn,
+          turnActorName: turn.playerName,
+          turnActorColor: turn.playerColor,
+          myIncome,
+          myExpense,
+          myNet,
+          myTxs,
+          timestamp: turn.timestamp,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    const filteredTurnLedger = myTurnLedger.filter((item) => {
+      if (financeFilter === 'active') return item.myTxs.length > 0;
       return true;
     });
 
     return (
       <div className="hpvn-finances-container">
-        {/* Player Switcher Tabs */}
-        {gameState.players.length > 1 && (
-          <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '4px' }}>
-            {gameState.players.map((p) => {
-              const isSelected = p.id === targetPlayer.id;
-              const pPf = gameState.playerFinances?.[p.id];
-              const pNet = (pPf?.totalIncome || 0) - (pPf?.totalExpense || 0);
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPropertyPlayerId(p.id)}
-                  style={{
-                    background: isSelected ? 'rgba(243, 209, 137, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                    border: isSelected ? `1px solid ${p.color}` : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: isSelected ? '#f3d189' : '#bb9c7c',
-                    borderRadius: '6px',
-                    padding: '4px 8px',
-                    fontSize: '0.72rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                  title={`Xem sổ thu chi của ${p.name}`}
-                >
-                  <span>{p.tokenIcon}</span>
-                  <span>{p.name.split(' ')[0]}</span>
-                  <span style={{ color: pNet >= 0 ? '#34d399' : '#f87171', fontSize: '0.68rem', fontWeight: 600 }}>
-                    {pNet >= 0 ? '+' : ''}{g(pNet)}
-                  </span>
-                </button>
-              );
-            })}
+        {/* Personal Player Identity Header */}
+        <div className="hpvn-personal-finances-header">
+          <div className="hpvn-player-badge" style={{ color: targetPlayer.color }}>
+            <span className="player-token">{targetPlayer.tokenIcon}</span>
+            <span className="player-name">{targetPlayer.name}</span>
+            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+              ({HOUSE_INFO[targetPlayer.house]?.name || targetPlayer.house})
+            </span>
           </div>
-        )}
+          <div style={{ flex: 1 }} />
+          <span className="hpvn-finance-tag">Sổ Thu Chi Của Bạn</span>
+        </div>
 
-        {/* CROWN JEWEL: Top Rent/Tax Earning Property */}
+        {/* CROWN JEWEL: Top Rent/Tax Earning Property of the Player */}
         <div className="hpvn-top-property-card">
           <div className="hpvn-top-prop-header">
-            <div className="hpvn-crown-badge">👑 TÀI SẢN THU THUẾ / THUÊ NHIỀU NHẤT</div>
+            <div className="hpvn-crown-badge">👑 TÀI SẢN THU THUẾ / THUÊ NHIỀU NHẤT CỦA BẠN</div>
             <span style={{ fontSize: '0.7rem', color: '#e2b866' }}>Sinh lời số 1</span>
           </div>
 
-          {topProperty && topProperty.tile ? (
+          {myTopProperty && myTopProperty.tile ? (
             <div className="hpvn-top-prop-body">
               <div className="hpvn-top-prop-title-row">
                 <div
@@ -1227,62 +1234,59 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     width: '10px',
                     height: '10px',
                     borderRadius: '2px',
-                    background: COLOR_GROUP_STYLES[topProperty.tile.colorGroup || 'BROWN']?.bg || '#d97706',
+                    background: COLOR_GROUP_STYLES[myTopProperty.tile.colorGroup || 'BROWN']?.bg || '#d97706',
                   }}
                 />
-                <span className="hpvn-top-prop-name">{topProperty.tile.name}</span>
+                <span className="hpvn-top-prop-name">{myTopProperty.tile.name}</span>
                 <div style={{ flex: 1 }} />
-                {topProperty.owner && (
-                  <span
-                    className="hpvn-top-prop-owner-pill"
-                    style={{ borderColor: topProperty.owner.color, color: topProperty.owner.color }}
-                  >
-                    {topProperty.owner.tokenIcon} {topProperty.owner.name.split(' ')[0]}
-                  </span>
-                )}
+                <span
+                  className="hpvn-top-prop-owner-pill"
+                  style={{ borderColor: targetPlayer.color, color: targetPlayer.color }}
+                >
+                  Đất của bạn
+                </span>
               </div>
 
               <div className="hpvn-top-prop-stats-grid">
                 <div className="hpvn-prop-stat-box">
-                  <span className="hpvn-stat-num is-green">+{g(topProperty.stat.totalRentCollected)}</span>
+                  <span className="hpvn-stat-num is-green">+{g(myTopProperty.stat.totalRentCollected)}</span>
                   <span className="hpvn-stat-lbl">Tổng thuế/thuê đã thu</span>
                 </div>
                 <div className="hpvn-prop-stat-box">
-                  <span className="hpvn-stat-num">{topProperty.stat.rentCount} lần</span>
+                  <span className="hpvn-stat-num">{myTopProperty.stat.rentCount} lần</span>
                   <span className="hpvn-stat-lbl">Lượt khách ghé</span>
                 </div>
                 <div className="hpvn-prop-stat-box">
                   <span className="hpvn-stat-num">
-                    {g(Math.round(topProperty.stat.totalRentCollected / topProperty.stat.rentCount))}/lần
+                    {g(Math.round(myTopProperty.stat.totalRentCollected / myTopProperty.stat.rentCount))}/lần
                   </span>
                   <span className="hpvn-stat-lbl">Thu bình quân</span>
                 </div>
               </div>
 
-              {topProperty.stat.lastPayerName && (
+              {myTopProperty.stat.lastPayerName && (
                 <div className="hpvn-top-prop-footer">
-                  Gần nhất: <b>{topProperty.stat.lastPayerName}</b> đã nộp{' '}
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>+{g(topProperty.stat.lastRentCollected || 0)}</span>
+                  Gần nhất: <b>{myTopProperty.stat.lastPayerName}</b> đã nộp{' '}
+                  <span style={{ color: '#34d399', fontWeight: 700 }}>+{g(myTopProperty.stat.lastRentCollected || 0)}</span>
                 </div>
               )}
 
-              {/* Other Top Earning Properties Toggle */}
-              {revenueList.length > 1 && (
+              {/* Other Top Earning Properties of THIS PLAYER */}
+              {myRevenueList.length > 1 && (
                 <div style={{ marginTop: '8px' }}>
                   <button
                     className="hpvn-rankings-toggle-btn"
                     onClick={() => setShowAllPropertiesRevenue(!showAllPropertiesRevenue)}
                   >
-                    <span>{showAllPropertiesRevenue ? '▲ Thu gọn BXH' : `▼ Xem Top ${revenueList.length} tài sản sinh lời`}</span>
+                    <span>{showAllPropertiesRevenue ? '▲ Thu gọn danh sách' : `▼ Xem ${myRevenueList.length} tài sản sinh lời của bạn`}</span>
                   </button>
 
                   {showAllPropertiesRevenue && (
                     <div className="hpvn-other-props-list">
-                      {revenueList.slice(1, 6).map((item, idx) => (
+                      {myRevenueList.slice(1, 6).map((item, idx) => (
                         <div key={item.propId} className="hpvn-other-prop-row">
                           <span className="hpvn-rank-num">#{idx + 2}</span>
                           <span className="hpvn-other-prop-name">{item.tile?.name}</span>
-                          <span className="hpvn-other-prop-owner">({item.owner ? item.owner.name.split(' ')[0] : 'Vô chủ'})</span>
                           <div style={{ flex: 1 }} />
                           <span className="hpvn-other-prop-amount">+{g(item.stat.totalRentCollected)}</span>
                         </div>
@@ -1294,15 +1298,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             </div>
           ) : (
             <div className="hpvn-top-prop-empty">
-              <span>🏰 Chưa có tài sản nào thu được tiền thuê đất.</span>
+              <span>🏰 Bạn chưa có tài sản nào thu được tiền thuê đất.</span>
               <span style={{ fontSize: '0.72rem', color: '#8a7356' }}>
-                Khi người chơi dừng chân tại đất của nhau, tài sản thu thuế nhiều nhất sẽ được vinh danh tại đây.
+                Khi đối thủ dừng chân tại các ô đất của bạn, tài sản sinh lời nhiều nhất sẽ được vinh danh tại đây.
               </span>
             </div>
           )}
         </div>
 
-        {/* HERO KPI CARDS: Tổng Thu, Tổng Chi, Dòng Tiền Ròng */}
+        {/* HERO KPI CARDS: Tổng Thu, Tổng Chi, Dòng Tiền Ròng CỦA BẠN */}
         <div className="hpvn-finance-kpis">
           <div className="hpvn-finance-kpi-card is-income">
             <span className="kpi-label">Tổng Thu Vào</span>
@@ -1323,47 +1327,40 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
 
-        {/* TURN-BY-TURN CASHFLOW RECORD */}
+        {/* TURN-BY-TURN CASHFLOW RECORD CỦA BẠN */}
         <div className="hpvn-turn-finances-section">
           <div className="hpvn-turn-finances-header">
             <div className="hpvn-section-title">
               <Icon name="coins" size={13} />
-              <span>Sổ Thu Chi Từng Lượt ({turns.length})</span>
+              <span>Sổ Thu Chi Của Bạn ({myTurnLedger.length} lượt)</span>
             </div>
             <div className="hpvn-filter-btn-group">
               <button
                 className={`hpvn-filter-chip ${financeFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setFinanceFilter('all')}
               >
-                Tất cả
-              </button>
-              <button
-                className={`hpvn-filter-chip ${financeFilter === 'mine' ? 'active' : ''}`}
-                onClick={() => setFinanceFilter('mine')}
-              >
-                Của {targetPlayer.name.split(' ')[0]}
+                Tất cả lượt
               </button>
               <button
                 className={`hpvn-filter-chip ${financeFilter === 'active' ? 'active' : ''}`}
                 onClick={() => setFinanceFilter('active')}
               >
-                Có phát sinh
+                Có thu/chi
               </button>
             </div>
           </div>
 
           <div className="hpvn-turn-list">
-            {filteredTurns.length === 0 ? (
+            {filteredTurnLedger.length === 0 ? (
               <div className="hpvn-empty-turns-notice">
-                Chưa có dữ liệu lượt chơi phù hợp với bộ lọc.
+                Chưa có dữ liệu lượt chơi nào ghi nhận thu chi cho bạn.
               </div>
             ) : (
-              filteredTurns.map((turn) => {
-                const isSelectedActor = turn.playerId === targetPlayer.id;
+              filteredTurnLedger.map((turn) => {
                 return (
                   <div
                     key={`${turn.turnIndex}-${turn.timestamp}`}
-                    className={`hpvn-turn-card ${isSelectedActor ? 'is-selected-actor' : ''}`}
+                    className={`hpvn-turn-card ${turn.isMyTurn ? 'is-selected-actor' : ''}`}
                   >
                     <div className="hpvn-turn-card-head">
                       <div className="hpvn-turn-badge">
@@ -1371,30 +1368,33 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       </div>
                       <div
                         className="hpvn-turn-actor"
-                        style={{ color: turn.playerColor }}
+                        style={{ color: turn.isMyTurn ? targetPlayer.color : turn.turnActorColor }}
                       >
-                        {turn.playerName}
+                        {turn.isMyTurn ? 'Lượt của bạn' : `Lượt của ${turn.turnActorName}`}
                       </div>
                       <div style={{ flex: 1 }} />
-                      <div className="hpvn-turn-net-pill" style={{
-                        color: turn.net > 0 ? '#34d399' : turn.net < 0 ? '#f87171' : '#94a3b8',
-                      }}>
-                        {turn.net > 0 ? `+${g(turn.net)}` : turn.net < 0 ? `−${g(Math.abs(turn.net))}` : '0G'}
+                      <div
+                        className="hpvn-turn-net-pill"
+                        style={{
+                          color: turn.myNet > 0 ? '#34d399' : turn.myNet < 0 ? '#f87171' : '#94a3b8',
+                        }}
+                      >
+                        {turn.myNet > 0 ? `+${g(turn.myNet)}` : turn.myNet < 0 ? `−${g(Math.abs(turn.myNet))}` : '0G'}
                       </div>
                     </div>
 
                     <div className="hpvn-turn-summary-row">
                       <span className="summary-item in">
-                        Thu: <b>+{g(turn.totalIncome)}</b>
+                        Thu: <b>+{g(turn.myIncome)}</b>
                       </span>
                       <span className="summary-item out">
-                        Chi: <b>−{g(turn.totalExpense)}</b>
+                        Chi: <b>−{g(turn.myExpense)}</b>
                       </span>
                     </div>
 
-                    {turn.transactions && turn.transactions.length > 0 ? (
+                    {turn.myTxs && turn.myTxs.length > 0 ? (
                       <div className="hpvn-turn-tx-list">
-                        {turn.transactions.map((tx) => (
+                        {turn.myTxs.map((tx) => (
                           <div key={tx.id} className={`hpvn-tx-item is-${tx.type.toLowerCase()}`}>
                             <span className="tx-dot">{tx.type === 'INCOME' ? '↗' : '↘'}</span>
                             <span className="tx-desc">{tx.description}</span>
@@ -1406,7 +1406,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       </div>
                     ) : (
                       <div className="hpvn-turn-no-tx">
-                        Không phát sinh giao dịch tiền tệ
+                        Không phát sinh giao dịch tiền tệ cho bạn trong lượt này
                       </div>
                     )}
                   </div>

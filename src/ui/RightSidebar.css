@@ -1469,6 +1469,36 @@
   padding-bottom: 20px;
 }
 
+/* Personal Finances Header Badge */
+.hpvn-personal-finances-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(243, 209, 137, 0.08);
+  border: 1px solid rgba(243, 209, 137, 0.22);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.hpvn-personal-finances-header .hpvn-player-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.hpvn-personal-finances-header .hpvn-finance-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #f3d189;
+  background: rgba(243, 209, 137, 0.16);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
 /* CROWN JEWEL: Top Rent / Tax Earning Property */
 .hpvn-top-property-card {
   background: linear-gradient(135deg, rgba(243, 209, 137, 0.12) 0%, rgba(30, 20, 10, 0.85) 100%);
