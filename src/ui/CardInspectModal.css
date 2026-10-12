@@ -3,7 +3,7 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(3, 7, 18, 0.82);
+  background: rgba(10, 6, 3, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
@@ -29,10 +29,10 @@
   width: 900px;
   max-width: 95vw;
   max-height: 90vh;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%);
-  border: 1.5px solid rgba(0, 242, 254, 0.4);
+  background: linear-gradient(135deg, rgba(28, 18, 10, 0.95) 0%, rgba(22, 14, 5, 0.98) 100%);
+  border: 1.5px solid rgba(226, 184, 102, 0.4);
   border-radius: 20px;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 242, 254, 0.15);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(226, 184, 102, 0.15);
   display: flex;
   flex-direction: row;
   overflow: hidden;
@@ -47,7 +47,7 @@
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
-  color: #e2e8f0;
+  color: #ecdcc9;
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -68,8 +68,8 @@
 .card-modal-3d-stage {
   flex: 0 0 380px;
   padding: 36px 28px 24px;
-  background: radial-gradient(circle at center, rgba(14, 21, 37, 0.8) 0%, rgba(4, 7, 14, 0.95) 100%);
-  border-right: 1px solid rgba(0, 242, 254, 0.2);
+  background: radial-gradient(circle at center, rgba(37, 22, 8, 0.8) 0%, rgba(14, 8, 2, 0.95) 100%);
+  border-right: 1px solid rgba(226, 184, 102, 0.2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -82,8 +82,8 @@
   width: 300px;
   height: 480px;
   border-radius: 18px;
-  background: #090e18;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 242, 254, 0.25);
+  background: #180f05;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 30px rgba(226, 184, 102, 0.25);
   cursor: grab;
   transition: transform 0.1s ease-out;
   transform-style: preserve-3d;
@@ -102,9 +102,9 @@
 .card-neon-perimeter {
   position: absolute;
   inset: 7px;
-  border: 2px solid #00f2fe;
+  border: 2px solid #e2b866;
   border-radius: 12px;
-  box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.5), 0 0 12px rgba(0, 242, 254, 0.6);
+  box-shadow: inset 0 0 10px rgba(226, 184, 102, 0.5), 0 0 12px rgba(226, 184, 102, 0.6);
   pointer-events: none;
   z-index: 6;
 }
@@ -130,12 +130,12 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #151f33 0%, #080c16 100%);
+  background: linear-gradient(180deg, #33200d 0%, #160d05 100%);
   z-index: 1;
 }
 
 .card-procedural-header {
-  border-left: 4px solid #ffd700;
+  border-left: 4px solid #f3d189;
   padding-left: 10px;
   margin-top: 10px;
 }
@@ -144,7 +144,7 @@
   display: block;
   font-size: 11px;
   font-weight: 700;
-  color: #ffd700;
+  color: #f3d189;
   letter-spacing: 1px;
 }
 
@@ -159,8 +159,8 @@
   flex: 1;
   margin: 16px 0;
   border-radius: 100px 100px 10px 10px;
-  border: 1.5px solid rgba(0, 242, 254, 0.4);
-  background: rgba(3, 7, 18, 0.85);
+  border: 1.5px solid rgba(226, 184, 102, 0.4);
+  background: rgba(10, 6, 3, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,12 +168,12 @@
 
 .card-proc-icon {
   font-size: 54px;
-  filter: drop-shadow(0 0 15px rgba(0, 242, 254, 0.6));
+  filter: drop-shadow(0 0 15px rgba(226, 184, 102, 0.6));
 }
 
 .card-proc-price-plaque {
   background: linear-gradient(180deg, #d97706 0%, #78350f 100%);
-  border: 1px solid #ffd700;
+  border: 1px solid #f3d189;
   border-radius: 8px;
   padding: 8px 14px;
   display: flex;
@@ -192,7 +192,7 @@
 .card-3d-hint {
   margin-top: 14px;
   font-size: 12px;
-  color: rgba(148, 163, 184, 0.7);
+  color: rgba(187, 156, 124, 0.7);
   letter-spacing: 0.5px;
 }
 
@@ -224,7 +224,7 @@
 
 .dossier-type-badge {
   background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
+  color: #e0cfab;
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 11px;
@@ -236,19 +236,19 @@
   font-family: 'Cinzel', 'Times New Roman', serif;
   color: #ffffff;
   letter-spacing: 0.5px;
-  text-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+  text-shadow: 0 0 15px rgba(226, 184, 102, 0.4);
 }
 
 .dossier-desc {
   margin: 8px 0 0;
-  color: #94a3b8;
+  color: #bb9c7c;
   font-size: 14px;
   line-height: 1.5;
 }
 
 /* Owner Banner */
 .dossier-owner-banner {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(28, 18, 10, 0.85);
   border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   padding: 14px 18px;
@@ -260,7 +260,7 @@
 }
 
 .dossier-owner-banner.is-claimed {
-  background: linear-gradient(135deg, rgba(20, 16, 35, 0.9) 0%, rgba(10, 15, 28, 0.95) 100%);
+  background: linear-gradient(135deg, rgba(35, 18, 12, 0.9) 0%, rgba(22, 14, 8, 0.95) 100%);
 }
 
 .owner-banner-header {
@@ -270,7 +270,7 @@
 }
 
 .owner-label {
-  color: #94a3b8;
+  color: #bb9c7c;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -294,9 +294,9 @@
 }
 
 .owner-badge-tag.public {
-  background: rgba(148, 163, 184, 0.15);
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  color: #94a3b8;
+  background: rgba(187, 156, 124, 0.15);
+  border: 1px solid rgba(187, 156, 124, 0.4);
+  color: #bb9c7c;
 }
 
 .owner-info-body {
@@ -334,7 +334,7 @@
 .unowned-info-body p,
 .public-info-body p {
   margin: 0;
-  color: #94a3b8;
+  color: #bb9c7c;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -342,14 +342,14 @@
 .unowned-buy-hint {
   display: block;
   margin-top: 4px;
-  color: #ffd700;
+  color: #f3d189;
   font-size: 12px;
 }
 
 /* Rent Grid */
 .dossier-rent-table {
-  background: rgba(3, 7, 18, 0.6);
-  border: 1px solid rgba(255, 215, 0, 0.25);
+  background: rgba(10, 6, 3, 0.6);
+  border: 1px solid rgba(243, 209, 137, 0.25);
   border-radius: 12px;
   padding: 16px 20px;
 }
@@ -358,7 +358,7 @@
   margin: 0 0 12px;
   font-size: 12px;
   letter-spacing: 1px;
-  color: #ffd700;
+  color: #f3d189;
   font-family: 'Cinzel', serif;
 }
 
@@ -388,12 +388,12 @@
 }
 
 .rent-label {
-  color: #cbd5e1;
+  color: #e0cfab;
 }
 
 .rent-num {
   font-weight: 700;
-  color: #f1f5f9;
+  color: #ecdcc9;
   font-family: 'Cinzel', monospace;
 }
 
@@ -419,13 +419,13 @@
 
 .cost-label {
   font-size: 11px;
-  color: #64748b;
+  color: #8a7356;
 }
 
 .cost-val {
   font-size: 13px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #ecdcc9;
 }
 
 /* Actions */
@@ -437,21 +437,21 @@
 
 .dossier-close-btn {
   padding: 10px 24px;
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  border: 1px solid #38bdf8;
+  background: linear-gradient(135deg, #b78535 0%, #0369a1 100%);
+  border: 1px solid #f3d189;
   border-radius: 8px;
   color: #ffffff;
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 4px 15px rgba(183, 133, 53, 0.4);
 }
 
 .dossier-close-btn:hover {
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  background: linear-gradient(135deg, #c99a3e 0%, #b78535 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6);
+  box-shadow: 0 6px 20px rgba(201, 154, 62, 0.6);
 }
 
 @media (max-width: 768px), (orientation: portrait) and (max-width: 900px) {
@@ -473,7 +473,7 @@
     width: 100%;
     padding: 24px 16px 14px;
     border-right: none;
-    border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+    border-bottom: 1px solid rgba(226, 184, 102, 0.2);
   }
 
   .card-3d-slab {

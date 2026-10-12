@@ -2,6 +2,12 @@ import { createInitialState, gameReducer } from '../src/core/gameReducer';
 import { canBuildHouse, canBuildHotel } from '../src/core/rulesEngine';
 import { HOGWARTS_TILES } from '../src/core/boardData';
 
+// Upstream 7099e39: a build needs a visit to the tile since the last build (landing, buying).
+const visit = (s: any, playerId: string, tileId: string) => ({
+  ...s,
+  players: s.players.map((p: any) => (p.id === playerId ? { ...p, visitedProperties: [...p.visitedProperties, tileId] } : p)),
+});
+
 function runTests() {
   console.log('--- Testing House and Hotel Upgrades without Monopoly Constraint ---');
 
@@ -19,7 +25,7 @@ function runTests() {
     ...state,
     propertyOwnership: { [tile1.id]: p0.id },
     players: state.players.map((p) =>
-      p.id === p0.id ? { ...p, properties: [tile1.id], balance: 5000 } : p
+      p.id === p0.id ? { ...p, properties: [tile1.id], visitedProperties: [tile1.id], balance: 5000 } : p
     ),
   };
 
@@ -38,10 +44,16 @@ function runTests() {
     throw new Error('FAIL: house 1 count or balance deduction mismatch');
   }
 
-  // Build up to 4 houses
-  for (let i = 2; i <= 4; i++) {
-    state = gameReducer(state, { type: 'BUILD_HOUSE', propertyId: tile1.id, playerId: p0.id });
+  // No second house without a new visit
+  if (canBuildHouse(state.players[0], tile1.id, state).allowed) {
+    throw new Error('FAIL: a second house without visiting the tile again must be refused');
   }
+
+  // Build up to 4 houses, visiting between builds
+  for (let i = 2; i <= 4; i++) {
+    state = gameReducer(visit(state, p0.id, tile1.id), { type: 'BUILD_HOUSE', propertyId: tile1.id, playerId: p0.id });
+  }
+  state = visit(state, p0.id, tile1.id);
   const p0AfterH4 = state.players.find((p) => p.id === p0.id)!;
   console.log(`After 4 houses: houses=${p0AfterH4.houses[tile1.id]}, balance=${p0AfterH4.balance}`);
   if (p0AfterH4.houses[tile1.id] !== 4) {
@@ -77,7 +89,7 @@ function runTests() {
     propertyOwnership: { [tile3.id]: landState.players[0].id },
     players: landState.players.map((p, idx) =>
       idx === 0
-        ? { ...p, properties: [tile3.id], balance: 5000, position: 0, houses: { [tile3.id]: 2 } }
+        ? { ...p, properties: [tile3.id], visitedProperties: [tile3.id], balance: 5000, position: 0, houses: { [tile3.id]: 2 } }
         : p
     ),
   };

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CardConfig, Player } from '../core/types';
 import { soundManager } from '../audio/soundManager';
+import { diceClock } from '../render/Board3DDice';
 import './ActiveCardModal.css';
+import { g, galleons } from '../hpvn/money';
 
 interface ActiveCardModalProps {
   card: CardConfig | null;
@@ -23,53 +25,45 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
   const [glarePos, setGlarePos] = useState({ x: 50, y: 50 });
   const [cardBackLoaded, setCardBackLoaded] = useState(false);
   const [cardFrontLoaded, setCardFrontLoaded] = useState(false);
-  // For AI players, use short countdown matching auto-dismiss timing (700ms/1400ms)
-  // For human players, use longer countdown (3s/5s)
-  const initialCountdown = player?.isAI ? (turboMode ? 2 : 3) : (turboMode ? 3 : 5);
-  const [countdown, setCountdown] = useState<number>(initialCountdown);
   const cardRef = useRef<HTMLDivElement>(null);
+  // App passes a new onDismiss each render; a ref keeps the bot timer from restarting.
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+  // The card waits for the dice to land, so it never covers them mid-roll.
+  const [shownId, setShownId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!card) return setShownId(null);
+    const wait = Math.max(0, diceClock.settleAt - performance.now()) + 250;
+    const timer = setTimeout(() => setShownId(card.id), wait);
+    return () => clearTimeout(timer);
+  }, [card?.id]);
+  const shown = !!card && shownId === card.id;
 
   // Auto-flip with snappy suspense
   useEffect(() => {
     setIsFlipped(false);
-    const newCountdown = player?.isAI ? (turboMode ? 2 : 3) : (turboMode ? 3 : 5);
-    setCountdown(newCountdown);
-
+    if (!shown) return;
     const flipTimer = setTimeout(() => {
       setIsFlipped(true);
       soundManager.playSpellCard();
     }, turboMode ? 250 : 500);
 
     return () => clearTimeout(flipTimer);
-  }, [card?.id, player?.isAI, turboMode]);
+  }, [shown, card?.id, player?.isAI, turboMode]);
 
-  // Snappy auto-dismiss for AI players (700ms in turbo, 1400ms normal)
+  // Auto-dismiss for AI players, long enough to read the flipped card
   useEffect(() => {
-    if (!card || !player?.isAI) return;
-    // Calculate dismiss time based on turbo mode (matching countdown display)
-    const dismissTime = turboMode ? 700 : 1400;
+    if (!shown || !player?.isAI) return;
+    const dismissTime = turboMode ? 1200 : 2400;
     const aiTimer = setTimeout(() => {
-      onDismiss();
+      dismissRef.current();
     }, dismissTime);
     return () => clearTimeout(aiTimer);
-  }, [card?.id, player?.isAI, onDismiss, turboMode]);
-
-  // Visual countdown timer - sync with auto-dismiss for AI
-  useEffect(() => {
-    if (!card) return;
-
-    // For AI players, countdown syncs with auto-dismiss (fast countdown)
-    // For human players, countdown is 1 second intervals
-    const intervalTime = player?.isAI ? 500 : 1000; // Faster countdown for AI
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => Math.max(0, prev - 1));
-    }, intervalTime);
-    return () => clearInterval(interval);
-  }, [card?.id, player?.isAI]);
+  }, [shown, card?.id, player?.isAI, turboMode]);
 
   // Keyboard shortcut: Space or Enter to dismiss
   useEffect(() => {
+    if (!shown) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === 'Enter' || e.key === 'Escape') {
         if (!isFlipped) {
@@ -82,70 +76,70 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFlipped, onDismiss]);
+  }, [shown, isFlipped, onDismiss]);
 
-  if (!card) return null;
+  if (!card || !shown) return null;
 
   const isCharms = card.id.startsWith('c-');
   const baseUrl = import.meta.env.BASE_URL || '/';
 
   // Art mapping
   const cardBackPath = isCharms
-    ? `${baseUrl}assets/cards/card_back_charms.jpg?v=unified_master`
-    : `${baseUrl}assets/cards/card_back_potions.jpg?v=unified_master`;
+    ? `${baseUrl}assets/cards/card_back_charms.webp?v=unified_master`
+    : `${baseUrl}assets/cards/card_back_potions.webp?v=unified_master`;
 
   const getCardArtPath = () => {
     switch (card.id) {
-      case 'c-1': return `${baseUrl}assets/cards/tile_0.jpg`;
-      case 'c-2': return `${baseUrl}assets/cards/tile_9.jpg`;
-      case 'c-3': return `${baseUrl}assets/cards/tile_34.jpg`;
-      case 'c-4': return `${baseUrl}assets/cards/tile_30.jpg`;
-      case 'c-5': return `${baseUrl}assets/cards/art_golden_snitch.jpg`;
-      case 'c-6': return `${baseUrl}assets/cards/tile_10.jpg`;
-      case 'c-7': return `${baseUrl}assets/cards/tile_26.jpg`;
-      case 'c-8': return `${baseUrl}assets/cards/art_golden_snitch.jpg`;
+      case 'c-1': return `${baseUrl}assets/cards/tile_0.webp`;
+      case 'c-2': return `${baseUrl}assets/cards/tile_9.webp`;
+      case 'c-3': return `${baseUrl}assets/cards/tile_34.webp`;
+      case 'c-4': return `${baseUrl}assets/cards/tile_30.webp`;
+      case 'c-5': return `${baseUrl}assets/cards/art_golden_snitch.webp`;
+      case 'c-6': return `${baseUrl}assets/cards/tile_10.webp`;
+      case 'c-7': return `${baseUrl}assets/cards/tile_26.webp`;
+      case 'c-8': return `${baseUrl}assets/cards/art_golden_snitch.webp`;
 
-      case 'p-1': return `${baseUrl}assets/cards/art_felix_felicis.jpg`;
-      case 'p-2': return `${baseUrl}assets/cards/tile_2.jpg`;
-      case 'p-3': return `${baseUrl}assets/cards/tile_26.jpg`;
-      case 'p-4': return `${baseUrl}assets/cards/tile_30.jpg`;
-      case 'p-5': return `${baseUrl}assets/cards/art_felix_felicis.jpg`;
-      case 'p-6': return `${baseUrl}assets/cards/art_felix_felicis.jpg`;
-      case 'p-7': return `${baseUrl}assets/cards/tile_2.jpg`;
-      case 'p-8': return `${baseUrl}assets/cards/tile_10.jpg`;
+      case 'p-1': return `${baseUrl}assets/cards/art_felix_felicis.webp`;
+      case 'p-2': return `${baseUrl}assets/cards/tile_2.webp`;
+      case 'p-3': return `${baseUrl}assets/cards/tile_26.webp`;
+      case 'p-4': return `${baseUrl}assets/cards/tile_30.webp`;
+      case 'p-5': return `${baseUrl}assets/cards/art_felix_felicis.webp`;
+      case 'p-6': return `${baseUrl}assets/cards/art_felix_felicis.webp`;
+      case 'p-7': return `${baseUrl}assets/cards/tile_2.webp`;
+      case 'p-8': return `${baseUrl}assets/cards/tile_10.webp`;
       default:
         return isCharms
-          ? `${baseUrl}assets/cards/tile_7.jpg`
-          : `${baseUrl}assets/cards/tile_2.jpg`;
+          ? `${baseUrl}assets/cards/tile_7.webp`
+          : `${baseUrl}assets/cards/tile_2.webp`;
     }
   };
 
   // Fallback background gradient for when images don't load
   const fallbackGradient = isCharms
     ? 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 50%, #a78bfa 100%)'
-    : 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #34d399 100%)';
+    : 'linear-gradient(135deg, #3b4704 0%, #047857 50%, #34d399 100%)';
 
   const getActionBadge = () => {
     switch (card.action) {
       case 'MONEY': {
         const amt = card.amount || 0;
-        if (amt > 0) return { text: `+${amt} GALLEONS`, cls: 'badge-pos' };
-        return { text: `${amt} GALLEONS`, cls: 'badge-neg' };
+        if (amt > 0) return { text: `+${galleons(amt)}`, cls: 'badge-pos' };
+        return { text: `${galleons(amt)}`, cls: 'badge-neg' };
       }
       case 'MOVE':
-        return { text: `TIẾN THÊM ${card.amount || 0} Ô`, cls: 'badge-move' };
+        return { text: `Tiến ${card.amount || 0} ô`, cls: 'badge-move' };
       case 'MOVE_TO':
-        return { text: `TIẾN VỀ Ô MỤC TIÊU`, cls: 'badge-move' };
+        return { text: `Đến ô chỉ định`, cls: 'badge-move' };
       case 'JAIL':
-        return { text: `BỊ GIẢI ĐẾN AZKABAN`, cls: 'badge-jail' };
+        return { text: `Vào Azkaban`, cls: 'badge-jail' };
       case 'GET_OUT_OF_JAIL':
-        return { text: `THẺ MIỄN GIAM AZKABAN`, cls: 'badge-gold' };
+        return { text: `Thẻ ra Azkaban`, cls: 'badge-gold' };
       case 'REPAIRS':
-        return { text: `CHI PHÍ BẢO DƯỠNG`, cls: 'badge-neg' };
+        return { text: `Phí sửa chữa`, cls: 'badge-neg' };
       case 'PAY_PLAYERS':
-        return { text: `MỖI NGƯỜI CHƠI TẶNG ${card.amount || 20} G`, cls: 'badge-pos' };
+        return { text: `Nhận ${g(card.amount || 20)} từ mỗi người`, cls: 'badge-pos' };
       default:
-        return { text: `HIỆU ỨNG PHÉP THUẬT`, cls: 'badge-neutral' };
+        return { text: `Hiệu ứng đặc biệt`, cls: 'badge-neutral' };
     }
   };
 
@@ -188,17 +182,16 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
         {/* Top Header Banner */}
         <div className={`active-card-announcement ${isCharms ? 'theme-charms' : 'theme-potions'}`}>
           <div className="announcement-pill">
-            <span className="pill-sparkle">{isCharms ? '✨' : '🧪'}</span>
-            <span className="pill-title">
-              {isCharms ? 'RÚT THẺ BÙA CHÚ' : 'RÚT THẺ ĐỘC DƯỢC'}
+                        <span className="pill-title">
+              {isCharms ? 'Thẻ Bùa chú' : 'Thẻ Độc dược'}
             </span>
           </div>
 
           <div className="announcement-player">
             <span className="player-badge">
-              {player?.name || 'Người chơi'} {player?.isAI ? '🤖' : '🧙'}
+              {player?.name || 'Người chơi'} {player?.isAI && <span className="hpvn-bot">bot</span>}
             </span>
-            <span className="player-sub">đang kích hoạt phong ấn ma thuật</span>
+            <span className="player-sub">rút một lá</span>
           </div>
         </div>
 
@@ -218,7 +211,7 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
             <div
               className="card-specular-glare"
               style={{
-                background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(255, 215, 0, 0.35) 0%, rgba(56, 189, 248, 0.2) 30%, transparent 65%)`,
+                background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(243, 209, 137, 0.35) 0%, rgba(243, 209, 137, 0.2) 30%, transparent 65%)`,
               }}
             />
 
@@ -237,7 +230,7 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
                 </div>
               )}
               <div className="card-back-hint">
-                <span className="hint-pulse">✨ Nhấp để lật bài</span>
+                <span className="hint-pulse">Nhấp để lật</span>
               </div>
             </div>
 
@@ -248,10 +241,9 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
                 {/* Header Tag */}
                 <div className="card-front-header">
                   <span className="card-front-tag">
-                    {isCharms ? 'BÙA CHÚ HOGWARTS' : 'ĐỘC DƯỢC HẦM NGỤC'}
+                    {isCharms ? 'Bùa chú' : 'Độc dược'}
                   </span>
-                  <span className="card-front-icon">{isCharms ? '⚡' : '⚗️'}</span>
-                </div>
+                                  </div>
 
                 {/* Central Art Vignette */}
                 <div className="card-front-art-box">
@@ -300,11 +292,11 @@ export const ActiveCardModal: React.FC<ActiveCardModalProps> = ({
         <div className="active-card-actions">
           {player?.isAI ? (
             <button className="btn-active-card-dismiss ai-btn" onClick={onDismiss}>
-              <span>⚡ Tiếp tục ({countdown}s)</span>
+              <span>Tiếp tục</span>
             </button>
           ) : (
             <button className="btn-active-card-dismiss human-btn" onClick={onDismiss}>
-              <span>✨ Đã hiểu / Thực thi (Space)</span>
+              <span>Đã hiểu <kbd className="hpvn-key">Space</kbd></span>
             </button>
           )}
         </div>

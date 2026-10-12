@@ -1,5 +1,6 @@
 import { Player, GameState, TileConfig, ColorGroup } from './types';
 import { HOGWARTS_TILES } from './boardData';
+import { galleons } from '../hpvn/money';
 
 /**
  * Calculates current rent for a property based on ownership, house count, and monopoly status.
@@ -116,7 +117,7 @@ export function canBuildHouse(
 
   const cost = tile.houseCost;
   if (player.balance < cost) {
-    return { allowed: false, reason: `Không đủ tiền (Cần ${cost} Galleons)` };
+    return { allowed: false, reason: `Không đủ tiền (Cần ${galleons(cost)})` };
   }
 
   return { allowed: true };
@@ -157,7 +158,7 @@ export function canBuildHotel(
 
   const cost = tile.houseCost;
   if (player.balance < cost) {
-    return { allowed: false, reason: `Không đủ tiền (Cần ${cost} Galleons)` };
+    return { allowed: false, reason: `Không đủ tiền (Cần ${galleons(cost)})` };
   }
 
   return { allowed: true };

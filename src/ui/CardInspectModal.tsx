@@ -4,6 +4,7 @@ import { TileConfig, Player, GameState } from '../core/types';
 import { COLOR_GROUP_STYLES } from '../core/boardData';
 import { calculateTakeoverCost } from '../core/rulesEngine';
 import './CardInspectModal.css';
+import { g, galleons } from '../hpvn/money';
 
 interface CardInspectModalProps {
   tile: TileConfig | null;
@@ -56,7 +57,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
   // Determine district badge & color
   const colorStyle = tile.colorGroup ? COLOR_GROUP_STYLES[tile.colorGroup] : null;
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const cardImagePath = `${baseUrl}assets/cards/tile_${tile.index}.jpg?v=unified_master`;
+  const cardImagePath = `${baseUrl}assets/cards/tile_${tile.index}.webp?v=unified_master`;
 
   // 3D Card Interactive Mouse Parallax Handler
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -99,7 +100,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
     <div className="card-modal-backdrop" onClick={onClose}>
       <div className="card-modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
-        <button className="card-modal-close-btn" onClick={onClose} title="Đóng (ESC)">
+        <button className="card-modal-close-btn" onClick={onClose} title="Đóng · Esc" aria-label="Đóng">
           ✕
         </button>
 
@@ -120,7 +121,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
             <div
               className="card-holographic-glare"
               style={{
-                background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(0, 242, 254, 0.45) 0%, rgba(255, 215, 0, 0.15) 30%, transparent 65%)`,
+                background: `radial-gradient(circle at ${glarePos.x}% ${glarePos.y}%, rgba(226, 184, 102, 0.45) 0%, rgba(243, 209, 137, 0.15) 30%, transparent 65%)`,
               }}
             />
 
@@ -148,7 +149,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
                 <div className="card-procedural-layout">
                   <div
                     className="card-procedural-header"
-                    style={{ borderLeftColor: colorStyle?.bg || '#ffd700' }}
+                    style={{ borderLeftColor: colorStyle?.bg || '#f3d189' }}
                   >
                     <span className="card-proc-sub">
                       {colorStyle?.name || tile.type.replace(/_/g, ' ')}
@@ -162,7 +163,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
 
                   {tile.price && (
                     <div className="card-proc-price-plaque">
-                      <span className="coin-g">🪙</span>
+                      
                       <span className="price-val">{tile.price} GALLEONS</span>
                     </div>
                   )}
@@ -172,7 +173,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
           </div>
 
           <div className="card-3d-hint">
-            <span>✨ Rê chuột trên lá bài để xoay góc nhìn 3D</span>
+            <span>Rê chuột trên lá bài để xoay</span>
           </div>
         </div>
 
@@ -190,7 +191,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
                 </span>
               )}
               <span className="dossier-type-badge">
-                {tile.type === 'PROPERTY' ? '🏰 BẤT ĐỘNG SẢN' : tile.type === 'STATION' ? '🚂 NHÀ GA' : '⚡ ĐỊA DANH PHÉP THUẬT'}
+                {tile.type === 'PROPERTY' ? 'Bất động sản' : tile.type === 'STATION' ? 'Nhà ga' : 'Địa danh'}
               </span>
             </div>
             <h2 className="dossier-title">{tile.name}</h2>
@@ -203,15 +204,15 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
             style={owner ? { borderColor: owner.color, boxShadow: `0 0 20px ${owner.color}33` } : undefined}
           >
             <div className="owner-banner-header">
-              <span className="owner-label">TRẠNG THÁI QUYỀN SỞ HỮU</span>
+              <span className="owner-label">Chủ sở hữu</span>
               {owner ? (
                 <span className="owner-badge-tag" style={{ backgroundColor: isMortgaged ? '#ef4444' : owner.color }}>
-                  {isMortgaged ? '⚠️ ĐANG BỊ THẾ CHẤP' : '👑 ĐÃ CÓ CHỦ SỞ HỮU'}
+                  {isMortgaged ? 'Đang thế chấp' : 'Đã có chủ'}
                 </span>
               ) : tile.price ? (
-                <span className="owner-badge-tag unowned">🟢 CHƯA CÓ CHỦ SỞ HỮU</span>
+                <span className="owner-badge-tag unowned">Chưa có chủ</span>
               ) : (
-                <span className="owner-badge-tag public">🏛️ KHU VỰC CÔNG CỘNG</span>
+                <span className="owner-badge-tag public">Khu công cộng</span>
               )}
             </div>
 
@@ -225,18 +226,18 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
                 </div>
                 {isMortgaged ? (
                   <div className="owner-rent-warning" style={{ color: '#f87171' }}>
-                    ⚠️ Ô đất đang thế chấp ngân hàng — Khách ghé thăm được <strong>miễn phí hoàn toàn</strong>!
+                    Đất đang thế chấp: khách dừng chân <strong>không phải trả tiền</strong>.
                   </div>
                 ) : (
                   <>
                     <div className="owner-rent-warning">
-                      ⚠️ Phí thuê hiện tại: <strong>{currentRent} Galleons</strong>{' '}
-                      {hasHotel ? '(🏰 1 Lâu Đài)' : houseCount > 0 ? `(🛖 ${houseCount} Túp lều)` : '(Đất trống)'}!
+                      Tiền thuê hiện tại: <strong>{galleons(currentRent)}</strong>{' '}
+                      {hasHotel ? '(1 lâu đài)' : houseCount > 0 ? `(${houseCount} túp lều)` : '(đất trống)'}
                     </div>
                     {takeoverCost > 0 && (
                       <div className="owner-rent-warning" style={{ color: '#f472b6', marginTop: '6px' }}>
-                        ⚡ Giá Mua Đứt Cưỡng Chế (x2): <strong>{takeoverCost} Galleons</strong>{' '}
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>(Dừng chân tại đây để thâu tóm)</span>
+                        Giá mua đứt (x2): <strong>{galleons(takeoverCost)}</strong>{' '}
+                        <span style={{ fontSize: '0.72rem', color: '#bb9c7c' }}>(dừng chân ở đây để thâu tóm)</span>
                       </div>
                     )}
                   </>
@@ -246,12 +247,12 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
               <div className="unowned-info-body">
                 <p>Địa danh này hiện đang mở cho mọi phù thủy xác lập quyền sở hữu.</p>
                 <span className="unowned-buy-hint">
-                  Giá niêm yết: <strong>{tile.price} Galleons</strong> • Dừng chân để mua ngay hoặc Đấu Giá.
+                  Giá niêm yết: <strong>{galleons(tile.price)}</strong> · dừng chân ở đây để mua hoặc đấu giá.
                 </span>
               </div>
             ) : (
               <div className="public-info-body">
-                <p>Khu vực chung thuộc quyền quản lý của Lâu Đài Hogwarts và Bộ Pháp Thuật.</p>
+                <p>Khu vực chung thuộc quyền quản lý của lâu đài Hogwarts và Bộ Pháp Thuật.</p>
               </div>
             )}
           </div>
@@ -259,40 +260,40 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
           {/* Financial Rent Table */}
           {tile.rentTiers && tile.rentTiers.length > 0 && (
             <div className="dossier-rent-table">
-              <h4 className="rent-table-title">📜 BIỂU PHÍ THUÊ & DOANH THU (GALLEONS)</h4>
+              <h4 className="rent-table-title">Bảng tiền thuê</h4>
               <div className="rent-grid">
                 <div className="rent-row">
                   <span className="rent-label">Thuê đất trống:</span>
-                  <span className="rent-num">{tile.baseRent || tile.rentTiers[0]} G</span>
+                  <span className="rent-num">{g(tile.baseRent || tile.rentTiers[0])}</span>
                 </div>
                 {tile.rentTiers[1] && (
                   <div className="rent-row">
-                    <span className="rent-label">Với 1 Túp Lều (Cottage):</span>
-                    <span className="rent-num">{tile.rentTiers[1]} G</span>
+                    <span className="rent-label">1 túp lều:</span>
+                    <span className="rent-num">{g(tile.rentTiers[1])}</span>
                   </div>
                 )}
                 {tile.rentTiers[2] && (
                   <div className="rent-row">
-                    <span className="rent-label">Với 2 Túp Lều:</span>
-                    <span className="rent-num">{tile.rentTiers[2]} G</span>
+                    <span className="rent-label">2 túp lều:</span>
+                    <span className="rent-num">{g(tile.rentTiers[2])}</span>
                   </div>
                 )}
                 {tile.rentTiers[3] && (
                   <div className="rent-row">
-                    <span className="rent-label">Với 3 Túp Lều:</span>
-                    <span className="rent-num">{tile.rentTiers[3]} G</span>
+                    <span className="rent-label">3 túp lều:</span>
+                    <span className="rent-num">{g(tile.rentTiers[3])}</span>
                   </div>
                 )}
                 {tile.rentTiers[4] && (
                   <div className="rent-row">
-                    <span className="rent-label">Với 4 Túp Lều:</span>
-                    <span className="rent-num">{tile.rentTiers[4]} G</span>
+                    <span className="rent-label">4 túp lều:</span>
+                    <span className="rent-num">{g(tile.rentTiers[4])}</span>
                   </div>
                 )}
                 {tile.rentTiers[5] && (
                   <div className="rent-row highlight-castle">
-                    <span className="rent-label">🏰 Với Lâu Đài Hogwarts:</span>
-                    <span className="rent-num gold">{tile.rentTiers[5]} G</span>
+                    <span className="rent-label">Lâu đài:</span>
+                    <span className="rent-num gold">{g(tile.rentTiers[5])}</span>
                   </div>
                 )}
               </div>
@@ -302,13 +303,13 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
                 {tile.houseCost && (
                   <div className="cost-item">
                     <span className="cost-label">Chi phí xây nhà:</span>
-                    <span className="cost-val">{tile.houseCost} Galleons / căn</span>
+                    <span className="cost-val">{galleons(tile.houseCost)} / căn</span>
                   </div>
                 )}
                 {tile.mortgageValue && (
                   <div className="cost-item">
                     <span className="cost-label">Giá trị thế chấp:</span>
-                    <span className="cost-val">{tile.mortgageValue} Galleons</span>
+                    <span className="cost-val">{galleons(tile.mortgageValue)}</span>
                   </div>
                 )}
               </div>
@@ -318,7 +319,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
           {/* Action Footer */}
           <div className="dossier-actions">
             <button className="dossier-close-btn" onClick={onClose}>
-              Đóng (ESC)
+              Đóng <kbd className="hpvn-key">Esc</kbd>
             </button>
           </div>
         </div>

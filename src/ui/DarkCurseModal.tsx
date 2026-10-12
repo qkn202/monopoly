@@ -51,11 +51,11 @@ export const DarkCurseModal: React.FC<DarkCurseModalProps> = ({ event, onDismiss
           </div>
 
           <div className="curse-parchment-tag">
-            <span>✦ TRÁT CẢNH BÁO BỘ PHÁP THUẬT • VÒNG {event.round} ✦</span>
+            <span>Bộ Pháp thuật · vòng {event.round}</span>
           </div>
 
-          <h2 className="curse-decree-title">BÃO LỜI NGUYỄN HẮC ÁM</h2>
-          <div className="curse-decree-subtitle">CHÚA TỂ VOLDEMORT &amp; TỬ THẦN THỰC TỬ TRỖI DẬY</div>
+          <h2 className="curse-decree-title">Lời nguyền Hắc ám</h2>
+          <div className="curse-decree-subtitle">Voldemort và Tử thần Thực tử trỗi dậy</div>
 
           {/* Runic Divider */}
           <div className="curse-runic-divider">
@@ -68,25 +68,24 @@ export const DarkCurseModal: React.FC<DarkCurseModalProps> = ({ event, onDismiss
 
           {/* Golden Embossed Multiplier Plaque */}
           <div className="curse-parchment-plaque">
-            <div className="plaque-header">TIỀN THUÊ ĐẤT &amp; THUẾ NỘP PHẠT</div>
+            <div className="plaque-header">Tiền thuê và thuế</div>
             <div className="plaque-value-row">
-              <span className="plaque-multiplier-badge">TĂNG GẤP {event.multiplier} LẦN</span>
+              <span className="plaque-multiplier-badge">gấp {event.multiplier} lần</span>
               <span className="plaque-number">X{event.multiplier}</span>
             </div>
-            <div className="plaque-sub">TOÀN BỘ 40 LÃNH ĐỊA HOGWARTS BỊ NHIỄM TÀ KHÍ</div>
+            <div className="plaque-sub">Áp dụng cho cả 40 ô</div>
           </div>
 
           <p className="curse-lore-text">
-            Lời nguyền cổ xưa đã giáng xuống toàn bộ thế giới phù thủy. 
-            Mỗi lần dừng chân trên đất của đối thủ, bạn sẽ phải trả <strong>gấp {event.multiplier} lần số tiền Galleons</strong>!
+            Từ giờ, mỗi lần dừng trên đất của đối thủ hay ô thuế, bạn trả <strong>gấp {event.multiplier} lần</strong>.
           </p>
 
           <div className="curse-warning-box">
-            <span>⚠️ Hãy thận trọng trong từng bước gieo xúc xắc để bảo toàn gia sản!</span>
+            <span>Giữ tiền mặt để không phá sản.</span>
           </div>
 
           <button className="btn-curse-decree-accept" onClick={onDismiss}>
-            <span>⚔️ CHẤP NHẬN THÁCH THỨC [{countdown}s]</span>
+            <span>Tiếp tục ({countdown}s)</span>
           </button>
         </div>
       </div>

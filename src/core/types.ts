@@ -200,8 +200,8 @@ export type GameAction =
   | { type: 'BUILD_HOUSE'; propertyId: string; playerId?: string }
   | { type: 'BUILD_HOTEL'; propertyId: string; playerId?: string }
   | { type: 'SELL_HOUSE'; propertyId: string; playerId?: string }
-  | { type: 'MORTGAGE_PROPERTY'; propertyId: string }
-  | { type: 'UNMORTGAGE_PROPERTY'; propertyId: string }
+  | { type: 'MORTGAGE_PROPERTY'; propertyId: string; playerId?: string }
+  | { type: 'UNMORTGAGE_PROPERTY'; propertyId: string; playerId?: string }
   | { type: 'PAY_JAIL_FINE' }
   | { type: 'USE_JAIL_CARD' }
   | { type: 'PROPOSE_TRADE'; offer: Omit<TradeOffer, 'id' | 'status'> }
