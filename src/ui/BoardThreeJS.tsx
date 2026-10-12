@@ -13,6 +13,7 @@ import { BoardBuildingManager } from '../render/BoardBuildings';
 import { Board3DDice } from '../render/Board3DDice';
 import { BoardParticleSystem } from '../render/BoardParticles';
 import { CardInspectModal } from './CardInspectModal';
+import { LeaderboardHud } from './LeaderboardHud';
 import { soundManager } from '../audio/soundManager';
 import { calculateTakeoverCost } from '../core/rulesEngine';
 import './BoardThreeJS.css';
@@ -673,6 +674,9 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     <div className="three-board-wrapper">
       {/* 3D Canvas Mount Point */}
       <div ref={mountRef} className="three-canvas-container" />
+
+      {/* Floating Leaderboard Score HUD */}
+      <LeaderboardHud gameState={gameState} myPlayerId={myPlayerId} />
 
 
       {rollBadge && (

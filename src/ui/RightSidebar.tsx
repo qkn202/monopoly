@@ -36,7 +36,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const [confirmExit, setConfirmExit] = useState(false);
   const phoneFloo = usePhoneFloo(true);
   useHudInsets();
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'properties' | 'events'>('leaderboard');
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'properties' | 'events'>('properties');
   const [copied, setCopied] = useState(false);
   const [selectedPropertyPlayerId, setSelectedPropertyPlayerId] = useState<string | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -1092,15 +1092,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="hpvn-rail-divider" />
 
             <button
-              className={`hpvn-rail-btn ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
-              onClick={() => { setActiveTab('leaderboard'); setIsCollapsed(false); }}
-              title="Bảng xếp hạng"
-              aria-label="Bảng xếp hạng"
-            >
-              <Icon name="trophy" size={16} />
-            </button>
-
-            <button
               className={`hpvn-rail-btn ${activeTab === 'properties' ? 'is-active' : ''}`}
               onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); setIsCollapsed(false); }}
               title={`Đất và nhà (${me?.properties.length || 0})`}
@@ -1230,22 +1221,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             {/* Segmented Hogwarts Tabs */}
             <div className="hpvn-segmented-tabs" role="tablist">
               <button
-                className={`hpvn-seg-tab ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
-                onClick={() => setActiveTab('leaderboard')}
-                role="tab"
-                aria-selected={activeTab === 'leaderboard'}
-              >
-                <Icon name="trophy" size={13} />
-                <span>Bảng điểm</span>
-              </button>
-              <button
                 className={`hpvn-seg-tab ${activeTab === 'properties' ? 'is-active' : ''}`}
                 onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); }}
                 role="tab"
                 aria-selected={activeTab === 'properties'}
               >
-                <Icon name="land" size={13} />
-                <span>Đất ({me?.properties.length || 0})</span>
+                <Icon name="land" size={14} />
+                <span>Đất & Nhà ({me?.properties.length || 0})</span>
               </button>
               <button
                 className={`hpvn-seg-tab ${activeTab === 'events' ? 'is-active' : ''}`}
@@ -1253,17 +1235,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 role="tab"
                 aria-selected={activeTab === 'events'}
               >
-                <Icon name="scroll" size={13} />
-                <span>Nhật ký</span>
+                <Icon name="scroll" size={14} />
+                <span>Nhật ký ván</span>
               </button>
             </div>
 
             {/* Active Tab Content Area */}
             <section className="hpvn-list hpvn-list-tabbed">
               <div className="tab-content-area">
-                {activeTab === 'leaderboard' && renderLeaderboard()}
-                {activeTab === 'properties' && renderProperties()}
-                {activeTab === 'events' && renderEventLogs()}
+                {activeTab === 'events' ? renderEventLogs() : renderProperties()}
               </div>
             </section>
 
