@@ -583,16 +583,16 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 .hpvn-stake-outcome.is-won { border-color: var(--hp-ring); background: rgba(243, 209, 137, 0.1); color: var(--hp-gold-hi); }
 @media (prefers-reduced-motion: reduce) { .hpvn-switch, .hpvn-switch::after { transition: none; } }
 
-/* Desktop: camera presets sit under the board (top-right covered the corner tiles), hint below them. */
+/* Desktop: camera presets sit under the board (floating seamlessly over canvas) */
 @media (min-width: 641px) and (orientation: landscape) {
-  .board-3d-stage .three-canvas-container { height: calc(100% - 56px); }
-  .board-3d-stage .three-controls-bar { top: auto !important; right: auto !important; left: 50%; bottom: 10px; transform: translateX(-50%); }
+  .board-3d-stage .three-canvas-container { height: 100% !important; }
+  .board-3d-stage .three-controls-bar { top: auto !important; right: auto !important; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 25; }
   .board-3d-stage .three-interaction-hint { visibility: hidden; }
 }
 @media (min-width: 641px) and (orientation: landscape) and (min-height: 761px) {
-  .board-3d-stage .three-canvas-container { height: calc(100% - 84px); }
-  .board-3d-stage .three-controls-bar { bottom: 38px; }
-  .board-3d-stage .three-interaction-hint { visibility: visible; bottom: 8px; }
+  .board-3d-stage .three-canvas-container { height: 100% !important; }
+  .board-3d-stage .three-controls-bar { bottom: 20px; }
+  .board-3d-stage .three-interaction-hint { visibility: visible; bottom: 6px; }
 }
 
 /* ===== Phone: the board lives between the top bar and the dock (measured by useHudInsets) ===== */

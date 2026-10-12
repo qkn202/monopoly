@@ -104,7 +104,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     const aspect = container.clientWidth / container.clientHeight;
     const portraitScale = viewScale(aspect);
     const camera = new THREE.PerspectiveCamera(44, aspect, 0.1, 100);
-    camera.position.set(0, -10.5 * portraitScale, 13.2 * portraitScale);
+    camera.position.set(0, -11.0 * portraitScale, 13.8 * portraitScale);
     cameraRef.current = camera;
     (window as any).__threeCamera = camera;
     (window as any).__targetCamPos = targetCamPos;
@@ -131,7 +131,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     controls.enablePan = false;  // DISABLE pan - stay focused on board center
     // HPVN: no minPolarAngle — the overview tilt (~37°) and the top-down view sit below upstream's 45°
     controls.maxPolarAngle = Math.PI / 2 - 0.05; // HPVN: upstream π/2.2 clamped the overview and cropped the top row
-    controls.target.set(0, -0.4, 0);
+    controls.target.set(0, 0.0, 0);
     controlsRef.current = controls;
     // A zoom sticks: the camera lerp stops while the user zooms and continues from where they left it
     const handleControlsStart = () => {
@@ -343,8 +343,8 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       // This prevents follow mode from snapping to overview on window resize
       if (!isUserInteracting.current && currentViewRef.current === 'overview') {
         const portScale = viewScale(asp);
-        targetCamPos.current.set(0, -10.5 * portScale, 13.2 * portScale);
-        targetLookAt.current.set(0, -0.4, 0.1);
+        targetCamPos.current.set(0, -11.0 * portScale, 13.8 * portScale);
+        targetLookAt.current.set(0, 0.0, 0.0);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -631,12 +631,12 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
 
     if (currentView === 'overview') {
       // 2.5D Tilt full board overview: optimal ~28° angle showing all 40 cards clearly
-      targetCamPos.current.set(0, -10.5 * portraitScale, 13.2 * portraitScale);
-      targetLookAt.current.set(0, -0.4, 0.1);
+      targetCamPos.current.set(0, -11.0 * portraitScale, 13.8 * portraitScale);
+      targetLookAt.current.set(0, 0.0, 0.0);
       targetUpVec.current.set(0, 1, 0);
     } else if (currentView === 'topdown') {
       // Complete Top-Down bird's eye view
-      targetCamPos.current.set(0.01, -0.01, 16.5 * portraitScale);
+      targetCamPos.current.set(0.01, -0.01, 15.6 * portraitScale);
       targetLookAt.current.set(0, 0, 0);
       targetUpVec.current.set(0, 1, 0);
     } else if (currentView === 'follow' && curPlayer) {
@@ -655,6 +655,18 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   // View Preset Handler
   const setCameraPreset = (view: 'follow' | 'overview' | 'topdown') => {
     setCurrentView(view);
+  };
+
+  const handleZoomStep = (direction: number) => {
+    isUserInteracting.current = true;
+    const factor = direction > 0 ? 1.15 : 0.85;
+    const dir = new THREE.Vector3().subVectors(targetCamPos.current, targetLookAt.current);
+    const newLen = THREE.MathUtils.clamp(dir.length() * factor, 5.0, 35.0);
+    dir.setLength(newLen);
+    targetCamPos.current.copy(targetLookAt.current).add(dir);
+    setTimeout(() => {
+      isUserInteracting.current = false;
+    }, 500);
   };
 
   return (
@@ -773,6 +785,23 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           title="Góc nhìn thẳng từ trên xuống 90°"
         >
           Nhìn từ trên
+        </button>
+        <span className="three-controls-divider" />
+        <button
+          className="control-pill icon-only"
+          onClick={() => handleZoomStep(-1)}
+          title="Phóng to bàn cờ (+)"
+          aria-label="Phóng to"
+        >
+          +
+        </button>
+        <button
+          className="control-pill icon-only"
+          onClick={() => handleZoomStep(1)}
+          title="Thu nhỏ bàn cờ (-)"
+          aria-label="Thu nhỏ"
+        >
+          −
         </button>
       </div>
 

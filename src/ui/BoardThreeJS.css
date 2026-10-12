@@ -93,6 +93,23 @@
   color: #f3d189;
 }
 
+.three-controls-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(243, 209, 137, 0.25);
+  align-self: center;
+  margin: 0 4px;
+}
+
+.control-pill.icon-only {
+  padding: 0.35rem 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 32px;
+  justify-content: center;
+}
+
 /* Grand Hogwarts Property Claimed & Rent Announcement Banners */
 .magical-scroll-banner {
   position: absolute;
