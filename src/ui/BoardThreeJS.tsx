@@ -46,17 +46,29 @@ export interface RentNotice {
   isTax?: boolean;
 }
 
+export interface UpgradeNotice {
+  id: number;
+  tile: TileConfig;
+  player: Player;
+  type: 'house' | 'hotel';
+  count: number;
+  cost: number;
+}
+
 export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [hoveredTileInfo, setHoveredTileInfo] = useState<HoveredTileInfo | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<PurchaseNotice | null>(null);
+  const [upgradeNotice, setUpgradeNotice] = useState<UpgradeNotice | null>(null);
   const [rentNotice, setRentNotice] = useState<RentNotice | null>(null);
   const [rollBadge, setRollBadge] = useState<{ id: number; total: number; double: boolean } | null>(null);
   const [inspectedTile, setInspectedTile] = useState<TileConfig | null>(null);
   const [currentView, setCurrentView] = useState<'follow' | 'overview' | 'topdown'>('overview');
   const currentViewRef = useRef<'follow' | 'overview' | 'topdown'>('overview');
   const prevRentPaymentRef = useRef<number>(0);
+  const prevBuildingsRef = useRef<Record<string, { houses: Record<string, number>; hotels: Record<string, number> }>>({});
+  const isFirstBuildingsSyncRef = useRef<boolean>(true);
 
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -500,21 +512,81 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     }
     prevOwnershipRef.current = { ...currentOwnership };
 
-    // Track houses built
-    const totalHouses = gameState.players.reduce((sum, p) => {
-      const hCount = Object.values(p.houses).reduce((a, b) => a + b, 0);
-      const hotCount = Object.values(p.hotels).reduce((a, b) => a + b, 0);
-      return sum + hCount + hotCount * 5;
-    }, 0);
-    if (totalHouses > prevHouseCountRef.current) {
-      soundManager.playBuyProperty();
-      if (curPlayer) {
-        const tilePos = getTilePosition(curPlayer.position);
-        particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.3), '#f3d189', 85);
+    // Track house and hotel upgrades to trigger 3D particle burst & announcement toast on header
+    if (isFirstBuildingsSyncRef.current) {
+      const initialSnapshot: Record<string, { houses: Record<string, number>; hotels: Record<string, number> }> = {};
+      for (const p of gameState.players) {
+        initialSnapshot[p.id] = { houses: { ...p.houses }, hotels: { ...p.hotels } };
       }
+      prevBuildingsRef.current = initialSnapshot;
+      isFirstBuildingsSyncRef.current = false;
+    } else {
+      const prevBuildings = prevBuildingsRef.current;
+      for (const player of gameState.players) {
+        const prev = prevBuildings[player.id];
+        if (prev) {
+          // Check hotel upgrade first
+          for (const [tileId, hotelVal] of Object.entries(player.hotels)) {
+            const prevHotelVal = prev.hotels[tileId] || 0;
+            if (hotelVal > prevHotelVal) {
+              const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+              if (tile) {
+                soundManager.playBuyProperty();
+                const tilePos = getTilePosition(tile.index);
+                particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.35), player.color, 90);
+                setUpgradeNotice({
+                  id: Date.now() + Math.random(),
+                  tile,
+                  player,
+                  type: 'hotel',
+                  count: 1,
+                  cost: tile.houseCost || 100,
+                });
+              }
+            }
+          }
+
+          // Check house upgrades
+          for (const [tileId, houseVal] of Object.entries(player.houses)) {
+            const prevHouseVal = prev.houses[tileId] || 0;
+            if (houseVal > prevHouseVal) {
+              const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+              if (tile) {
+                soundManager.playBuyProperty();
+                const tilePos = getTilePosition(tile.index);
+                particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.3), player.color, 85);
+                setUpgradeNotice({
+                  id: Date.now() + Math.random(),
+                  tile,
+                  player,
+                  type: 'house',
+                  count: houseVal,
+                  cost: tile.houseCost || 50,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Update buildings snapshot
+      const nextSnapshot: Record<string, { houses: Record<string, number>; hotels: Record<string, number> }> = {};
+      for (const p of gameState.players) {
+        nextSnapshot[p.id] = { houses: { ...p.houses }, hotels: { ...p.hotels } };
+      }
+      prevBuildingsRef.current = nextSnapshot;
     }
-    prevHouseCountRef.current = totalHouses;
   }, [gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, gameState.currentPlayerIndex]);
+
+  // Auto-dismiss upgrade announcement banner (snappy timing)
+  useEffect(() => {
+    if (!upgradeNotice) return;
+    const duration = gameState.turboMode ? 1600 : 3200;
+    const timer = setTimeout(() => {
+      setUpgradeNotice(null);
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [upgradeNotice?.id, gameState.turboMode]);
 
   // Auto-dismiss purchase announcement banner (snappy timing)
   useEffect(() => {
@@ -710,17 +782,31 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
               note: gameState.rentMultiplier > 1 ? `x${gameState.rentMultiplier}` : '',
               close: () => setRentNotice(null),
             }
+          : upgradeNotice
+          ? {
+              id: `u${upgradeNotice.id}`,
+              who: upgradeNotice.player,
+              tone: 'upgrade',
+              text: upgradeNotice.type === 'hotel' ? (
+                <>đã nâng cấp Lâu đài tại <em>{upgradeNotice.tile.name}</em></>
+              ) : (
+                <>đã xây nhà thứ {upgradeNotice.count} tại <em>{upgradeNotice.tile.name}</em></>
+              ),
+              amount: `−${g(upgradeNotice.cost)}`,
+              note: '',
+              close: () => setUpgradeNotice(null),
+            }
           : purchaseNotice
           ? {
               id: `p${purchaseNotice.id}`,
               who: purchaseNotice.owner,
               tone: purchaseNotice.isTakeover ? 'takeover' : 'buy',
               text: purchaseNotice.isTakeover ? (
-                <>mua đứt <em>{purchaseNotice.tile.name}</em> của <strong style={{ color: purchaseNotice.prevOwner?.color }}>{purchaseNotice.prevOwner?.name}</strong></>
+                <>đã mua đứt <em>{purchaseNotice.tile.name}</em> từ <strong style={{ color: purchaseNotice.prevOwner?.color }}>{purchaseNotice.prevOwner?.name}</strong></>
               ) : (
-                <>mua <em>{purchaseNotice.tile.name}</em></>
+                <>đã mua đất <em>{purchaseNotice.tile.name}</em></>
               ),
-              amount: `${g((purchaseNotice.isTakeover
+              amount: `−${g((purchaseNotice.isTakeover
                 ? calculateTakeoverCost(purchaseNotice.tile, purchaseNotice.prevOwner || purchaseNotice.owner)
                 : purchaseNotice.tile.price || 0))}`,
               note: '',
@@ -740,7 +826,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       })()}
 
       {/* Hovered Tile Tooltip Badge */}
-      {hoveredTileInfo && !purchaseNotice && !rentNotice && (
+      {hoveredTileInfo && !purchaseNotice && !rentNotice && !upgradeNotice && (
         <div
           className={`three-tile-tooltip ${hoveredTileInfo.owner ? 'is-owned' : ''}`}
           style={

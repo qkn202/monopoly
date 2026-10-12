@@ -481,6 +481,10 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 .hpvn-toast-amount small { margin-left: 4px; font-size: 11px; color: #fca5a5; }
 .hpvn-toast.is-rent .hpvn-toast-amount, .hpvn-toast.is-tax .hpvn-toast-amount { color: #fca5a5; }
 .hpvn-toast.is-takeover { border-color: rgba(245, 158, 11, 0.55); }
+.hpvn-toast.is-buy { border-color: rgba(16, 185, 129, 0.5); }
+.hpvn-toast.is-buy .hpvn-toast-amount { color: #6ee7b7; }
+.hpvn-toast.is-upgrade { border-color: rgba(245, 158, 11, 0.65); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55), 0 0 16px rgba(245, 158, 11, 0.25); }
+.hpvn-toast.is-upgrade .hpvn-toast-amount { color: #fcd34d; }
 @keyframes hpvnToastIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (max-width: 640px), (orientation: portrait) {
   .hpvn-toast { top: max(136px, calc(env(safe-area-inset-top) + 130px)); font-size: 12px; }
@@ -495,8 +499,11 @@ button:focus-visible { outline: 2px solid #fff0c2; outline-offset: 2px; }
 .receipt-badge-tax { color: #d8b4fe !important; }
 .receipt-badge-own, .receipt-amount-safe { color: #6ee7b7 !important; }
 
-/* Board-top notes share one slot below the camera switcher: toast and the tile tooltip look the same. */
+/* Board-top notes share one slot: toast and the tile tooltip at top header */
 .hpvn-toast, .three-tile-tooltip { top: 72px; }
+@media (min-width: 901px) {
+  .hpvn-toast, .three-tile-tooltip { top: 20px !important; }
+}
 .three-tile-tooltip { border-radius: 999px !important; border: 1px solid var(--hp-rim) !important; color: var(--hp-text) !important;
   background: linear-gradient(160deg, rgba(40, 27, 12, 0.96), rgba(16, 10, 5, 0.97)) !important; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55) !important;
   font: 400 13px/1.3 'Be Vietnam Pro', Arial, sans-serif !important; padding: 8px 16px !important; letter-spacing: 0 !important; backdrop-filter: none !important; }

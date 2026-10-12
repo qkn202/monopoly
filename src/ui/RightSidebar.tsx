@@ -1197,25 +1197,47 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </section>
             )}
 
-            {/* Turn Action Block */}
+            {/* Turn Action Block: Chỉ hiện bảng hành động khi đến lượt của mình hoặc trong phiên đấu giá. Khi là lượt người khác, hiển thị thanh chờ gọn nhẹ không chiếm chỗ */}
             {currentPlayer && (
-              <section className={`turn-action-card hpvn-act ${isMyTurn ? 'is-mine' : ''}`}>
-                <div className="hpvn-act-head">
-                  {!isMyTurn && (
-                    <div className="player-avatar-circle mini-avatar" style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}>
-                      {currentPlayer.tokenIcon}
+              isMyTurn ? (
+                <section className="turn-action-card hpvn-act is-mine">
+                  <div className="hpvn-act-head">
+                    <div className="hpvn-act-title">
+                      <span>
+                        Lượt của bạn
+                        {gameState.dice ? ` · ${gameState.dice.die1}+${gameState.dice.die2}` : ''}
+                      </span>
                     </div>
-                  )}
-                  <div className="hpvn-act-title">
-                    <span>
-                      {isMyTurn ? 'Lượt của bạn' : `Lượt của ${currentPlayer.name}`}
-                      {gameState.dice ? ` · ${gameState.dice.die1}+${gameState.dice.die2}` : ''}
-                    </span>
+                    {timerRing()}
                   </div>
-                  {timerRing()}
+                  {renderTurnActions(false)}
+                </section>
+              ) : gameState.turnPhase === 'AUCTION' && gameState.auction ? (
+                <section className="turn-action-card hpvn-act is-auction">
+                  <div className="hpvn-act-head">
+                    <div className="hpvn-act-title">
+                      <span>Đấu giá tài sản</span>
+                    </div>
+                    {timerRing()}
+                  </div>
+                  {renderTurnActions(false)}
+                </section>
+              ) : (
+                <div className="hpvn-waiting-turn-bar" title={`Đang trong lượt của ${currentPlayer.name}`}>
+                  <span
+                    className="player-avatar-circle mini-avatar"
+                    style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}
+                  >
+                    {currentPlayer.tokenIcon}
+                  </span>
+                  <span className="hpvn-waiting-turn-text">
+                    Lượt của <strong>{currentPlayer.name}</strong>
+                    {gameState.dice ? ` · ${gameState.dice.die1}+${gameState.dice.die2}` : ''}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  {timerRing(20)}
                 </div>
-                {renderTurnActions(false)}
-              </section>
+              )
             )}
 
             {/* Segmented Hogwarts Tabs */}

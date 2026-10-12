@@ -201,6 +201,42 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
+/* Slim waiting bar when it's another player's turn */
+.hpvn-waiting-turn-bar {
+  margin: 6px 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(24, 16, 10, 0.78);
+  border: 1px solid rgba(226, 184, 102, 0.22);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+  color: #d1b896;
+  min-height: 32px;
+}
+
+.hpvn-waiting-turn-bar .mini-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  border-width: 1.5px;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.hpvn-waiting-turn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.hpvn-waiting-turn-text strong {
+  color: #f3d189;
+}
+
 .player-turn-header {
   display: flex;
   align-items: center;
