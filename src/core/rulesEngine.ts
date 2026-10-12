@@ -109,15 +109,15 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Đã có 4 Túp Lều, cần nâng cấp lên Lâu Đài' };
   }
 
-  // CRITICAL RULE: Must own FULL COLOR SET before building ANY house
-  if (tile.colorGroup && !ownsFullColorSet(player, tile.colorGroup, state)) {
-    return { allowed: false, reason: 'Cần sở hữu ĐỦ BỘ MÀU trước khi xây nhà' };
+  // CRITICAL RULE: Can only upgrade land WHERE the player is currently standing
+  const currentTile = HOGWARTS_TILES[player.position];
+  if (!currentTile || currentTile.id !== propertyId) {
+    return { allowed: false, reason: 'Chỉ được nâng cấp mảnh đất nơi bạn đang đặt chân đến' };
   }
 
-  // RULE: Must have VISITED the property since last building on it
-  // (Landed on it once after buying, or after last house upgrade)
+  // RULE: Must land on this property in a subsequent turn (visit 2+) to build/upgrade (1 upgrade per visit)
   if (!player.visitedProperties.includes(propertyId)) {
-    return { allowed: false, reason: 'Cần đặt chân vào ô đất này ít nhất 1 lần trước khi xây nhà' };
+    return { allowed: false, reason: 'Chỉ được nâng cấp khi đặt chân vào ô đất này từ lần 2 (mỗi lần ghé thăm được nâng cấp 1 lần)' };
   }
 
   const cost = tile.houseCost;
@@ -156,14 +156,15 @@ export function canBuildHotel(
     return { allowed: false, reason: 'Cần có đủ 4 Túp Lều trước khi nâng cấp lên Lâu Đài' };
   }
 
-  // CRITICAL RULE: Must own FULL COLOR SET before building hotel
-  if (tile.colorGroup && !ownsFullColorSet(player, tile.colorGroup, state)) {
-    return { allowed: false, reason: 'Cần sở hữu ĐỦ BỘ MÀU trước khi xây Lâu Đài' };
+  // CRITICAL RULE: Can only upgrade land WHERE the player is currently standing
+  const currentTile = HOGWARTS_TILES[player.position];
+  if (!currentTile || currentTile.id !== propertyId) {
+    return { allowed: false, reason: 'Chỉ được nâng cấp mảnh đất nơi bạn đang đặt chân đến' };
   }
 
-  // RULE: Must have VISITED the property since last building on it
+  // RULE: Must land on this property in a subsequent turn (visit 2+) to build/upgrade (1 upgrade per visit)
   if (!player.visitedProperties.includes(propertyId)) {
-    return { allowed: false, reason: 'Cần đặt chân vào ô đất này ít nhất 1 lần trước khi nâng cấp Lâu Đài' };
+    return { allowed: false, reason: 'Chỉ được nâng cấp Lâu Đài khi đặt chân vào ô đất này từ lần 2 (mỗi lần ghé thăm được nâng cấp 1 lần)' };
   }
 
   const cost = tile.houseCost;

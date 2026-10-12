@@ -283,12 +283,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (!tile || !tile.price || currentPlayer.balance < tile.price) return state;
 
-      // Add property to visitedProperties so player can build on it (they're "landing" on it to buy)
+      // Only buy land; must land on it again in a subsequent turn to build/upgrade house
       const updatedPlayer: Player = {
         ...currentPlayer,
         balance: currentPlayer.balance - tile.price,
         properties: [...currentPlayer.properties, tile.id],
-        visitedProperties: [...currentPlayer.visitedProperties, tile.id],
       };
 
       return refreshAllNetWorth({
@@ -305,9 +304,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'PASS_PROPERTY': {
       if (state.upgradeCandidate) {
-        // Player declined building or upgrading owned property -> advance to END_TURN
+        // Player declined building or upgrading owned property -> clear visit and advance to END_TURN
+        const propId = state.upgradeCandidate.propertyId;
+        const curPlayer = state.players[state.currentPlayerIndex];
         return {
           ...state,
+          players: state.players.map((p) =>
+            p.id === curPlayer.id
+              ? { ...p, visitedProperties: p.visitedProperties.filter((id) => id !== propId) }
+              : p
+          ),
           upgradeCandidate: null,
           turnPhase: 'END_TURN',
         };
@@ -363,18 +369,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const buyerId = currentPlayer.id;
       const ownerId = previousOwner.id;
 
-      // Transfer existing buildings intact
+      // Transfer existing buildings intact; new owner must land on it in a subsequent turn to upgrade
       const houses = previousOwner.houses[tile.id] || 0;
       const hotels = previousOwner.hotels[tile.id] || 0;
 
-      // Add property to visitedProperties so buyer can build on it
       const updatedBuyer: Player = {
         ...currentPlayer,
         balance: currentPlayer.balance - cost,
         properties: [...currentPlayer.properties, tile.id],
         houses: { ...currentPlayer.houses, [tile.id]: houses },
         hotels: { ...currentPlayer.hotels, [tile.id]: hotels },
-        visitedProperties: [...currentPlayer.visitedProperties, tile.id],
       };
 
       const updatedPrevOwner: Player = {
@@ -1203,12 +1207,11 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
   }
 
   const cost = state.auction.currentBid;
-  // Add property to visitedProperties so winner can build on it
+  // Winner acquires property; must land on it in a subsequent turn to upgrade
   const updatedWinner: Player = {
     ...winner,
     balance: winner.balance - cost,
     properties: [...winner.properties, tile.id],
-    visitedProperties: [...winner.visitedProperties, tile.id],
   };
 
   return refreshAllNetWorth({

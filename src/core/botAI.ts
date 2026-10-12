@@ -128,18 +128,8 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
     return { type: 'END_TURN' };
   }
 
-  // 5. End Turn phase: Check if bot can build houses, hotels or unmortgage properties before ending turn
+  // 5. End Turn phase: Check if bot can unmortgage properties before ending turn
   if (state.turnPhase === 'END_TURN') {
-    for (const propId of bot.properties) {
-      const checkHotel = canBuildHotel(bot, propId, state);
-      if (checkHotel.allowed && bot.balance >= 800) {
-        return { type: 'BUILD_HOTEL', propertyId: propId };
-      }
-      const check = canBuildHouse(bot, propId, state);
-      if (check.allowed && bot.balance >= 800) {
-        return { type: 'BUILD_HOUSE', propertyId: propId };
-      }
-    }
 
     // Unmortgage check if bot has plenty of funds
     for (const propId of bot.properties) {

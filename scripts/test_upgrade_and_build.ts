@@ -18,30 +18,52 @@ function runTests() {
 
   const p0 = state.players[0];
   const tile1 = HOGWARTS_TILES[1]; // First purchasable property
-  console.log(`Testing with tile: "${tile1.name}" (ID: ${tile1.id}, houseCost: ${tile1.houseCost})`);
+  const tile2 = HOGWARTS_TILES[3]; // Second purchasable property
+  console.log(`Testing with tile1: "${tile1.name}" (ID: ${tile1.id}, idx: ${tile1.index}) and tile2: "${tile2.name}" (ID: ${tile2.id}, idx: ${tile2.index})`);
 
-  // 1. Verify canBuildHouse without full color set is rejected
-  const checkNoSet = canBuildHouse(p0, tile1.id, state);
-  console.log('canBuildHouse without color set (should be rejected):', checkNoSet);
-  if (checkNoSet.allowed) {
-    throw new Error('FAIL: canBuildHouse without full color set must be refused');
-  }
-
-  // 2. Give player 0 ownership of full BROWN color set (tile 1 and tile 3)
-  const tile3 = HOGWARTS_TILES[3];
+  // 1. Give player 0 ownership of tile1 and tile2 (no full color set)
   state = {
     ...state,
-    propertyOwnership: { [tile1.id]: p0.id, [tile3.id]: p0.id },
+    propertyOwnership: { [tile1.id]: p0.id, [tile2.id]: p0.id },
     players: state.players.map((p) =>
-      p.id === p0.id ? { ...p, properties: [tile1.id, tile3.id], visitedProperties: [tile1.id], balance: 5000 } : p
+      p.id === p0.id ? { ...p, properties: [tile1.id, tile2.id], visitedProperties: [], balance: 5000, position: 0 } : p
     ),
   };
 
-  // Test canBuildHouse for 1st house with full color set
+  // 1a. When standing on GO (position 0), building on tile1 or tile2 is strictly rejected
+  const checkWrongPosition = canBuildHouse(state.players[0], tile1.id, state);
+  console.log('canBuildHouse while standing on different tile (GO):', checkWrongPosition);
+  if (checkWrongPosition.allowed || !checkWrongPosition.reason?.includes('nơi bạn đang đặt chân đến')) {
+    throw new Error('FAIL: Building house on property where player is not standing must be rejected');
+  }
+
+  // Move player position to tile1.index (standing on tile1)
+  state = {
+    ...state,
+    players: state.players.map((p) => (p.id === p0.id ? { ...p, position: tile1.index } : p)),
+  };
+
+  // 1b. Standing on tile1, but trying to build on tile2 (other land) must be rejected
+  const checkOtherLand = canBuildHouse(state.players[0], tile2.id, state);
+  console.log('canBuildHouse on tile2 while standing on tile1 (should be rejected):', checkOtherLand);
+  if (checkOtherLand.allowed || !checkOtherLand.reason?.includes('nơi bạn đang đặt chân đến')) {
+    throw new Error('FAIL: Other lands cannot be upgraded when not standing on them');
+  }
+
+  // 1c. Standing on tile1, but without visit in subsequent turn, canBuildHouse is rejected
+  const checkNoVisit = canBuildHouse(state.players[0], tile1.id, state);
+  console.log('canBuildHouse without visit (should be rejected):', checkNoVisit);
+  if (checkNoVisit.allowed || !checkNoVisit.reason?.includes('lần 2')) {
+    throw new Error('FAIL: canBuildHouse without landing visit must be refused');
+  }
+
+  // 1d. After landing on tile1 in a subsequent turn (visitedProperties has tile1.id):
+  // Even WITHOUT full color set, canBuildHouse is allowed!
+  state = visit(state, p0.id, tile1.id);
   const check1 = canBuildHouse(state.players[0], tile1.id, state);
-  console.log('canBuildHouse (with full color set):', check1);
+  console.log('canBuildHouse (standing on tile1, with 2nd visit):', check1);
   if (!check1.allowed) {
-    throw new Error(`FAIL: canBuildHouse should be allowed with full set, got: ${check1.reason}`);
+    throw new Error(`FAIL: canBuildHouse should be allowed without full set after visit, got: ${check1.reason}`);
   }
 
   // Build house 1
@@ -70,7 +92,7 @@ function runTests() {
 
   // Test canBuildHotel
   const checkHotel = canBuildHotel(p0AfterH4, tile1.id, state);
-  console.log('canBuildHotel (with 4 houses, single property):', checkHotel);
+  console.log('canBuildHotel (with 4 houses, single property, standing on it):', checkHotel);
   if (!checkHotel.allowed) {
     throw new Error(`FAIL: canBuildHotel should be allowed, got: ${checkHotel.reason}`);
   }
@@ -83,7 +105,7 @@ function runTests() {
     throw new Error('FAIL: expected 0 houses and 1 hotel');
   }
 
-  console.log('✅ Unit checks for building houses & hotel passed!');
+  console.log('✅ Unit checks for standing-only building houses & hotel passed!');
 
   // 2. Test landing on own property with < 4 houses -> creates upgradeCandidate and ACTION phase
   console.log('\n--- Testing landing on own property ---');
@@ -97,31 +119,25 @@ function runTests() {
     propertyOwnership: { [tile1.id]: landState.players[0].id, [landingTile.id]: landState.players[0].id },
     players: landState.players.map((p, idx) =>
       idx === 0
-        ? { ...p, properties: [tile1.id, landingTile.id], visitedProperties: [landingTile.id], balance: 5000, position: 0, houses: { [landingTile.id]: 2 } }
+        ? { ...p, properties: [tile1.id, landingTile.id], visitedProperties: [landingTile.id], balance: 5000, position: landingTile.index, houses: { [landingTile.id]: 2 } }
         : p
     ),
   };
 
-  // Roll dice to move from 0 to 3
-  // Mock rolling 1 + 2 = 3
-  // We can test resolveLanding indirectly by rolling dice or triggering dice roll
-  // Let's test by setting player position to 0 and rolling 3 if dice were deterministic, or directly test gameReducer with ROLL_DICE when position lands on 3
-  // Since ROLL_DICE uses Math.random(), let's test landing through resolveLanding mechanism:
-  // Set position to 1, roll 2 (or test tile landing directly)
-  const simulatedPlayer = { ...landState.players[0], position: 3 };
+  const simulatedPlayer = landState.players[0];
   const afterLandingState = gameReducer(
     {
       ...landState,
       turnPhase: 'ACTION',
       upgradeCandidate: {
-        propertyId: tile3.id,
-        cost: tile3.houseCost || 100,
+        propertyId: landingTile.id,
+        cost: landingTile.houseCost || 100,
         currentHouses: 2,
         hasHotel: false,
         isHotelUpgrade: false,
       },
     },
-    { type: 'BUILD_HOUSE', propertyId: tile3.id, playerId: simulatedPlayer.id }
+    { type: 'BUILD_HOUSE', propertyId: landingTile.id, playerId: simulatedPlayer.id }
   );
 
   console.log('After building during landing: turnPhase =', afterLandingState.turnPhase, ', upgradeCandidate =', afterLandingState.upgradeCandidate);
@@ -135,8 +151,8 @@ function runTests() {
       ...landState,
       turnPhase: 'ACTION',
       upgradeCandidate: {
-        propertyId: tile3.id,
-        cost: tile3.houseCost || 100,
+        propertyId: landingTile.id,
+        cost: landingTile.houseCost || 100,
         currentHouses: 2,
         hasHotel: false,
         isHotelUpgrade: false,
