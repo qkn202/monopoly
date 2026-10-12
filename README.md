@@ -34,12 +34,19 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 - **Vốn khởi điểm:** Mỗi phù thủy bắt đầu với **5,000 Galleons**.
 - **40 Ô đất kinh điển:** Hẻm Xéo, Tiệm Đũa Phép Ollivander, Ngân Hàng Gringotts, Quán Ba Cây Chổi, Sân Quidditch, Tháp Thiên Văn, Rừng Cấm, v.v.
 - **Nâng cấp Bất động sản linh hoạt:**
-  - Xây từ **1 đến 4 Túp Lều** (`Cottage`) trên bất kỳ mảnh đất nào mình sở hữu (không bị khóa cứng bởi điều kiện gom đủ 100% bộ màu).
-  - **Quy tắc xây nhà:** Phải đặt chân vào ô đất ít nhất 1 lần sau khi mua mới được xây. Sau khi xây nhà, phải quay lại đất đó lần nữa mới được xây thêm.
-  - Mỗi lần chỉ xây **1 Túp Lều**.
-  - Nâng cấp tối thượng lên **🏰 Lâu Đài Hogwarts** khi ô đất đạt đủ 4 Túp Lều, nâng tiền thuê lên mức kỷ lục!
+  - Xây từ **1 đến 4 Túp Lều** (`Cottage`) trên bất kỳ mảnh đất nào mình sở hữu.
+  - **Quy tắc xây nhà bắt buộc:**
+    1. **Sở hữu đủ Bộ Màu (Color Set):** Phải sở hữu TOÀN BỘ các ô đất cùng màu trước khi xây bất kỳ nhà nào trên bộ màu đó.
+    2. **Đặt chân vào ô đất:** Phải đặt chân vào ô đất ít nhất 1 lần sau khi mua mới được xây.
+    3. **Quy tắc 1 nhà/lượt:** Mỗi lượt chỉ xây được **1 Túp Lều**.
+    4. **Reset sau xây:** Sau khi xây nhà, phải quay lại đất đó lần nữa (đặt chân) mới được xây thêm.
+  - **🏰 Lâu Đài Hogwarts:** Nâng cấp tối thượng khi ô đất đạt đủ 4 Túp Lều, nâng tiền thuê lên mức kỷ lục!
 - **Hệ thống Thế chấp & Chuộc tài sản:** Hỗ trợ thế chấp nhận ngay 50% giá trị và chuộc lại với lãi suất 10% khi cần dòng tiền.
-- **Giai đoạn Phá Sản (Bankruptcy Phase):** Khi không đủ tiền trả nợ, người chơi được phép tự chọn tài sản để thế chấp hoặc bán nhà trước khi tuyên bố phá sản.
+- **Giai đoạn Phá Sản (Bankruptcy Phase):** Khi không đủ tiền trả nợ thuế/tiền thuê:
+  1. **Hiển thị danh sách tài sản** có thể thế chấp hoặc bán nhà.
+  2. **Tự động kiểm tra** đủ tiền trả nợ sau mỗi thao tác thế chấp/bán.
+  3. **Auto-pay & continue** khi đã đủ tiền.
+  4. **Timeout 60s**: Hết giờ mà vẫn thiếu tiền → Tự động tuyên bố phá sản.
 
 ### 4. Cơ chế Đột biến & Tranh đấu Kịch tính
 - ☠️ **Bão Lời Nguyền Hắc Ám (Dark Curse Escalation):**
@@ -66,6 +73,43 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 ### 7. 📱 Hỗ trợ Đa nền tảng & Responsive
 - Hoạt động mượt mà trên **Desktop màn hình rộng**, **Máy tính bảng (Tablet)** và **Điện thoại di động (Mobile Portrait)**.
 - Giao diện màn hình dọc tối ưu với **Bottom Action Dock**, xem nhanh Bảng Xếp Hạng, Danh Mục Tài Sản và Nhật Ký Lịch Sử mà không che khuất bàn cờ 3D.
+
+---
+
+## 📋 Luật Chơi Chi Tiết (Game Rules)
+
+### Quy Tắc Sở Hữu & Xây Dựng
+
+| Quy Tắc | Mô Tả |
+|----------|--------|
+| **Sở hữu đủ Bộ Màu** | Phải sở hữu TOÀN BỘ các ô đất cùng màu mới được xây nhà |
+| **Đặt chân vào ô đất** | Phải đặt chân vào ô đất đã mua ít nhất 1 lần trước khi xây nhà |
+| **Reset sau xây** | Sau khi xây, phải quay lại đất đó mới được xây tiếp |
+| **Monopoly Bonus** | Khi sở hữu đủ bộ màu, tiền thuê cơ bản tăng **GẤP ĐÔI** |
+
+### Quy Tắc Thế Chấp
+
+| Quy Tắc | Mô Tả |
+|----------|--------|
+| **Không xây nhà khi thế chấp** | Không thể xây nhà trên ô đất đang bị thế chấp |
+| **Không thế chấp khi có nhà** | Phải bán HẾT nhà trên BỘ MÀU trước khi thế chấp bất kỳ ô nào |
+| **Chuộc lại với lãi** | Phí chuộc = 110% giá trị thế chấp |
+
+### Quy Tắc Tù & Xúc Xắc
+
+| Quy Tắc | Mô Tả |
+|----------|--------|
+| **3 Đôi liên tiếp** | Tung 3 lần đôi liên tiếp → Vào tù Azkaban ngay |
+| **Ở tù 3 lượt** | Có 3 lượt để thoát (đợi, trả 150G, dùng thẻ, hoặc tung đôi) |
+| **Qua Ga 9¾** | Nhận 500G khi vượt qua ô GO (chỉ 1 lần) |
+
+### Quy Tắc Phá Sản
+
+| Quy Tắc | Mô Tăng |
+|----------|----------|
+| **Thiếu tiền thuế** | Vào phase Phá Sản → chọn tài sản thế chấp/bán |
+| **Thiếu tiền thuê** | Tương tự, hoặc tuyên bố phá sản |
+| **Auto-trả nợ** | Sau khi thế chấp/bán đủ tiền → Tự động trả nợ |
 
 ---
 

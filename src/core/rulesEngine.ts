@@ -108,6 +108,11 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Đã có 4 Túp Lều, cần nâng cấp lên Lâu Đài' };
   }
 
+  // CRITICAL RULE: Must own FULL COLOR SET before building ANY house
+  if (tile.colorGroup && !ownsFullColorSet(player, tile.colorGroup, state)) {
+    return { allowed: false, reason: 'Cần sở hữu ĐỦ BỘ MÀU trước khi xây nhà' };
+  }
+
   // RULE: Must have VISITED the property since last building on it
   // (Landed on it once after buying, or after last house upgrade)
   if (!player.visitedProperties.includes(propertyId)) {
@@ -148,6 +153,11 @@ export function canBuildHotel(
   const currentHouses = player.houses[tile.id] || 0;
   if (currentHouses < 4) {
     return { allowed: false, reason: 'Cần có đủ 4 Túp Lều trước khi nâng cấp lên Lâu Đài' };
+  }
+
+  // CRITICAL RULE: Must own FULL COLOR SET before building hotel
+  if (tile.colorGroup && !ownsFullColorSet(player, tile.colorGroup, state)) {
+    return { allowed: false, reason: 'Cần sở hữu ĐỦ BỘ MÀU trước khi xây Lâu Đài' };
   }
 
   // RULE: Must have VISITED the property since last building on it

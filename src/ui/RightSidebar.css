@@ -580,9 +580,14 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.btn-bid:hover {
+.btn-bid:hover:not(:disabled) {
   background: rgba(0, 242, 254, 0.3);
   color: #ffffff;
+}
+.btn-bid:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(50%);
 }
 
 .btn-fold {
@@ -595,9 +600,14 @@
   border-radius: 6px;
   cursor: pointer;
 }
-.btn-fold:hover {
+.btn-fold:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.4);
   color: #ffffff;
+}
+.btn-fold:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(50%);
 }
 
 /* Tabs Navigation */

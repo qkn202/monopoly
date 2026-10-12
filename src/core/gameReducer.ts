@@ -208,7 +208,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                 dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
                 consecutiveDoubles: 0, // Reset doubles - this was not a regular roll
                 freeParkingPot: debtRes.state.freeParkingPot + Math.min(150, currentPlayer.balance),
-                turnPhase: 'END_TURN',
+                // Don't override turnPhase - keep BANKRUPTCY from resolveDebtOrLiquidate
               };
             }
             const afterP = debtRes.state.players.find((p) => p.id === currentPlayer.id) || pFreed;
@@ -642,7 +642,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           hotels: { ...player.hotels, [tile.id]: 0 },
           houses: { ...player.houses, [tile.id]: 4 },
         };
-        return refreshAllNetWorth({
+        let nextState = refreshAllNetWorth({
           ...state,
           players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
           events: [
@@ -650,6 +650,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             ...state.events,
           ],
         });
+        // Auto-check if player can now pay debt after selling
+        return checkAndPayDebt(nextState);
       }
 
       if (currentHouses <= 0) return state;
@@ -661,7 +663,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         houses: { ...player.houses, [tile.id]: currentHouses - 1 },
       };
 
-      return refreshAllNetWorth({
+      let nextState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         events: [
@@ -669,6 +671,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.events,
         ],
       });
+      // Auto-check if player can now pay debt after selling
+      return checkAndPayDebt(nextState);
     }
 
     case 'MORTGAGE_PROPERTY': {
@@ -693,7 +697,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         balance: player.balance + tile.mortgageValue,
       };
 
-      return refreshAllNetWorth({
+      let nextState = refreshAllNetWorth({
         ...state,
         players: state.players.map((p) => (p.id === player.id ? updatedPlayer : p)),
         mortgagedProperties: { ...state.mortgagedProperties, [tile.id]: true },
@@ -702,6 +706,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.events,
         ],
       });
+      // Auto-check if player can now pay debt after mortgaging
+      return checkAndPayDebt(nextState);
     }
 
     case 'UNMORTGAGE_PROPERTY': {
@@ -957,6 +963,12 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
       const baseTax = tile.price || 100;
       const taxAmt = baseTax * (state.rentMultiplier || 1);
       const res = resolveDebtOrLiquidate(state, player, taxAmt, undefined, `thuế tại "${tile.name}"`);
+
+      // If player went bankrupt, don't override bankruptcy state
+      if (res.isBankrupt) {
+        return res.state;
+      }
+
       return {
         ...res.state,
         freeParkingPot: res.state.freeParkingPot + taxAmt,
@@ -1317,6 +1329,58 @@ function advanceTurn(state: GameState): GameState {
  * to guarantee the game never hangs or stalls.
  */
 /**
+ * Check if debtor can now pay debt after selling houses/mortgaging properties,
+ * and automatically process payment and exit BANKRUPTCY phase.
+ */
+function checkAndPayDebt(state: GameState): GameState {
+  // Only check if in BANKRUPTCY phase with pending debt
+  if (state.turnPhase !== 'BANKRUPTCY' || !state.bankruptcyInfo) {
+    return state;
+  }
+
+  const info = state.bankruptcyInfo;
+  const debtor = state.players.find((p) => p.id === info.debtorId);
+
+  // If debtor has enough balance now, pay the debt automatically
+  if (debtor && debtor.balance >= info.amount) {
+    const { amount, creditorId, reason } = info;
+    let updatedPlayers = state.players.map((p) =>
+      p.id === debtor.id ? { ...p, balance: p.balance - amount } : p
+    );
+    if (creditorId) {
+      updatedPlayers = updatedPlayers.map((p) =>
+        p.id === creditorId ? { ...p, balance: p.balance + amount } : p
+      );
+    }
+    const creditor = creditorId ? state.players.find((p) => p.id === creditorId) : null;
+
+    // Add tax to free parking pot if this was a tax payment (no creditor)
+    let updatedState = state;
+    if (!creditorId) {
+      updatedState = { ...state, freeParkingPot: state.freeParkingPot + amount };
+    }
+
+    return refreshAllNetWorth({
+      ...updatedState,
+      players: updatedPlayers,
+      turnPhase: 'END_TURN',
+      bankruptcyInfo: null,
+      events: [
+        createEvent(
+          `💸 ${debtor.name} đã thanh toán ${amount}G cho ${reason}${creditor ? ` cho ${creditor.name}` : ''}!`,
+          'success',
+          debtor.id
+        ),
+        ...state.events,
+      ],
+    });
+  }
+
+  // Not enough money yet - stay in bankruptcy phase
+  return state;
+}
+
+/**
  * Limits the event log to the most recent MAX_EVENTS entries.
  */
 function limitEvents(events: GameEvent[]): GameEvent[] {
@@ -1355,7 +1419,31 @@ export function handleTurnTimeout(state: GameState): GameState {
     return afterDismiss;
   }
 
-  // 2. If in ROLL phase: auto-roll the dice
+  // 2. If in BANKRUPTCY phase: auto-declare bankruptcy if player can't pay
+  if (state.turnPhase === 'BANKRUPTCY' && state.bankruptcyInfo) {
+    const debtor = state.players.find((p) => p.id === state.bankruptcyInfo!.debtorId);
+    if (debtor && debtor.balance < state.bankruptcyInfo.amount) {
+      return gameReducer(
+        {
+          ...state,
+          turnSecondsRemaining: state.maxTurnSeconds || 60,
+          events: [
+            createEvent(
+              `⏱️ ${currentPlayer.name} đã hết 1 phút! Không đủ tiền trả nợ - tự động tuyên bố phá sản.`,
+              'warning',
+              currentPlayer.id
+            ),
+            ...state.events,
+          ],
+        },
+        { type: 'DECLARE_BANKRUPTCY' }
+      );
+    }
+    // If player has enough money, auto-pay
+    return gameReducer(state, { type: 'END_TURN' });
+  }
+
+  // 3. If in ROLL phase: auto-roll the dice
   if (state.turnPhase === 'ROLL') {
     const stateWithNotice: GameState = {
       ...state,

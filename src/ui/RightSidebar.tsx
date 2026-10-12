@@ -607,7 +607,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         {/* ============================================
             BANKRUPTCY PHASE: Player must mortgage/sell to pay debt
             ============================================ */}
-        {gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo && (
+        {gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo && currentPlayer && (
           <div className="end-turn-action-box">
             <div className="landed-receipt-card tax-paid magical-receipt">
               <div className="receipt-corner tl" />
@@ -621,36 +621,126 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 Bạn cần thanh toán <strong>{gameState.bankruptcyInfo.amount} Galleons</strong><br/>
                 cho {gameState.bankruptcyInfo.reason}<br/>
                 <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                  (Số dư hiện tại: {currentPlayer?.balance}G)
+                  (Số dư hiện tại: {currentPlayer.balance}G)
                 </span>
               </div>
             </div>
 
-            <div className="bankruptcy-actions-info" style={{ margin: '12px 0', textAlign: 'center' }}>
-              <div style={{ color: '#fbbf24', marginBottom: '8px' }}>
-                💡 Hãy thế chấp tài sản hoặc bán nhà để trả nợ!
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                • Click vào tài sản trên bàn cờ để thế chấp<br/>
-                • Sử dụng nút bên dưới để bán nhà
-              </div>
-            </div>
+            {/* Tài sản có thể bán nhà */}
+            {currentPlayer.properties.some(propId => {
+              const tile = HOGWARTS_TILES.find(t => t.id === propId);
+              return tile && ((currentPlayer.houses[propId] || 0) > 0 || (currentPlayer.hotels[propId] || 0) > 0);
+            }) && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '6px' }}>
+                  🏠 Nhà có thể BÁN:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {currentPlayer.properties.map(propId => {
+                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
+                    if (!tile) return null;
+                    const houseCount = currentPlayer.houses[propId] || 0;
+                    const hotelCount = currentPlayer.hotels[propId] || 0;
+                    const refundAmount = Math.floor((tile.houseCost || 50) / 2);
 
-            {currentPlayer && currentPlayer.balance >= (gameState.bankruptcyInfo?.amount || 0) && (
+                    if (hotelCount > 0) {
+                      return (
+                        <button
+                          key={propId}
+                          className="btn-fold"
+                          style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
+                          onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: currentPlayer.id })}
+                        >
+                          🏰 Hạ Lâu Đài (+{refundAmount * 5}G)
+                        </button>
+                      );
+                    }
+                    if (houseCount > 0) {
+                      return (
+                        <button
+                          key={propId}
+                          className="btn-fold"
+                          style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
+                          onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: currentPlayer.id })}
+                        >
+                          🏚️ Dỡ {houseCount} lều (+{refundAmount * houseCount}G)
+                        </button>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Tài sản có thể thế chấp */}
+            {currentPlayer.properties.some(propId => {
+              const tile = HOGWARTS_TILES.find(t => t.id === propId);
+              return tile && tile.mortgageValue && !gameState.mortgagedProperties[propId];
+            }) && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={{ color: '#34d399', fontSize: '0.85rem', marginBottom: '6px' }}>
+                  📜 Tài sản có thể THẾ CHẤP:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {currentPlayer.properties.map(propId => {
+                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
+                    if (!tile || !tile.mortgageValue || gameState.mortgagedProperties[propId]) return null;
+
+                    // Kiểm tra có nhà không - nếu có thì hiển thị nhưng disable
+                    const hasBuildings = (currentPlayer.houses[propId] || 0) > 0 || (currentPlayer.hotels[propId] || 0) > 0;
+
+                    return (
+                      <button
+                        key={propId}
+                        className="btn-bid"
+                        disabled={hasBuildings}
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '6px 8px',
+                          flex: '1 1 45%',
+                          opacity: hasBuildings ? 0.4 : 1,
+                          cursor: hasBuildings ? 'not-allowed' : 'pointer',
+                        }}
+                        onClick={() => !hasBuildings && dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: propId })}
+                        title={hasBuildings ? 'Cần bán hết nhà trước khi thế chấp' : ''}
+                      >
+                        📋 {tile.name.substring(0, 12)}... (+{tile.mortgageValue}G)
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Tài sản đã thế chấp */}
+            {currentPlayer.properties.some(propId => gameState.mortgagedProperties[propId]) && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '6px' }}>
+                  🔒 Đã thế chấp:
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                  {currentPlayer.properties.filter(propId => gameState.mortgagedProperties[propId]).map(propId => {
+                    const tile = HOGWARTS_TILES.find(t => t.id === propId);
+                    return tile ? tile.name : null;
+                  }).filter(Boolean).join(', ')}
+                </div>
+              </div>
+            )}
+
+            {/* Nút hành động */}
+            {currentPlayer.balance >= (gameState.bankruptcyInfo?.amount || 0) ? (
               <button
                 className="btn-primary-roll"
-                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', marginTop: '8px' }}
-                onClick={() => {
-                  // Pay the debt and exit bankruptcy phase
-                  const amount = gameState.bankruptcyInfo!.amount;
-                  const creditorId = gameState.bankruptcyInfo!.creditorId;
-                  const updatedBalance = currentPlayer.balance - amount;
-                  // This will be handled by the reducer checking if balance is sufficient
-                  dispatch({ type: 'END_TURN' });
-                }}
+                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', marginTop: '12px' }}
+                onClick={() => dispatch({ type: 'END_TURN' })}
               >
                 ✅ TRẢ NỢ VÀ TIẾP TỤC ({currentPlayer.balance}G → {Math.max(0, currentPlayer.balance - (gameState.bankruptcyInfo?.amount || 0))}G)
               </button>
+            ) : (
+              <div style={{ marginTop: '12px', fontSize: '0.75rem', color: '#fbbf24', textAlign: 'center' }}>
+                💡 Bạn cần thế chấp thêm tài sản hoặc bán nhà để đủ tiền trả nợ!
+              </div>
             )}
 
             <button
@@ -804,6 +894,27 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     ) : (
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                         Chưa xây nhà
+                      </span>
+                    )}
+                    {/* Hiển thị lý do không thể xây nhà */}
+                    {!isMortgaged && houseCount === 0 && !houseCheck.allowed && houseCheck.reason && (
+                      <span style={{
+                        fontSize: '0.65rem',
+                        color: '#f87171',
+                        display: 'block',
+                        marginTop: '2px'
+                      }}>
+                        ⚠️ {houseCheck.reason}
+                      </span>
+                    )}
+                    {!isMortgaged && houseCount === 0 && !isMyTurn && (
+                      <span style={{
+                        fontSize: '0.65rem',
+                        color: '#94a3b8',
+                        display: 'block',
+                        marginTop: '2px'
+                      }}>
+                        🔒 Chờ lượt của bạn
                       </span>
                     )}
                   </div>
