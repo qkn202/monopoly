@@ -264,7 +264,10 @@ export function recordTransaction(
 
   if (tx.type === 'INCOME') {
     currentPf.totalIncome += tx.amount;
-    if (tx.category === 'RENT') currentPf.rentIncome += tx.amount;
+    if (tx.category === 'RENT') {
+      currentPf.rentIncome += tx.amount;
+      currentPf.landVisitsCount = (currentPf.landVisitsCount || 0) + 1;
+    }
   } else {
     currentPf.totalExpense += tx.amount;
     if (tx.category === 'RENT') currentPf.rentExpense += tx.amount;

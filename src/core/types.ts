@@ -218,6 +218,7 @@ export interface PlayerFinanceStats {
   rentIncome: number;
   rentExpense: number;
   taxExpense: number;
+  landVisitsCount?: number;
 }
 
 export interface PropertyRevenueStat {

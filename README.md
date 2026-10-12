@@ -80,12 +80,11 @@ Trải nghiệm ngay bản phát hành chính thức tại: 👉 **[https://hogw
 
 ## ⚡ Cơ chế Đột biến & Tranh đấu Kịch tính
 
-- 💰 **Quản lý Thu Chi Cá Nhân & Tài Sản Thu Thuế Nhiều Nhất (Personal Cashflow Tab):**
+- 💰 **Quản lý Thu Chi Cá Nhân & Lượt Người Vào Đất (Personal Finances Tab):**
   - Tab **"Thu chi"** nằm ngay cạnh tab "Nhật ký" trên thanh điều hướng bên phải (desktop, collapsed rail và mobile drawer).
-  - **Khóa thông tin cá nhân 100%:** Chỉ hiển thị duy nhất dữ liệu tài chính của chính bạn, hoàn toàn không hiển thị thông tin hay nút chuyển đổi của người chơi khác.
-  - **👑 TÀI SẢN THU THUẾ / THUÊ NHIỀU NHẤT CỦA BẠN:** Tự động vinh danh mảnh đất **thuộc sở hữu của bạn** mà đối thủ đã nộp tiền thuê nhiều nhất (tổng tiền đã thu, số lượt khách ghé, tiền thu bình quân, lần nộp gần nhất).
-  - **Hero KPI Cards:** Thống kê Tổng Tiền Thu Vào, Tổng Tiền Chi Ra và Dòng Tiền Ròng (+/- Galleons) theo thời gian thực của bạn.
-  - **Sổ cái Lượt đấu Cá nhân (Personal Turn Ledger):** Ghi chép chi tiết từng lượt đi của bạn hoặc các lượt mà đối thủ tương tác tiền tệ với bạn (ví dụ nộp tiền thuê cho bạn), loại bỏ các lượt không liên quan. Hỗ trợ 2 chế độ lọc: *Tất cả lượt* hoặc *Chỉ lượt có thu/chi*.
+  - **Tối giản & Trực quan 100%:** Chỉ ghi nhận dữ liệu cốt lõi của chính bạn, bao gồm:
+    - **Tổng Thu Chi:** Thống kê Tổng Tiền Thu Vào, Tổng Tiền Chi Ra và Dòng Tiền Ròng (+/- Galleons).
+    - **Số Lần Có Người Vào Đất:** Tổng số lượt người chơi khác đặt chân vào bất động sản của bạn, tổng tiền thuê thu về và danh sách chi tiết các ô đất đã đón khách.
 - 📜 **Nhật Ký Cá Nhân Hóa (Personalized Event Logs):**
   - Mỗi người chơi sở hữu một dòng thời gian nhật ký riêng biệt, chỉ lưu giữ và hiển thị những sự kiện liên quan trực tiếp đến bản thân (tiền thuê đã nhận/đã trả, bất động sản bị mua đứt/mua lại, nâng cấp công trình của mình), loại bỏ hoàn toàn các thông báo rác không liên quan.
 - ⚖️ **Phân Bổ Tài Sản Khi Phá Sản (Bankruptcy Redistribution):**

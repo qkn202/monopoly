@@ -1394,8 +1394,24 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
 
       const rent = calculateRent(tile, owner, diceTotal, state);
       if (rent === 0) {
+        const ownerPf = state.playerFinances?.[owner.id] || {
+          totalIncome: 0,
+          totalExpense: 0,
+          rentIncome: 0,
+          rentExpense: 0,
+          taxExpense: 0,
+          landVisitsCount: 0,
+        };
+        const nextPf = {
+          ...state.playerFinances,
+          [owner.id]: {
+            ...ownerPf,
+            landVisitsCount: (ownerPf.landVisitsCount || 0) + 1,
+          },
+        };
         return refreshAllNetWorth({
           ...state,
+          playerFinances: nextPf,
           turnPhase: 'END_TURN',
           upgradeCandidate: null,
           takeoverCandidate: null,
