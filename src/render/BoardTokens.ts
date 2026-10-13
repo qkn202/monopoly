@@ -3,11 +3,13 @@ import { Player, HouseType } from '../core/types';
 import { soundManager } from '../audio/soundManager';
 import { getTileTokenPosition } from './BoardCoordinates';
 
-/**
- * Calculates 3D world coordinates for tile index (0 to 39)
- */
-export function getTilePosition(tileIndex: number, playerIndex: number = 0, totalOnTile: number = 1): THREE.Vector3 {
-  return getTileTokenPosition(tileIndex, playerIndex, totalOnTile);
+export function getTilePosition(
+  tileIndex: number,
+  playerIndex: number = 0,
+  totalOnTile: number = 1,
+  totalTiles: number = 40
+): THREE.Vector3 {
+  return getTileTokenPosition(tileIndex, playerIndex, totalOnTile, totalTiles);
 }
 
 // --- 8 HOGWARTS UNIQUE GEMSTONE SPECTRUM ---
@@ -546,7 +548,12 @@ export class PlayerTokenManager {
     return token ? token.waypoints.length > 0 : false;
   }
 
-  public syncPlayers(players: Player[]): void {
+  public totalTiles: number = 40;
+
+  public syncPlayers(players: Player[], totalTiles: number = 40): void {
+    this.totalTiles = totalTiles || 40;
+    const N = this.totalTiles;
+
     // Count players on each tile for multi-player offset positioning
     const tileCounts: Record<number, number> = {};
     players.forEach((p) => {
@@ -567,7 +574,7 @@ export class PlayerTokenManager {
       const slotIndex = tileIndices[player.position] || 0;
       tileIndices[player.position] = slotIndex + 1;
 
-      const target = getTilePosition(player.position, slotIndex, countOnTile);
+      const target = getTilePosition(player.position, slotIndex, countOnTile, N);
 
       let token = this.tokens.get(player.id);
       if (!token) {
@@ -582,15 +589,15 @@ export class PlayerTokenManager {
           const oldPos = token.currentTile;
           const newPos = player.position;
 
-          // Compute forward step distance around 40 tiles
-          let steps = (newPos - oldPos + 40) % 40;
-          if (steps === 0 && oldPos !== newPos) steps = 40;
+          // Compute forward step distance around N tiles
+          let steps = (newPos - oldPos + N) % N;
+          if (steps === 0 && oldPos !== newPos) steps = N;
 
           // If it's a normal forward move (1 to 12 steps), generate hopping waypoints!
           if (steps > 0 && steps <= 12) {
             token.waypoints = [];
             for (let s = 1; s <= steps; s++) {
-              token.waypoints.push((oldPos + s) % 40);
+              token.waypoints.push((oldPos + s) % N);
             }
             token.hopProgress = 1.0;
           } else {
@@ -704,7 +711,7 @@ export class PlayerTokenManager {
           if (token.waypoints.length === 0) {
             token.hopTargetPos.copy(token.finalTargetPos);
           } else {
-            token.hopTargetPos.copy(getTilePosition(nextTile, 0, 1));
+            token.hopTargetPos.copy(getTilePosition(nextTile, 0, 1, this.totalTiles));
           }
 
           token.hopProgress = 0.0;

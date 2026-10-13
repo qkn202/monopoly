@@ -451,21 +451,31 @@ export class BoardCards {
     return this.cards.map((c) => c.faceMesh);
   }
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, tiles: TileConfig[] = HOGWARTS_TILES) {
     this.group = new THREE.Group();
     this.group.name = 'BoardCards_Part2';
     scene.add(this.group);
 
-    this.buildCards();
+    this.buildCards(tiles);
   }
 
-  private buildCards(): void {
+  public rebuild(tiles: TileConfig[]): void {
+    while (this.group.children.length > 0) {
+      const child = this.group.children[0];
+      this.group.remove(child);
+    }
+    this.cards = [];
+    this.buildCards(tiles);
+  }
+
+  private buildCards(tiles: TileConfig[] = HOGWARTS_TILES): void {
     const cardThickness = 0.035;
     const baseUrl = import.meta.env.BASE_URL || '/';
+    const totalTiles = tiles.length;
 
-    for (let i = 0; i < 40; i++) {
-      const tile = HOGWARTS_TILES[i];
-      const coord = getCardCoord(i);
+    for (let i = 0; i < totalTiles; i++) {
+      const tile = tiles[i];
+      const coord = getCardCoord(i, totalTiles);
 
       // Card Container Group (positioned at card center, level upright rotZ=0)
       const cardGroup = new THREE.Group();

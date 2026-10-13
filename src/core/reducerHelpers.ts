@@ -9,9 +9,12 @@ import {
   TurnCashflow,
   PlayerFinanceStats,
   PropertyRevenueStat,
+  TileConfig,
 } from './types';
 import { HOGWARTS_TILES } from './boardData';
+import { getBoardTiles } from './boardVariants';
 import { calculateNetWorth } from './rulesEngine';
+import { generateBankruptcyDetails } from './howlerMessages';
 import { g, galleons } from '../hpvn/money';
 
 export function createEvent(
@@ -147,8 +150,9 @@ export function executeCardEffect(
     case 'MOVE': {
       const steps = card.amount || 0;
       const oldPos = p.position;
-      // Use proper modulo: ((oldPos + steps) % 40 + 40) % 40 to handle negative steps
-      const newPos = ((oldPos + steps) % 40 + 40) % 40;
+      const totalTiles = s.boardSize || 40;
+      // Use proper modulo: ((oldPos + steps) % totalTiles + totalTiles) % totalTiles to handle negative steps
+      const newPos = ((oldPos + steps) % totalTiles + totalTiles) % totalTiles;
       // Check if player wrapped around the board (crossed position 0/GO)
       if (newPos < oldPos) {
         // Passed GO
@@ -168,10 +172,11 @@ export function executeCardEffect(
     }
     case 'MOVE_TO': {
       const target = card.targetTileIndex ?? 0;
+      const jailPos = Math.floor((s.boardSize || 40) / 4);
       // Check if player crossed position 0 (GO) to reach target
-      // This happens when: target < oldPos AND not going to jail (position 10)
-      if (target < p.position && target !== 10) {
-        // Passed GO (except when sent to Jail at 10)
+      // This happens when: target < oldPos AND not going to jail
+      if (target < p.position && target !== jailPos) {
+        // Passed GO (except when sent to Jail)
         p.balance += 500;
         s.events = [createEvent(`${p.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', p.id), ...s.events];
         s = recordTransaction(s, {
@@ -187,7 +192,7 @@ export function executeCardEffect(
       break;
     }
     case 'JAIL': {
-      p.position = 10;
+      p.position = Math.floor((s.boardSize || 40) / 4);
       p.inJail = true;
       p.jailTurnsRemaining = 3;
       s.events = [createEvent(`${p.name} bị giải vào Ngục Azkaban!`, 'error', p.id), ...s.events];
@@ -408,9 +413,10 @@ export function resolveDebtOrLiquidate(
   }
 
   // Case 2: Debtor lacks cash on hand. Calculate total maximum funds debtor can raise
+  const activeTiles = state.boardTiles || HOGWARTS_TILES;
   let availableFunds = debtor.balance;
   debtor.properties.forEach((propId) => {
-    const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+    const tile = activeTiles.find((t) => t.id === propId);
     if (!tile) return;
     const houseCount = debtor.houses[propId] || 0;
     const hotelCount = debtor.hotels[propId] || 0;
@@ -427,7 +433,7 @@ export function resolveDebtOrLiquidate(
   if (availableFunds < amount) {
     // True bankruptcy! Cannot raise enough cash even with 100% liquidation!
     return {
-      state: handleBankruptcy(state, debtor, creditorId),
+      state: handleBankruptcy(state, debtor, creditorId, reason, tileId, amount),
       isBankrupt: true,
     };
   }
@@ -457,15 +463,34 @@ export function resolveDebtOrLiquidate(
   };
 }
 
-export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: string): GameState {
+export function handleBankruptcy(
+  state: GameState,
+  debtor: Player,
+  creditorId?: string,
+  reason?: string,
+  tileId?: string,
+  debtAmount?: number
+): GameState {
+  const activeTiles = state.boardTiles || HOGWARTS_TILES;
+  const creditor = creditorId ? state.players.find((p) => p.id === creditorId) : undefined;
+  const tile = tileId ? activeTiles.find((t) => t.id === tileId) : undefined;
+  const bankruptcyDetails = generateBankruptcyDetails(
+    debtor,
+    creditor,
+    debtAmount || debtor.balance || 0,
+    reason || 'Phá sản do cạn kiệt tài sản',
+    tile,
+    state
+  );
+
   // 1. Sell any remaining houses/hotels on debtor's properties to bank at 50% value
   let cashFromBuildings = 0;
   debtor.properties.forEach((propId) => {
-    const tile = HOGWARTS_TILES.find((t) => t.id === propId);
-    if (!tile) return;
+    const t = activeTiles.find((item) => item.id === propId);
+    if (!t) return;
     const houseCount = debtor.houses[propId] || 0;
     const hotelCount = debtor.hotels[propId] || 0;
-    const houseCost = tile.houseCost || 50;
+    const houseCost = t.houseCost || 50;
     cashFromBuildings += houseCount * Math.floor(houseCost / 2);
     cashFromBuildings += hotelCount * Math.floor((houseCost * 5) / 2);
   });
@@ -480,6 +505,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     properties: [],
     houses: {},
     hotels: {},
+    bankruptcyDetails,
   };
 
   let newPropertyOwnership = { ...state.propertyOwnership };
@@ -492,8 +518,8 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
   if (activePlayers.length <= 1) {
     const winner = activePlayers[0] || null;
     if (winner) {
-      debtor.properties.forEach((tileId) => {
-        newPropertyOwnership[tileId] = winner.id;
+      debtor.properties.forEach((propId) => {
+        newPropertyOwnership[propId] = winner.id;
       });
       updatedPlayers = updatedPlayers.map((p) => {
         if (p.id === winner.id) {
@@ -513,6 +539,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
       mortgagedProperties: newMortgages,
       winner,
       turnPhase: 'GAME_OVER',
+      lastBankruptcyDetails: bankruptcyDetails,
       events: [
         createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
         createEvent(
@@ -539,7 +566,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     let propsLiquidationCash = 0;
     const liquidatedNames: string[] = [];
     debtorProps.forEach((propId) => {
-      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+      const tile = activeTiles.find((t) => t.id === propId);
       const price = tile?.price || 100;
       propsLiquidationCash += price;
       liquidatedNames.push(tile?.name || propId);
@@ -593,6 +620,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
       lastRentPayment: null,
       turnSecondsRemaining: state.maxTurnSeconds || 60,
       bankruptcyDraft: null,
+      lastBankruptcyDetails: bankruptcyDetails,
       events: [
         createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
         createEvent(explanationMsg, 'success'),
@@ -639,6 +667,7 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
     propertyOwnership: newPropertyOwnership,
     mortgagedProperties: newMortgages,
     bankruptcyDraft,
+    lastBankruptcyDetails: bankruptcyDetails,
     events: [
       createEvent(`💥 ${debtor.name} đã tuyên bố PHÁ SẢN!`, 'error', debtor.id),
       createEvent(
@@ -654,12 +683,12 @@ export function handleBankruptcy(state: GameState, debtor: Player, creditorId?: 
 /**
  * Returns the property ID with the highest price among available property IDs.
  */
-export function getBestDraftProperty(propertyIds: string[]): string {
+export function getBestDraftProperty(propertyIds: string[], tiles: TileConfig[] = HOGWARTS_TILES): string {
   if (propertyIds.length === 0) return '';
   let bestId = propertyIds[0];
   let bestPrice = -1;
   for (const id of propertyIds) {
-    const tile = HOGWARTS_TILES.find((t) => t.id === id);
+    const tile = tiles.find((t) => t.id === id);
     const price = tile?.price || 0;
     if (price > bestPrice) {
       bestPrice = price;
@@ -682,8 +711,9 @@ export function selectDraftProperty(state: GameState, playerId: string, property
   if (currentDrafterId !== playerId) return state;
   if (!draft.availablePropertyIds.includes(propertyId)) return state;
 
+  const activeTiles = state.boardTiles || HOGWARTS_TILES;
   const drafter = state.players.find((p) => p.id === playerId);
-  const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
+  const tile = activeTiles.find((t) => t.id === propertyId);
   if (!drafter || !tile) return state;
 
   // 1. Assign property to drafter
@@ -744,7 +774,7 @@ export function selectDraftProperty(state: GameState, playerId: string, property
   let remainderCash = 0;
   const remainderNames: string[] = [];
   for (const remId of nextAvailable) {
-    const remTile = HOGWARTS_TILES.find((t) => t.id === remId);
+    const remTile = activeTiles.find((t) => t.id === remId);
     const price = remTile?.price || 100;
     remainderCash += price;
     remainderNames.push(remTile?.name || remId);
@@ -823,6 +853,8 @@ export function selectDraftProperty(state: GameState, playerId: string, property
 /** A game saved before `visitedProperties` existed (solo save, room snapshot) gets an empty list per player. */
 export const withVisitList = (state: GameState): GameState => ({
   ...state,
+  boardSize: state.boardSize || 40,
+  boardTiles: state.boardTiles || getBoardTiles(state.boardSize || 40),
   players: state.players.map((p) => (Array.isArray(p.visitedProperties) ? p : { ...p, visitedProperties: [] })),
   turnFinances: Array.isArray(state.turnFinances) ? state.turnFinances : [],
   playerFinances: state.playerFinances || {},

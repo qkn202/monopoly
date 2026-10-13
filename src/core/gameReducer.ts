@@ -1,13 +1,16 @@
 import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate, TileConfig } from './types';
 import { HOGWARTS_TILES, HOUSE_INFO, CHARMS_CARDS, POTIONS_CARDS } from './boardData';
+import { getBoardTiles } from './boardVariants';
 import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost } from './rulesEngine';
 import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate, selectDraftProperty, getBestDraftProperty, recordTransaction, finalizeTurnFinances } from './reducerHelpers';
 import { getBotAction } from './botAI';
 import { g, galleons } from '../hpvn/money';
 
 export function createInitialState(
-  playerConfigs: Array<{ name: string; house: HouseType; isAI: boolean; id?: string }>
+  playerConfigs: Array<{ name: string; house: HouseType; isAI: boolean; id?: string }>,
+  boardSize: number = 40
 ): GameState {
+  const activeBoardTiles = getBoardTiles(boardSize);
   const players: Player[] = playerConfigs.map((cfg, idx) => {
     const houseData = HOUSE_INFO[cfg.house] || HOUSE_INFO.Gryffindor;
     return {
@@ -78,6 +81,8 @@ export function createInitialState(
       return acc;
     }, {}),
     propertyRevenue: {},
+    boardSize,
+    boardTiles: activeBoardTiles,
   };
 }
 
@@ -88,7 +93,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
   switch (action.type) {
     case 'START_GAME': {
-      return createInitialState(action.players);
+      return createInitialState(action.players, action.boardSize || 40);
     }
 
     case 'TIMER_TICK': {
@@ -207,18 +212,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (currentPlayer.isBankrupt) return advanceTurn(state);
 
-      const d1 = Math.floor(Math.random() * 6) + 1;
-      const d2 = Math.floor(Math.random() * 6) + 1;
+      const d1 = action.forceRoll ? action.forceRoll[0] : Math.floor(Math.random() * 6) + 1;
+      const d2 = action.forceRoll ? action.forceRoll[1] : Math.floor(Math.random() * 6) + 1;
       const total = d1 + d2;
       const isDouble = d1 === d2;
 
       let doublesCount = isDouble ? state.consecutiveDoubles + 1 : 0;
 
       // Check 3 consecutive doubles -> sent to Azkaban
+      const totalTiles = state.boardSize || 40;
+      const jailTilePos = Math.floor(totalTiles / 4);
       if (doublesCount >= 3) {
         const jailedPlayer: Player = {
           ...currentPlayer,
-          position: 10,
+          position: jailTilePos,
           inJail: true,
           jailTurnsRemaining: 3,
         };
@@ -240,10 +247,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (currentPlayer.inJail) {
         if (isDouble) {
           // Check if player passes GO (position 0) when escaping jail
-          // oldPos is always 10 (Jail), newPos = (10 + total) % 40
-          // If newPos < oldPos (10), player passed GO
+          // oldPos is jailTilePos, newPos = (jailTilePos + total) % totalTiles
+          // If newPos < oldPos, player passed GO
           const oldPos = currentPlayer.position;
-          const newPos = (oldPos + total) % 40;
+          const newPos = (oldPos + total) % totalTiles;
           const passedGO = newPos < oldPos;
           const freedPlayer: Player = {
             ...currentPlayer,
@@ -298,9 +305,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               };
             }
             const afterP = debtRes.state.players.find((p) => p.id === currentPlayer.id) || pFreed;
-            // Jail position is 10, check if player passes GO (position 0) when freed
-            const oldPos = afterP.position; // Always 10 (jail)
-            const newPos = (oldPos + total) % 40;
+            // Jail position: check if player passes GO (position 0) when freed
+            const oldPos = afterP.position;
+            const newPos = (oldPos + total) % totalTiles;
             const passedGO = newPos < oldPos;
             const movedPlayer: Player = {
               ...afterP,
@@ -349,7 +356,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Normal movement
       const oldPos = currentPlayer.position;
-      const newPos = (oldPos + total) % 40;
+      const newPos = (oldPos + total) % totalTiles;
       let balance = currentPlayer.balance;
       let passGoEvent: GameEvent | null = null;
 
@@ -384,7 +391,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'BUY_PROPERTY': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       const currentPlayer = state.players[state.currentPlayerIndex];
       if (!tile || !tile.price || currentPlayer.balance < tile.price) return state;
 
@@ -444,27 +452,41 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Trigger MANDATORY AUTO-AUCTION for unowned property
       const currentPlayer = state.players[state.currentPlayerIndex];
-      const tile = HOGWARTS_TILES[currentPlayer.position];
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles[currentPlayer.position];
       if (!tile || state.propertyOwnership[tile.id]) return state;
 
-      const activeBidders = state.players.filter((p) => !p.isBankrupt).map((p) => p.id);
+      const nonBankrupt = state.players.filter((p) => !p.isBankrupt);
+      const starterIdx = nonBankrupt.findIndex((p) => p.id === currentPlayer.id);
+      const orderedPlayers = starterIdx >= 0
+        ? [...nonBankrupt.slice(starterIdx), ...nonBankrupt.slice(0, starterIdx)]
+        : nonBankrupt;
+      const activeBidders = orderedPlayers.map((p) => p.id);
+      const startingBid = Math.max(25, Math.floor((tile.price || 100) * 0.1)); // Minimum 10% of property price or 25G
 
       const auction: AuctionState = {
         active: true,
         propertyId: tile.id,
-        currentBid: Math.max(25, Math.floor((tile.price || 100) * 0.1)), // Minimum 10% of property price or 25G
+        currentBid: startingBid,
+        startingBid,
+        starterId: currentPlayer.id,
+        starterFolded: false,
         highBidderId: null,
         activeBidders,
         currentBidderIndex: 0,
-        timerSeconds: state.turboMode ? 4 : 6,
+        timerSeconds: state.turboMode ? 4 : 7,
       };
+
+      if (activeBidders.length <= 1) {
+        return concludeAuction({ ...state, auction }, currentPlayer.id);
+      }
 
       return {
         ...state,
         auction,
         turnPhase: 'AUCTION',
         events: [
-          createEvent(`📢 ${currentPlayer.name} bỏ qua "${tile.name}", bắt đầu đấu giá.`, 'warning'),
+          createEvent(`📢 ${currentPlayer.name} bỏ qua "${tile.name}", bắt đầu đấu giá (khởi điểm ${galleons(startingBid)}).`, 'warning'),
           ...state.events,
         ],
       };
@@ -475,7 +497,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const candidate = state.takeoverCandidate;
       if (!candidate || candidate.propertyId !== action.propertyId) return state;
 
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       const previousOwner = state.players.find((p) => p.id === candidate.ownerId);
       if (!tile || !previousOwner || currentPlayer.balance < candidate.cost) return state;
 
@@ -607,10 +630,44 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           currentBid: action.amount,
           highBidderId: action.playerId,
           currentBidderIndex: nextIndex,
-          timerSeconds: state.turboMode ? 4 : 5,
+          timerSeconds: state.turboMode ? 4 : 7,
         },
         events: [
           createEvent(`💰 ${bidder.name} nâng giá lên ${galleons(action.amount)}!`, 'info', bidder.id),
+          ...state.events,
+        ],
+      };
+    }
+
+    case 'PASS_BID_TURN': {
+      if (!state.auction || !state.auction.active) return state;
+      const currentBidderId = state.auction.activeBidders[state.auction.currentBidderIndex];
+      if (action.playerId !== currentBidderId) return state;
+
+      const player = state.players.find((p) => p.id === action.playerId);
+      const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
+      const starterFolded = state.auction.starterFolded ?? false;
+
+      // If only 1 bidder left (e.g. only starter remaining) and no high bidder:
+      if (state.auction.activeBidders.length <= 1) {
+        let winnerId = state.auction.highBidderId || null;
+        if (!winnerId && !starterFolded && state.auction.activeBidders.includes(starterId)) {
+          winnerId = starterId;
+        }
+        return concludeAuction(state, winnerId);
+      }
+
+      const nextIndex = (state.auction.currentBidderIndex + 1) % state.auction.activeBidders.length;
+
+      return {
+        ...state,
+        auction: {
+          ...state.auction,
+          currentBidderIndex: nextIndex,
+          timerSeconds: state.turboMode ? 4 : 7,
+        },
+        events: [
+          createEvent(`⏭️ ${player?.name || 'Người chơi'} nhường lượt ra giá cho người tiếp theo.`, 'info'),
           ...state.events,
         ],
       };
@@ -623,6 +680,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const folder = state.players.find((p) => p.id === action.playerId);
       const foldedIndex = state.auction.currentBidderIndex;
+      const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
+      const isStarterFolding = action.playerId === starterId;
+      const starterFolded = (state.auction.starterFolded ?? false) || isStarterFolding;
 
       // Build new bidders array, preserving order
       const remainingBidders: string[] = [];
@@ -634,7 +694,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // If 1 or 0 bidders left, auction concludes
       if (remainingBidders.length <= 1) {
-        const winnerId = state.auction.highBidderId || null;
+        let winnerId = state.auction.highBidderId || null;
+        if (!winnerId && !starterFolded && remainingBidders.includes(starterId)) {
+          winnerId = starterId;
+        }
         return concludeAuction(state, winnerId);
       }
 
@@ -649,9 +712,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         auction: {
           ...state.auction,
+          starterFolded,
           activeBidders: remainingBidders,
           currentBidderIndex: nextIndex,
-          timerSeconds: state.turboMode ? 4 : 5,
+          timerSeconds: state.turboMode ? 4 : 7,
         },
         events: [
           createEvent(`👋 ${folder?.name || 'Người chơi'} đã rút lui khỏi cuộc đấu giá.`, 'info'),
@@ -666,10 +730,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (nextTimer <= 0) {
         const currentBidderId = state.auction.activeBidders[state.auction.currentBidderIndex];
         const currentBidder = state.players.find((p) => p.id === currentBidderId);
+        const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
+        const starterFolded = state.auction.starterFolded ?? false;
 
-        // If current bidder didn't bid, auto-fold and move to next bidder
+        // If someone has bid before - current bidder times out, auto-fold
         if (state.auction.highBidderId) {
-          // Someone has bid before - current bidder times out, auto-fold
+          const isStarter = currentBidderId === starterId;
+          const nextStarterFolded = starterFolded || isStarter;
           const remainingBidders = state.auction.activeBidders.filter((id) => id !== currentBidderId);
 
           if (remainingBidders.length <= 1) {
@@ -688,9 +755,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             ...state,
             auction: {
               ...state.auction,
+              starterFolded: nextStarterFolded,
               activeBidders: remainingBidders,
               currentBidderIndex: nextIndex,
-              timerSeconds: state.turboMode ? 4 : 5,
+              timerSeconds: state.turboMode ? 4 : 7,
             },
             events: [
               createEvent(`⏰ ${currentBidder?.name || 'Người chơi'} hết giờ và tự động rút lui.`, 'info'),
@@ -698,34 +766,64 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             ],
           };
         } else {
-          // No one has bid yet - this is first bidder timing out
-          const remainingBidders = state.auction.activeBidders.filter((id) => id !== currentBidderId);
+          // No one has bid yet (highBidderId === null)
+          // SPECIAL RULE: The auction starter MUST explicitly click "Rút lui" (FOLD_AUCTION) to fold.
+          // Timing out does NOT fold the starter!
+          if (currentBidderId === starterId) {
+            if (state.auction.activeBidders.length <= 1) {
+              return concludeAuction(state, !starterFolded ? starterId : null);
+            }
 
-          if (remainingBidders.length === 0) {
-            // No bidders left at all
-            return concludeAuction(state, null);
+            // Move to next bidder without removing the starter from activeBidders
+            const nextIndex = (state.auction.currentBidderIndex + 1) % state.auction.activeBidders.length;
+
+            return {
+              ...state,
+              auction: {
+                ...state.auction,
+                currentBidderIndex: nextIndex,
+                timerSeconds: state.turboMode ? 4 : 7,
+              },
+              events: [
+                createEvent(`⏰ Hết giờ lượt đầu của ${currentBidder?.name || 'người bắt đầu'}, chuyển lượt cho người tiếp theo.`, 'info'),
+                ...state.events,
+              ],
+            };
+          } else {
+            // Subsequent bidder timed out without bidding -> auto-folds!
+            const remainingBidders = state.auction.activeBidders.filter((id) => id !== currentBidderId);
+
+            if (remainingBidders.length <= 1) {
+              let winnerId: string | null = null;
+              if (!starterFolded && remainingBidders.includes(starterId)) {
+                winnerId = starterId;
+              } else if (remainingBidders.length === 1 && state.auction.highBidderId) {
+                winnerId = remainingBidders[0];
+              }
+              return concludeAuction(state, winnerId);
+            }
+
+            // Move to next bidder (auction continues)
+            const foldedIndex = state.auction.currentBidderIndex;
+            let nextIndex = foldedIndex;
+            if (nextIndex >= remainingBidders.length) {
+              nextIndex = 0;
+            }
+
+            return {
+              ...state,
+              auction: {
+                ...state.auction,
+                activeBidders: remainingBidders,
+                currentBidderIndex: nextIndex,
+                timerSeconds: state.turboMode ? 4 : 7,
+              },
+              events: [
+                createEvent(`⏰ ${currentBidder?.name || 'Người chơi'} hết giờ và tự động rút lui.`, 'info'),
+                ...state.events,
+              ],
+            };
           }
-
-          // Move to next bidder (auction continues)
-          const foldedIndex = state.auction.currentBidderIndex;
-          let nextIndex = foldedIndex;
-          if (nextIndex >= remainingBidders.length) {
-            nextIndex = 0;
-          }
-
-          return {
-            ...state,
-            auction: {
-              ...state.auction,
-              activeBidders: remainingBidders,
-              currentBidderIndex: nextIndex,
-              timerSeconds: state.turboMode ? 4 : 5,
-            },
-            events: [
-              createEvent(`⏰ ${currentBidder?.name || 'Người chơi'} hết giờ và tự động rút lui.`, 'info'),
-              ...state.events,
-            ],
-          };
         }
       }
       return {
@@ -735,7 +833,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'BUILD_HOUSE': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       const player = actingOwner(state, tile, action.playerId);
       if (!tile || !tile.houseCost || !player) return state;
 
@@ -775,7 +874,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'BUILD_HOTEL': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       const player = actingOwner(state, tile, action.playerId);
       if (!tile || !tile.houseCost || !player) return state;
 
@@ -815,7 +915,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'SELL_HOUSE': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       if (!tile || !tile.houseCost) return state;
       const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
@@ -882,7 +983,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'MORTGAGE_PROPERTY': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       if (!tile || !tile.mortgageValue || state.mortgagedProperties[tile.id]) return state;
 
       const player = actingOwner(state, tile, action.playerId);
@@ -890,7 +992,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Check if any property in color group has houses or hotels
       if (tile.colorGroup) {
-        const groupTiles = HOGWARTS_TILES.filter((t) => t.colorGroup === tile.colorGroup);
+        const groupTiles = activeTiles.filter((t) => t.colorGroup === tile.colorGroup);
         const hasBuildings = groupTiles.some(
           (t) => (player.houses[t.id] || 0) > 0 || (player.hotels[t.id] || 0) > 0
         );
@@ -924,7 +1026,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'UNMORTGAGE_PROPERTY': {
-      const tile = HOGWARTS_TILES.find((t) => t.id === action.propertyId);
+      const activeTiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === action.propertyId);
       if (!tile || !tile.mortgageValue || !state.mortgagedProperties[tile.id]) return state;
 
       const player = actingOwner(state, tile, action.playerId);
@@ -995,7 +1098,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const total = d1 + d2;
       const isDouble = d1 === d2;
 
-      const newPos = (updatedPlayer.position + total) % 40;
+      const newPos = (updatedPlayer.position + total) % (state.boardSize || 40);
       const freedPlayer: Player = {
         ...updatedPlayer,
         position: newPos,
@@ -1047,7 +1150,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const total = d1 + d2;
       const isDouble = d1 === d2;
 
-      const newPos = (updatedPlayer.position + total) % 40;
+      const newPos = (updatedPlayer.position + total) % (state.boardSize || 40);
       const freedPlayer: Player = {
         ...updatedPlayer,
         position: newPos,
@@ -1080,12 +1183,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.turnPhase !== 'BANKRUPTCY' || !state.bankruptcyInfo) {
         return state;
       }
-      const { debtorId, creditorId } = state.bankruptcyInfo;
+      const { debtorId, creditorId, amount, reason } = state.bankruptcyInfo;
       const debtor = state.players.find((p) => p.id === debtorId);
       if (!debtor) return state;
 
       // Process the bankruptcy - transfer to creditor or bank
-      const result = handleBankruptcy(state, debtor, creditorId);
+      const result = handleBankruptcy(state, debtor, creditorId, reason, undefined, amount);
       return {
         ...result,
         bankruptcyInfo: null,
@@ -1196,7 +1299,8 @@ function actingOwner(state: GameState, tile: TileConfig | undefined, playerId?: 
 }
 
 function resolveLanding(state: GameState, player: Player, diceTotal: number): GameState {
-  const tile = HOGWARTS_TILES[player.position];
+  const activeTiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = activeTiles[player.position];
   if (!tile) return { ...state, turnPhase: 'END_TURN' };
 
   switch (tile.type) {
@@ -1254,9 +1358,10 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
     }
 
     case 'GO_TO_JAIL': {
+      const jailPos = Math.floor((state.boardSize || 40) / 4);
       const jailedPlayer: Player = {
         ...player,
-        position: 10,
+        position: jailPos,
         inJail: true,
         jailTurnsRemaining: 3,
       };
@@ -1472,7 +1577,8 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
 
 function concludeAuction(state: GameState, winnerId: string | null): GameState {
   if (!state.auction) return { ...state, turnPhase: 'END_TURN' };
-  const tile = HOGWARTS_TILES.find((t) => t.id === state.auction!.propertyId);
+  const activeTiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = activeTiles.find((t) => t.id === state.auction!.propertyId);
   if (!tile) return { ...state, auction: null, turnPhase: 'END_TURN' };
 
   if (!winnerId) {
@@ -1489,7 +1595,18 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
 
   const winner = state.players.find((p) => p.id === winnerId);
   if (!winner || winner.balance < state.auction.currentBid) {
-    return { ...state, auction: null, turnPhase: 'END_TURN' };
+    const reasonMsg = winner && winner.balance < state.auction.currentBid
+      ? `❌ ${winner.name} không đủ ${galleons(state.auction.currentBid)} để thanh toán. "${tile.name}" vẫn thuộc về ngân hàng.`
+      : `🔨 Không ai trả giá cho "${tile.name}". Ô đất vẫn thuộc về ngân hàng.`;
+    return {
+      ...state,
+      auction: null,
+      turnPhase: 'END_TURN',
+      events: [
+        createEvent(reasonMsg, 'warning'),
+        ...state.events,
+      ],
+    };
   }
 
   const cost = state.auction.currentBid;
@@ -1500,6 +1617,12 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
     properties: [...winner.properties, tile.id],
   };
 
+  const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
+  const isStarterDefaultWin = !state.auction.highBidderId && winner.id === starterId;
+  const winMessage = isStarterDefaultWin
+    ? `🏛️ Không ai tham gia đấu giá! "${tile.name}" thuộc về ${winner.name} với giá khởi điểm ${galleons(cost)}.`
+    : `🎉 ${winner.name} sở hữu "${tile.name}" với giá ${galleons(cost)}!`;
+
   let nextAuctionWinState = refreshAllNetWorth({
     ...state,
     players: state.players.map((p) => (p.id === winner.id ? updatedWinner : p)),
@@ -1507,7 +1630,7 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
     auction: null,
     turnPhase: 'END_TURN',
     events: [
-      createEvent(`🎉 ${winner.name} sở hữu "${tile.name}" với giá ${galleons(cost)}!`, 'success', winner.id),
+      createEvent(winMessage, 'success', winner.id),
       ...state.events,
     ],
   });
@@ -1517,7 +1640,7 @@ function concludeAuction(state: GameState, winnerId: string | null): GameState {
     amount: cost,
     type: 'EXPENSE',
     category: 'AUCTION',
-    description: `Thắng đấu giá "${tile.name}"`,
+    description: isStarterDefaultWin ? `Mua "${tile.name}" theo giá khởi điểm đấu giá` : `Thắng đấu giá "${tile.name}"`,
     tileId: tile.id,
   });
 }

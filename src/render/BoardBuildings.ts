@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { LOW_POWER } from './quality';
-import { Player } from '../core/types';
+import { Player, TileConfig } from '../core/types';
 import { HOGWARTS_TILES } from '../core/boardData';
 import { getCardBuildingBasePos } from './BoardCoordinates';
 
@@ -21,8 +21,8 @@ interface AnimatedFlag {
 /**
  * Calculates position for cottages/castles/flags on the inner edge of a deed card.
  */
-function getTileBuildingBasePos(tileIndex: number): { x: number; y: number; rotZ: number } {
-  return getCardBuildingBasePos(tileIndex);
+function getTileBuildingBasePos(tileIndex: number, totalTiles: number = 40): { x: number; y: number; rotZ: number } {
+  return getCardBuildingBasePos(tileIndex, totalTiles);
 }
 
 /**
@@ -192,7 +192,8 @@ export class BoardBuildingManager {
   public syncBuildings(
     players: Player[],
     propertyOwnership: Record<string, string>,
-    mortgagedProperties: Record<string, boolean> = {}
+    mortgagedProperties: Record<string, boolean> = {},
+    tiles: TileConfig[] = HOGWARTS_TILES
   ): void {
     // Clear all existing meshes and registered animations
     while (this.container.children.length > 0) {
@@ -202,9 +203,10 @@ export class BoardBuildingManager {
     this.animatedOrbs = [];
     this.animatedFlags = [];
 
-    // Scan all 40 tiles
-    for (let i = 0; i < 40; i++) {
-      const tile = HOGWARTS_TILES[i];
+    // Scan all tiles on active board
+    const totalTiles = tiles.length;
+    for (let i = 0; i < totalTiles; i++) {
+      const tile = tiles[i];
       if (!tile || (tile.type !== 'PROPERTY' && tile.type !== 'STATION' && tile.type !== 'UTILITY')) {
         continue;
       }
@@ -218,7 +220,7 @@ export class BoardBuildingManager {
       const isMortgaged = !!mortgagedProperties[tile.id];
       const houseCount = owner.houses[tile.id] || 0;
       const hasHotel = (owner.hotels[tile.id] || 0) > 0;
-      const basePos = getTileBuildingBasePos(tile.index);
+      const basePos = getTileBuildingBasePos(tile.index, totalTiles);
       const cardSurfaceZ = 0.045; // Exactly flush on top of card face
 
       if (hasHotel) {

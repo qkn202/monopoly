@@ -174,8 +174,9 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     centerPoint.position.set(0, 0, 1.8);
     scene.add(centerPoint);
 
-    // 6. PHẦN 2: Hệ Thống 40 Lá Bài Đất Độc Lập
-    const cards = new BoardCards(scene);
+    // 6. PHẦN 2: Hệ Thống Các Lá Bài Đất Độc Lập
+    const initialTiles = gameState.boardTiles || HOGWARTS_TILES;
+    const cards = new BoardCards(scene, initialTiles);
     cardMeshesRef.current = cards;
     setLoading(false);
 
@@ -216,7 +217,8 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
             return hitObj.userData.tileConfig as TileConfig;
           }
           if (typeof hitObj.userData?.tileIndex === 'number') {
-            return HOGWARTS_TILES[hitObj.userData.tileIndex] || null;
+            const currentTiles = gameStateRef.current.boardTiles || HOGWARTS_TILES;
+            return currentTiles[hitObj.userData.tileIndex] || null;
           }
         }
       }
@@ -459,8 +461,21 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
   }, []);
 
   // Sync token, card aura, ownership & building positions whenever players or propertyOwnership change
+  const currentBoardSizeRef = useRef<number>(gameState.boardSize || 40);
   useEffect(() => {
-    tokenManagerRef.current?.syncPlayers(gameState.players);
+    const newSize = gameState.boardSize || 40;
+    if (newSize !== currentBoardSizeRef.current && cardMeshesRef.current) {
+      currentBoardSizeRef.current = newSize;
+      const tiles = gameState.boardTiles || HOGWARTS_TILES;
+      cardMeshesRef.current.rebuild(tiles);
+    }
+  }, [gameState.boardSize, gameState.boardTiles]);
+
+  useEffect(() => {
+    const activeTiles = gameState.boardTiles || HOGWARTS_TILES;
+    const activeBoardSize = gameState.boardSize || 40;
+
+    tokenManagerRef.current?.syncPlayers(gameState.players, activeBoardSize);
 
     // Update current player highlight (new HUD feature)
     const curPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -469,7 +484,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       cardMeshesRef.current?.setActivePlayerTileIndex(curPlayer.position);
     }
 
-    buildingManagerRef.current?.syncBuildings(gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties);
+    buildingManagerRef.current?.syncBuildings(gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, activeTiles);
 
     // Sync card ownership visual representation on 3D deed cards (canvas textures + neon border glow + mortgaged banner)
     cardMeshesRef.current?.syncOwnership(gameState.propertyOwnership, gameState.players, gameState.mortgagedProperties);
@@ -480,7 +495,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
 
     for (const [tileId, ownerId] of Object.entries(currentOwnership)) {
       if (prevOwnership[tileId] !== ownerId) {
-        const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+        const tile = activeTiles.find((t) => t.id === tileId);
         const owner = gameState.players.find((p) => p.id === ownerId);
         const prevOwnerId = prevOwnership[tileId];
         const prevOwner = prevOwnerId ? gameState.players.find((p) => p.id === prevOwnerId) : null;
@@ -488,7 +503,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           const isTakeover = !!prevOwner && prevOwner.id !== owner.id && !prevOwner.isBankrupt;
 
           // 1. Magical spell burst directly over the purchased card!
-          const coord = getCardCoord(tile.index);
+          const coord = getCardCoord(tile.index, activeBoardSize);
           particlesRef.current?.spawnBurst(new THREE.Vector3(coord.x, coord.y, 0.25), owner.color, 90);
           if (isTakeover) {
             setTimeout(() => {
@@ -529,10 +544,10 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           for (const [tileId, hotelVal] of Object.entries(player.hotels)) {
             const prevHotelVal = prev.hotels[tileId] || 0;
             if (hotelVal > prevHotelVal) {
-              const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+              const tile = activeTiles.find((t) => t.id === tileId);
               if (tile) {
                 soundManager.playBuyProperty();
-                const tilePos = getTilePosition(tile.index);
+                const tilePos = getTilePosition(tile.index, 0, 1, activeBoardSize);
                 particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.35), player.color, 90);
                 setUpgradeNotice({
                   id: Date.now() + Math.random(),
@@ -550,10 +565,10 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
           for (const [tileId, houseVal] of Object.entries(player.houses)) {
             const prevHouseVal = prev.houses[tileId] || 0;
             if (houseVal > prevHouseVal) {
-              const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+              const tile = activeTiles.find((t) => t.id === tileId);
               if (tile) {
                 soundManager.playBuyProperty();
-                const tilePos = getTilePosition(tile.index);
+                const tilePos = getTilePosition(tile.index, 0, 1, activeBoardSize);
                 particlesRef.current?.spawnBurst(new THREE.Vector3(tilePos.x, tilePos.y, 0.3), player.color, 85);
                 setUpgradeNotice({
                   id: Date.now() + Math.random(),
@@ -576,7 +591,7 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       }
       prevBuildingsRef.current = nextSnapshot;
     }
-  }, [gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, gameState.currentPlayerIndex]);
+  }, [gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, gameState.currentPlayerIndex, gameState.boardSize, gameState.boardTiles]);
 
   // Auto-dismiss upgrade announcement banner (snappy timing)
   useEffect(() => {
@@ -605,14 +620,15 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
       const payment = gameState.lastRentPayment;
       const debtor = gameState.players.find((p) => p.id === payment.debtorId);
       const creditor = payment.creditorId ? gameState.players.find((p) => p.id === payment.creditorId) || null : null;
-      const tile = HOGWARTS_TILES.find((t) => t.id === payment.tileId);
+      const activeTiles = gameState.boardTiles || HOGWARTS_TILES;
+      const tile = activeTiles.find((t) => t.id === payment.tileId);
 
       if (debtor && tile) {
         // 1. Play synthesized payment chime
         soundManager.playPayRent();
 
         // 2. Spawn gold/crimson coin burst particles over the tile
-        const tilePos = getTilePosition(tile.index);
+        const tilePos = getTilePosition(tile.index, 0, 1, gameState.boardSize || 40);
         particlesRef.current?.spawnBurst(
           new THREE.Vector3(tilePos.x, tilePos.y, 0.35),
           payment.isTax ? '#a855f7' : '#f3d189',

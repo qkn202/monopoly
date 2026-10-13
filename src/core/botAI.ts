@@ -18,8 +18,9 @@ export function chooseBotDraftProperty(
   let bestId = availablePropertyIds[0];
   let bestScore = -1;
 
+  const tiles = state.boardTiles || HOGWARTS_TILES;
   for (const propId of availablePropertyIds) {
-    const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+    const tile = tiles.find((t) => t.id === propId);
     if (!tile) continue;
 
     let score = tile.price || 100;
@@ -31,7 +32,7 @@ export function chooseBotDraftProperty(
         score += 1000; // Top priority: complete monopoly set!
       } else {
         const sameGroupOwned = bot.properties.filter((id) => {
-          const t = HOGWARTS_TILES.find((x) => x.id === id);
+          const t = tiles.find((x) => x.id === id);
           return t?.colorGroup === tile.colorGroup;
         }).length;
         score += sameGroupOwned * 200;
@@ -130,15 +131,21 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
     }
 
     if (currentBidderId === bot.id) {
-      const tile = HOGWARTS_TILES.find((t) => t.id === auctionTile);
+      const tiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = tiles.find((t) => t.id === auctionTile);
       const facePrice = tile?.price || 100;
       const completesSet = tile?.colorGroup ? ownsFullColorSet(bot, tile.colorGroup, state) : false;
 
       const maxValuation = completesSet ? Math.floor(facePrice * 1.4) : Math.floor(facePrice * 0.95);
       const nextMinBid = state.auction.currentBid + 25;
+      const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
+      const isStarter = bot.id === starterId;
 
       if (nextMinBid <= maxValuation && bot.balance >= nextMinBid + 200) {
         return { type: 'PLACE_BID', playerId: bot.id, amount: nextMinBid };
+      } else if (isStarter && !state.auction.highBidderId) {
+        // Starter bot retains option to win at starting bid if no one else bids
+        return { type: 'PASS_BID_TURN', playerId: bot.id };
       } else {
         return { type: 'FOLD_AUCTION', playerId: bot.id };
       }
@@ -170,7 +177,8 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
     // 4a. Hostile Takeover opportunity on another player's property
     if (state.takeoverCandidate) {
       const candidate = state.takeoverCandidate;
-      const tile = HOGWARTS_TILES.find((t) => t.id === candidate.propertyId);
+      const tiles = state.boardTiles || HOGWARTS_TILES;
+      const tile = tiles.find((t) => t.id === candidate.propertyId);
       if (tile && bot.balance >= candidate.cost) {
         const completesSet = tile.colorGroup
           ? ownsFullColorSet(
@@ -212,7 +220,8 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
     }
 
     // 4c. Unowned property purchase
-    const tile = HOGWARTS_TILES[bot.position];
+    const tiles = state.boardTiles || HOGWARTS_TILES;
+    const tile = tiles[bot.position];
     if (tile && tile.price && !state.propertyOwnership[tile.id]) {
       // Reserve at least 180G for safety
       if (bot.balance >= tile.price + 180) {
@@ -229,9 +238,10 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
   if (state.turnPhase === 'END_TURN') {
 
     // Unmortgage check if bot has plenty of funds
+    const tiles = state.boardTiles || HOGWARTS_TILES;
     for (const propId of bot.properties) {
       if (state.mortgagedProperties[propId]) {
-        const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+        const tile = tiles.find((t) => t.id === propId);
         if (tile && tile.mortgageValue) {
           const cost = Math.floor(tile.mortgageValue * 1.1);
           if (bot.balance >= cost + 600) {

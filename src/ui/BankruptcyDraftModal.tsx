@@ -1,5 +1,4 @@
-import React from 'react';
-import { BankruptcyDraft, Player } from '../core/types';
+import { BankruptcyDraft, Player, TileConfig } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES, HOUSE_INFO } from '../core/boardData';
 import { galleons } from '../hpvn/money';
 import './BankruptcyDraftModal.css';
@@ -8,6 +7,7 @@ interface BankruptcyDraftModalProps {
   draft: BankruptcyDraft;
   players: Player[];
   myPlayerId?: string | null;
+  boardTiles?: TileConfig[];
   onSelectProperty: (propertyId: string) => void;
 }
 
@@ -15,6 +15,7 @@ export const BankruptcyDraftModal: React.FC<BankruptcyDraftModalProps> = ({
   draft,
   players,
   myPlayerId,
+  boardTiles,
   onSelectProperty,
 }) => {
   const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
@@ -113,7 +114,7 @@ export const BankruptcyDraftModal: React.FC<BankruptcyDraftModalProps> = ({
         <div className="draft-grid-container">
           <div className="draft-properties-grid">
             {draft.availablePropertyIds.map((propId) => {
-              const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+              const tile = (boardTiles || HOGWARTS_TILES).find((t) => t.id === propId);
               if (!tile) return null;
 
               const style = tile.colorGroup ? COLOR_GROUP_STYLES[tile.colorGroup] : null;

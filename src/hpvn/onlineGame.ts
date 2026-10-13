@@ -14,7 +14,7 @@ const BOTS: { name: string; house: HouseType }[] = [
 export const MAX_SEATS = 8;
 
 /** Seats in server order (player id = HPVN uid); each takes its HPVN house when free, then bots fill up to `bots`. */
-export function seatPlayers(members: RoomMember[], playerUids: string[], bots: number): GameState {
+export function seatPlayers(members: RoomMember[], playerUids: string[], bots: number, boardSize: number = 40): GameState {
   const taken = new Set<HouseType>();
   const pick = (wanted?: HouseType) => {
     const house = wanted && !taken.has(wanted) ? wanted : HOUSES.find((h) => !taken.has(h)) ?? 'Gryffindor';
@@ -29,7 +29,7 @@ export function seatPlayers(members: RoomMember[], playerUids: string[], bots: n
   const botSeats = BOTS.filter((b) => !humans.some((h) => h.name === b.name))
     .slice(0, Math.max(0, Math.min(bots, MAX_SEATS - humans.length)))
     .map((b, i) => ({ id: `bot-${i}`, name: b.name, house: pick(b.house), isAI: true }));
-  return createInitialState([...humans, ...botSeats]);
+  return createInitialState([...humans, ...botSeats], boardSize);
 }
 
 /** What travels through the room ring: the room epoch (a new game ignores old snapshots) and the state. */

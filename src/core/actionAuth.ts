@@ -34,10 +34,10 @@ export function authorizeAction(state: GameState, input: unknown, playerId: stri
   if (type === 'DECLARE_BANKRUPTCY') {
     return state.turnPhase === 'BANKRUPTCY' && state.bankruptcyInfo?.debtorId === playerId ? { type } : null;
   }
-  if (type === 'PLACE_BID' || type === 'FOLD_AUCTION') {
+  if (type === 'PLACE_BID' || type === 'FOLD_AUCTION' || type === 'PASS_BID_TURN') {
     const auction = state.auction;
     if (!auction?.active || auction.activeBidders[auction.currentBidderIndex] !== playerId) return null;
-    if (type === 'FOLD_AUCTION') return { type, playerId };
+    if (type === 'FOLD_AUCTION' || type === 'PASS_BID_TURN') return { type, playerId };
     const amount = action.amount;
     return typeof amount === 'number' && Number.isSafeInteger(amount) && amount > auction.currentBid ? { type, playerId, amount } : null;
   }

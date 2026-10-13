@@ -27,77 +27,87 @@ export const SLOT_WIDTH = 0.88; // Exactly equal to CARD_SHORT (7.92 / 9 = 0.88)
 
 /**
  * Returns the exact card transformation on the 3D board.
+ * Works seamlessly for 20-tile, 28-tile, and 40-tile square boards.
  * All cards sit flush edge-to-edge with zero gaps (sát cạnh nhau, không lộ khoảng cách đen).
  */
-export function getCardCoord(index: number): CardCoord {
-  const idx = ((index % 40) + 40) % 40;
-  const isCorner = idx === 0 || idx === 10 || idx === 20 || idx === 30;
+export function getCardCoord(index: number, totalTiles: number = 40): CardCoord {
+  const N = totalTiles || 40;
+  const idx = ((index % N) + N) % N;
+  const S = (N - 4) / 4; // Intermediate slots per side: 4 for 20-tile, 6 for 28-tile, 9 for 40-tile
+  const slotWidth = TRACK_SPAN / S; // Exactly fills the track span without gap
+
+  const c0 = 0;
+  const c1 = 1 + S;
+  const c2 = 2 * (1 + S);
+  const c3 = 3 * (1 + S);
+
+  const isCorner = idx === c0 || idx === c1 || idx === c2 || idx === c3;
   const z = 0.025;
 
   let x = 0;
   let y = 0;
-  let width = CARD_SHORT;
+  let width = slotWidth;
   let height = CARD_LONG;
   let orientation: CardOrientation = 'VERTICAL';
 
-  if (idx === 0) {
+  if (idx === c0) {
     // Corner 0: Platform 9 3/4 (Bottom Right)
     x = CORNER_CENTER;
     y = -CORNER_CENTER;
     width = CORNER_SIZE;
     height = CORNER_SIZE;
     orientation = 'CORNER';
-  } else if (idx < 10) {
-    // South side: right to left (1..9) - Vertical Cards touching flush
-    x = INNER_CORNER_EDGE - (idx - 0.5) * SLOT_WIDTH;
+  } else if (idx < c1) {
+    // South side: right to left (1..S) - Vertical Cards touching flush
+    x = INNER_CORNER_EDGE - (idx - 0.5) * slotWidth;
     y = -CORNER_CENTER;
-    width = CARD_SHORT;
+    width = slotWidth;
     height = CARD_LONG;
     orientation = 'VERTICAL';
-  } else if (idx === 10) {
-    // Corner 10: Azkaban (Bottom Left)
+  } else if (idx === c1) {
+    // Corner 1: Azkaban (Bottom Left)
     x = -CORNER_CENTER;
     y = -CORNER_CENTER;
     width = CORNER_SIZE;
     height = CORNER_SIZE;
     orientation = 'CORNER';
-  } else if (idx < 20) {
-    // West side: bottom to top (11..19) - Horizontal Cards touching flush
-    const k = idx - 10;
+  } else if (idx < c2) {
+    // West side: bottom to top (c1+1..c2-1) - Horizontal Cards touching flush
+    const k = idx - c1;
     x = -CORNER_CENTER;
-    y = -INNER_CORNER_EDGE + (k - 0.5) * SLOT_WIDTH;
+    y = -INNER_CORNER_EDGE + (k - 0.5) * slotWidth;
     width = CARD_LONG;
-    height = CARD_SHORT;
+    height = slotWidth;
     orientation = 'HORIZONTAL';
-  } else if (idx === 20) {
-    // Corner 20: Room of Requirement (Top Left)
+  } else if (idx === c2) {
+    // Corner 2: Room of Requirement (Top Left)
     x = -CORNER_CENTER;
     y = CORNER_CENTER;
     width = CORNER_SIZE;
     height = CORNER_SIZE;
     orientation = 'CORNER';
-  } else if (idx < 30) {
-    // North side: left to right (21..29) - Vertical Cards touching flush
-    const k = idx - 20;
-    x = -INNER_CORNER_EDGE + (k - 0.5) * SLOT_WIDTH;
+  } else if (idx < c3) {
+    // North side: left to right (c2+1..c3-1) - Vertical Cards touching flush
+    const k = idx - c2;
+    x = -INNER_CORNER_EDGE + (k - 0.5) * slotWidth;
     y = CORNER_CENTER;
-    width = CARD_SHORT;
+    width = slotWidth;
     height = CARD_LONG;
     orientation = 'VERTICAL';
-  } else if (idx === 30) {
-    // Corner 30: Go to Azkaban (Top Right)
+  } else if (idx === c3) {
+    // Corner 3: Go to Azkaban (Top Right)
     x = CORNER_CENTER;
     y = CORNER_CENTER;
     width = CORNER_SIZE;
     height = CORNER_SIZE;
     orientation = 'CORNER';
   } else {
-    // East side: top to bottom (31..39) - Horizontal Cards touching flush
-    const k = idx - 30;
+    // East side: top to bottom (c3+1..N-1) - Horizontal Cards touching flush
+    const k = idx - c3;
     x = CORNER_CENTER;
-    y = INNER_CORNER_EDGE - (k - 0.5) * SLOT_WIDTH;
+    y = INNER_CORNER_EDGE - (k - 0.5) * slotWidth;
     width = CARD_LONG;
-    height = CARD_SHORT;
+    height = slotWidth;
     orientation = 'HORIZONTAL';
   }
 
@@ -117,8 +127,13 @@ export function getCardCoord(index: number): CardCoord {
 /**
  * Calculates 3D world coordinates for player tokens (standing at card center)
  */
-export function getTileTokenPosition(tileIndex: number, playerIndex: number = 0, totalOnTile: number = 1): THREE.Vector3 {
-  const coord = getCardCoord(tileIndex);
+export function getTileTokenPosition(
+  tileIndex: number,
+  playerIndex: number = 0,
+  totalOnTile: number = 1,
+  totalTiles: number = 40
+): THREE.Vector3 {
+  const coord = getCardCoord(tileIndex, totalTiles);
   let x = coord.x;
   let y = coord.y;
   const z = 0.22;
@@ -137,18 +152,27 @@ export function getTileTokenPosition(tileIndex: number, playerIndex: number = 0,
 /**
  * Calculates position for cottages/castles on the inner edge of a card
  */
-export function getCardBuildingBasePos(tileIndex: number): { x: number; y: number; rotZ: number } {
-  const coord = getCardCoord(tileIndex);
+export function getCardBuildingBasePos(
+  tileIndex: number,
+  totalTiles: number = 40
+): { x: number; y: number; rotZ: number } {
+  const coord = getCardCoord(tileIndex, totalTiles);
   let x = coord.x;
   let y = coord.y;
   const offset = 0.50;
 
-  const idx = ((tileIndex % 40) + 40) % 40;
-  if (idx < 10) {
+  const N = totalTiles || 40;
+  const idx = ((tileIndex % N) + N) % N;
+  const S = (N - 4) / 4;
+  const c1 = 1 + S;
+  const c2 = 2 * (1 + S);
+  const c3 = 3 * (1 + S);
+
+  if (idx < c1) {
     y += offset;
-  } else if (idx < 20) {
+  } else if (idx < c2) {
     x += offset;
-  } else if (idx < 30) {
+  } else if (idx < c3) {
     y -= offset;
   } else {
     x -= offset;

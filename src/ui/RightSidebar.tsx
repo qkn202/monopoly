@@ -91,7 +91,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     }
   };
 
-  const landedTile = currentPlayer ? HOGWARTS_TILES[currentPlayer.position] : null;
+  const boardTiles = gameState.boardTiles || HOGWARTS_TILES;
+  const landedTile = currentPlayer ? boardTiles[currentPlayer.position] : null;
   const ownerId = landedTile ? gameState.propertyOwnership[landedTile.id] : undefined;
   const owner = ownerId ? gameState.players.find((p) => p.id === ownerId) : undefined;
 
@@ -110,7 +111,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const colorSets = Object.keys(COLOR_GROUP_STYLES)
     .filter((g) => g !== 'STATION' && g !== 'UTILITY')
     .map((g) => {
-      const tiles = HOGWARTS_TILES.filter((t) => t.colorGroup === g);
+      const tiles = boardTiles.filter((t) => t.colorGroup === g);
       const owned = tiles.filter((t) => me && gameState.propertyOwnership[t.id] === me.id).length;
       return { g, color: COLOR_GROUP_STYLES[g].bg, name: COLOR_GROUP_STYLES[g].name, frac: tiles.length ? owned / tiles.length : 0, owned, total: tiles.length };
     });
@@ -408,15 +409,32 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             </div>
             <div className="auction-bid-row">
               <div>
-                Giá cao nhất:{' '}
+                {gameState.auction.highBidderId ? 'Giá cao nhất: ' : 'Giá khởi điểm: '}
                 <strong style={{ color: '#f3d189' }}>{galleons(gameState.auction.currentBid)}</strong>
               </div>
               <div style={{ fontSize: '0.78rem', color: '#bb9c7c' }}>
                 {gameState.auction.highBidderId
                   ? `Dẫn đầu: ${gameState.players.find((p) => p.id === gameState.auction?.highBidderId)?.name}`
-                  : 'Chưa ai ra giá'}
+                  : `Khởi xướng: ${gameState.players.find((p) => p.id === (gameState.auction?.starterId ?? gameState.auction?.activeBidders[0]))?.name || 'Chưa rõ'}`}
               </div>
             </div>
+
+            {isMyBidTurn && currentBidderId === (gameState.auction.starterId ?? gameState.auction.activeBidders[0]) && !gameState.auction.highBidderId && (
+              <div
+                style={{
+                  margin: '6px 0',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  background: 'rgba(243, 209, 137, 0.12)',
+                  border: '1px solid rgba(243, 209, 137, 0.3)',
+                  fontSize: '0.74rem',
+                  color: '#f3d189',
+                  lineHeight: 1.35,
+                }}
+              >
+                ⭐ <strong>Bạn là người bắt đầu:</strong> Nếu nhường lượt và tất cả người sau không tham gia, ô đất sẽ thuộc về bạn với giá khởi điểm <strong>{galleons(gameState.auction.currentBid)}</strong>. Bạn chỉ mất quyền ưu tiên khi bấm <strong>Rút lui</strong>.
+              </div>
+            )}
 
             <div style={{ margin: '6px 0', fontSize: '0.8rem', textAlign: 'center' }}>
               {isMyBidTurn ? (
@@ -476,6 +494,32 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 Rút lui
               </button>
             </div>
+
+            {isMyBidTurn && currentBidderId === (gameState.auction.starterId ?? gameState.auction.activeBidders[0]) && !gameState.auction.highBidderId && (
+              <button
+                className="btn-pass-bid-turn"
+                style={{
+                  width: '100%',
+                  marginTop: '6px',
+                  padding: '7px 8px',
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.45)',
+                  color: '#93c5fd',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => dispatch({ type: 'PASS_BID_TURN', playerId: currentBidderId! })}
+              >
+                ⏭️ Nhường lượt (chờ người khác trả giá)
+              </button>
+            )}
           </div>
         )}
 
@@ -700,7 +744,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               {/* Tài sản có thể bán nhà */}
               {debtor.properties.some((propId) => {
-                const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                const tile = boardTiles.find((t) => t.id === propId);
                 return tile && ((debtor.houses[propId] || 0) > 0 || (debtor.hotels[propId] || 0) > 0);
               }) && (
                 <div style={{ marginTop: '12px' }}>
@@ -709,7 +753,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {debtor.properties.map((propId) => {
-                      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                      const tile = boardTiles.find((t) => t.id === propId);
                       if (!tile) return null;
                       const houseCount = debtor.houses[propId] || 0;
                       const hotelCount = debtor.hotels[propId] || 0;
@@ -747,7 +791,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
               {/* Tài sản có thể thế chấp */}
               {debtor.properties.some((propId) => {
-                const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                const tile = boardTiles.find((t) => t.id === propId);
                 return tile && tile.mortgageValue && !gameState.mortgagedProperties[propId];
               }) && (
                 <div style={{ marginTop: '12px' }}>
@@ -756,7 +800,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {debtor.properties.map((propId) => {
-                      const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                      const tile = boardTiles.find((t) => t.id === propId);
                       if (!tile || !tile.mortgageValue || gameState.mortgagedProperties[propId]) return null;
 
                       const hasBuildings = (debtor.houses[propId] || 0) > 0 || (debtor.hotels[propId] || 0) > 0;
@@ -794,7 +838,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                     {debtor.properties
                       .filter((propId) => gameState.mortgagedProperties[propId])
                       .map((propId) => {
-                        const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+                        const tile = boardTiles.find((t) => t.id === propId);
                         return tile ? tile.name : null;
                       })
                       .filter(Boolean)
@@ -927,7 +971,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {viewingPlayer.properties.map((propId) => {
-              const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+              const tile = boardTiles.find((t) => t.id === propId);
               if (!tile) return null;
               const isMortgaged = !!gameState.mortgagedProperties[tile.id];
               const houseCount = viewingPlayer.houses[tile.id] || 0;
@@ -1154,7 +1198,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     // List of properties owned by THIS PLAYER that have visitors / rent collected
     const visitedPropsList = targetPlayer.properties
       .map((propId) => {
-        const tile = HOGWARTS_TILES.find((t) => t.id === propId);
+        const tile = boardTiles.find((t) => t.id === propId);
         const stat = gameState.propertyRevenue?.[propId] || { totalRentCollected: 0, rentCount: 0 };
         return { propId, tile, stat };
       })

@@ -419,6 +419,72 @@ class SoundEngine {
       chordOsc.stop(now + 1.6);
     });
   }
+
+  /**
+   * Sound 13: Howler Screech & Fiery Explosion (Terrifying envelope roar, shriek, and sizzling ash burst)
+   */
+  public playDefeatHowler(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. Ominous Howler Envelope Tear & Warning Horn (Low D2 -> F2)
+    const horn = ctx.createOscillator();
+    const hornGain = ctx.createGain();
+    horn.type = 'sawtooth';
+    horn.frequency.setValueAtTime(73.4, now);
+    horn.frequency.linearRampToValueAtTime(110, now + 0.3);
+    horn.frequency.exponentialRampToValueAtTime(45, now + 1.2);
+    hornGain.gain.setValueAtTime(this.volume * 0.5, now);
+    hornGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    horn.connect(hornGain);
+    hornGain.connect(ctx.destination);
+    horn.start(now);
+    horn.stop(now + 1.2);
+
+    // 2. Screeching Howler Voice Roar (Vibrato scream)
+    const scream = ctx.createOscillator();
+    const screamGain = ctx.createGain();
+    scream.type = 'triangle';
+    scream.frequency.setValueAtTime(260, now + 0.15);
+    scream.frequency.exponentialRampToValueAtTime(540, now + 0.55);
+    scream.frequency.exponentialRampToValueAtTime(180, now + 1.4);
+    screamGain.gain.setValueAtTime(0.001, now);
+    screamGain.gain.linearRampToValueAtTime(this.volume * 0.45, now + 0.25);
+    screamGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+    scream.connect(screamGain);
+    screamGain.connect(ctx.destination);
+    scream.start(now + 0.15);
+    scream.stop(now + 1.4);
+
+    // 3. Sizzling Ash & Fire Burst (Buffer noise simulating Howler bursting into flames and ash)
+    const bufferSize = ctx.sampleRate * 0.8;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    const whiteNoise = ctx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1400, now + 0.7);
+    filter.Q.setValueAtTime(2.5, now + 0.7);
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now + 0.65);
+    noiseGain.gain.linearRampToValueAtTime(this.volume * 0.4, now + 0.85);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.55);
+
+    whiteNoise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    whiteNoise.start(now + 0.65);
+    whiteNoise.stop(now + 1.55);
+  }
 }
 
 export const soundManager = new SoundEngine();

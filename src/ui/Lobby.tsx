@@ -13,10 +13,60 @@ const invitedRoom = (() => {
 })();
 
 export type GameSetupConfig =
-  | { mode: 'SOLO'; playerName: string; playerHouse: HouseType; botCount: number }
-  | { mode: 'HOTSEAT'; players: Array<{ name: string; house: HouseType; isAI: boolean }> }
-  | { mode: 'ONLINE_HOST'; stake: boolean }
+  | { mode: 'SOLO'; playerName: string; playerHouse: HouseType; botCount: number; boardSize?: number }
+  | { mode: 'HOTSEAT'; players: Array<{ name: string; house: HouseType; isAI: boolean }>; boardSize?: number }
+  | { mode: 'ONLINE_HOST'; stake: boolean; boardSize?: number }
   | { mode: 'ONLINE_JOIN'; roomCode: string };
+
+export interface BoardSizePreset {
+  size: number;
+  title: string;
+  icon: string;
+  tilesCount: number;
+  time: string;
+  target: string;
+  recPlayers: number;
+  recLabel: string;
+}
+
+export const BOARD_SIZE_PRESETS: BoardSizePreset[] = [
+  {
+    size: 20,
+    title: '20 ô (Mini / Siêu tốc)',
+    icon: '⚡',
+    tilesCount: 14,
+    time: '~15 phút',
+    target: 'Quyết đấu 1v1 gay cấn',
+    recPlayers: 2,
+    recLabel: '⭐ Đề xuất (2 người)',
+  },
+  {
+    size: 28,
+    title: '28 ô (Rút gọn Ma thuật)',
+    icon: '🏰',
+    tilesCount: 20,
+    time: '~20 phút',
+    target: 'Chiến thuật 3 người cân bằng',
+    recPlayers: 3,
+    recLabel: '⭐ Đề xuất (3 người)',
+  },
+  {
+    size: 40,
+    title: '40 ô (Cổ điển Hogwarts)',
+    icon: '🌟',
+    tilesCount: 28,
+    time: '~30 phút',
+    target: 'Kinh điển 4–8 người chơi',
+    recPlayers: 4,
+    recLabel: '⭐ Đề xuất (4–8 người)',
+  },
+];
+
+export function getRecommendedBoardSize(playerCount: number): number {
+  if (playerCount <= 2) return 20;
+  if (playerCount === 3) return 28;
+  return 40;
+}
 
 interface LobbyProps {
   onStartGame: (config: GameSetupConfig) => void;
@@ -48,12 +98,22 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
   const [selectedHouse, setSelectedHouse] = useState<HouseType>(
     () => (Object.keys(HOUSE_INFO) as HouseType[]).find((h) => h.toLowerCase() === identity?.house?.toLowerCase()) ?? 'Gryffindor');
   const [botCount, setBotCount] = useState<number>(3);
+  const [boardSize, setBoardSize] = useState<number>(() => getRecommendedBoardSize(3 + 1));
   const [joinCodeInput, setJoinCodeInput] = useState<string>(identity ? invitedRoom : '');
   const [busy, setBusy] = useState(false);
   // The host chooses at creation: a friendly room, or each seat stakes 5.000 real Galleons.
   const [stake, setStake] = useState(false);
   const [error, setError] = useState('');
   const isOnline = selectedMode === 'ONLINE_HOST' || selectedMode === 'ONLINE_JOIN';
+
+  const recommendedSize = getRecommendedBoardSize(
+    selectedMode === 'SOLO' ? botCount + 1 : selectedMode === 'HOTSEAT' ? 4 : 2
+  );
+
+  const handleBotCountChange = (count: number) => {
+    setBotCount(count);
+    setBoardSize(getRecommendedBoardSize(count + 1));
+  };
 
   // Following an invite joins straight away (once).
   const autoJoined = useRef(false);
@@ -76,9 +136,10 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
         playerName: playerName.trim() || 'Người chơi 1',
         playerHouse: selectedHouse,
         botCount,
+        boardSize,
       });
     } else if (selectedMode === 'ONLINE_HOST') {
-      launch({ mode: 'ONLINE_HOST', stake });
+      launch({ mode: 'ONLINE_HOST', stake, boardSize });
     } else if (selectedMode === 'ONLINE_JOIN') {
       const code = joinCodeInput.trim().toUpperCase();
       if (!/^[A-Z0-9]{6}$/.test(code)) {
@@ -94,7 +155,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
         { name: 'Luna Lovegood', house: 'Ravenclaw' as HouseType, isAI: false },
         { name: 'Cedric Diggory', house: 'Hufflepuff' as HouseType, isAI: false },
       ];
-      launch({ mode: 'HOTSEAT', players: hotseatPlayers });
+      launch({ mode: 'HOTSEAT', players: hotseatPlayers, boardSize });
     }
   };
 
@@ -106,11 +167,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
     ] : []),
   ];
 
+  const totalTilesCount = boardSize === 20 ? 14 : boardSize === 28 ? 20 : 28;
+
   return (
     <div className="lobby-overlay">
       <div className="lobby-modal-card hpvn-lobby">
         <header className="hpvn-lobby-head">
-          <p className="hpvn-eyebrow">Giải đấu 30 phút · 40 ô đất phù thủy</p>
+          <p className="hpvn-eyebrow">Bàn cờ {boardSize} ô · {totalTilesCount} ô đất phù thủy</p>
           <h1 className="lobby-title">Cờ Tỷ Phú Hogwarts</h1>
           {identity && <p className="hpvn-lobby-who">Phù thủy <strong>{identity.displayName}</strong></p>}
         </header>
@@ -175,8 +238,49 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
             <span className="lobby-label">Số bot đối thủ</span>
             <div className="hpvn-steps">
               {[1, 2, 3, 4, 5, 6, 7].map((num) => (
-                <button key={num} className={botCount === num ? 'is-active' : ''} onClick={() => setBotCount(num)} aria-pressed={botCount === num}>{num}</button>
+                <button key={num} className={botCount === num ? 'is-active' : ''} onClick={() => handleBotCountChange(num)} aria-pressed={botCount === num}>{num}</button>
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Board Size Selector for Host */}
+        {!isOnline && (
+          <section className="hpvn-field">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span className="lobby-label">Kích thước bàn cờ (Chủ phòng chọn)</span>
+              <span style={{ fontSize: '0.74rem', color: '#f3d189' }}>
+                {selectedMode === 'SOLO' ? `Tổng ${botCount + 1} người chơi` : 'Chế độ 4 người'}
+              </span>
+            </div>
+            <div className="board-size-options" role="radiogroup" aria-label="Kích thước bàn cờ">
+              {BOARD_SIZE_PRESETS.map((preset) => {
+                const isSelected = boardSize === preset.size;
+                const isRecommended = preset.size === recommendedSize;
+                return (
+                  <button
+                    key={preset.size}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    className={`board-size-card ${isSelected ? 'is-selected' : ''}`}
+                    onClick={() => setBoardSize(preset.size)}
+                  >
+                    <div className="board-size-head">
+                      <span className="board-size-icon">{preset.icon}</span>
+                      {isRecommended && (
+                        <span className="board-size-badge-rec">{preset.recLabel}</span>
+                      )}
+                    </div>
+                    <div className="board-size-title">{preset.title}</div>
+                    <div className="board-size-desc">{preset.target}</div>
+                    <div className="board-size-meta">
+                      <span>{preset.tilesCount} ô đất</span>
+                      <span>{preset.time}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
         )}

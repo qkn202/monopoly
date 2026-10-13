@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { identity, request, RoomView } from './bridge';
 import { MAX_SEATS } from './onlineGame';
 import { g, galleons } from './money';
+import { BOARD_SIZE_PRESETS, getRecommendedBoardSize } from '../ui/Lobby';
 import '../ui/Lobby.css';
 
 interface OnlineLobbyProps {
   room: RoomView;
   notice: string;
   waiting: boolean;
-  onStart: (bots: number) => void;
+  onStart: (bots: number, boardSize: number) => void;
   onLeave: () => void;
 }
 
@@ -22,15 +23,25 @@ export const OnlineLobby: React.FC<OnlineLobbyProps> = ({ room, notice, waiting,
   // A staked room seats people only: no bots, and the start debits every seat.
   const staked = (room.stake ?? 0) > 0;
   const botCount = staked ? 0 : Math.min(bots, freeSeats);
+  const totalPlayers = room.members.length + botCount;
+  const recommendedSize = getRecommendedBoardSize(totalPlayers);
+  const [boardSize, setBoardSize] = useState<number>(() => getRecommendedBoardSize(room.members.length));
+
   const last = room.stakeResult;
   const nameOf = (uid?: string) => room.members.find((m) => m.uid === uid)?.name ?? 'Một người chơi';
+
+  const handleBotsChange = (n: number) => {
+    setBots(n);
+    const nextTotal = room.members.length + (staked ? 0 : Math.min(n, freeSeats));
+    setBoardSize(getRecommendedBoardSize(nextTotal));
+  };
 
   const invite = () => {
     request('sb-invite').then(() => setInvited('Đã soạn lời mời trong Mạng Floo, bấm gửi để mời bạn bè.')).catch(() => setInvited('Chưa mở được Mạng Floo.'));
   };
   const start = async () => {
     setBusy(true);
-    try { await onStart(botCount); } finally { setBusy(false); }
+    try { await onStart(botCount, boardSize); } finally { setBusy(false); }
   };
 
   return (
@@ -73,10 +84,51 @@ export const OnlineLobby: React.FC<OnlineLobbyProps> = ({ room, notice, waiting,
             <label className="lobby-label">Thêm bot cho đủ bàn</label>
             <div className="hpvn-bot-row">
               {Array.from({ length: freeSeats + 1 }, (_, n) => (
-                <button key={n} className={`tab-btn ${botCount === n ? 'active' : ''}`} onClick={() => setBots(n)}>
+                <button key={n} className={`tab-btn ${botCount === n ? 'active' : ''}`} onClick={() => handleBotsChange(n)}>
                   {n === 0 ? 'Không' : `${n} bot`}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Board Size Selection for Host */}
+        {isHost && !waiting && (
+          <div className="lobby-input-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="lobby-label">Kích thước bàn cờ (Chủ phòng chọn)</label>
+              <span style={{ fontSize: '0.74rem', color: '#f3d189' }}>
+                Tổng {totalPlayers} người chơi
+              </span>
+            </div>
+            <div className="board-size-options" role="radiogroup" aria-label="Kích thước bàn cờ">
+              {BOARD_SIZE_PRESETS.map((preset) => {
+                const isSelected = boardSize === preset.size;
+                const isRecommended = preset.size === recommendedSize;
+                return (
+                  <button
+                    key={preset.size}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    className={`board-size-card ${isSelected ? 'is-selected' : ''}`}
+                    onClick={() => setBoardSize(preset.size)}
+                  >
+                    <div className="board-size-head">
+                      <span className="board-size-icon">{preset.icon}</span>
+                      {isRecommended && (
+                        <span className="board-size-badge-rec">{preset.recLabel}</span>
+                      )}
+                    </div>
+                    <div className="board-size-title">{preset.title}</div>
+                    <div className="board-size-desc">{preset.target}</div>
+                    <div className="board-size-meta">
+                      <span>{preset.tilesCount} ô đất</span>
+                      <span>{preset.time}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

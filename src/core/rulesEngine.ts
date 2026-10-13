@@ -61,7 +61,8 @@ export function ownsFullColorSet(
   colorGroup: ColorGroup,
   state: GameState
 ): boolean {
-  const groupTiles = HOGWARTS_TILES.filter(
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  const groupTiles = tiles.filter(
     (t) => t.type === 'PROPERTY' && t.colorGroup === colorGroup
   );
   if (groupTiles.length === 0) return false;
@@ -70,13 +71,15 @@ export function ownsFullColorSet(
 }
 
 export function countStationsOwned(player: Player, state: GameState): number {
-  return HOGWARTS_TILES.filter(
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  return tiles.filter(
     (t) => t.type === 'STATION' && state.propertyOwnership[t.id] === player.id
   ).length;
 }
 
 export function countUtilitiesOwned(player: Player, state: GameState): number {
-  return HOGWARTS_TILES.filter(
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  return tiles.filter(
     (t) => t.type === 'UTILITY' && state.propertyOwnership[t.id] === player.id
   ).length;
 }
@@ -86,7 +89,8 @@ export function canBuildHouse(
   propertyId: string,
   state: GameState
 ): { allowed: boolean; reason?: string } {
-  const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = tiles.find((t) => t.id === propertyId);
   if (!tile || tile.type !== 'PROPERTY' || !tile.houseCost) {
     return { allowed: false, reason: 'Không phải là ô đất có thể xây dựng' };
   }
@@ -110,7 +114,7 @@ export function canBuildHouse(
   }
 
   // RULE: Can only upgrade WHERE the player is currently standing
-  const currentTile = HOGWARTS_TILES[player.position];
+  const currentTile = tiles[player.position];
   if (!currentTile || currentTile.id !== propertyId) {
     return { allowed: false, reason: 'Chỉ được nâng cấp mảnh đất nơi bạn đang đặt chân đến' };
   }
@@ -133,7 +137,8 @@ export function canBuildHotel(
   propertyId: string,
   state: GameState
 ): { allowed: boolean; reason?: string } {
-  const tile = HOGWARTS_TILES.find((t) => t.id === propertyId);
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = tiles.find((t) => t.id === propertyId);
   if (!tile || tile.type !== 'PROPERTY' || !tile.houseCost) {
     return { allowed: false, reason: 'Không thể xây Lâu Đài' };
   }
@@ -157,7 +162,7 @@ export function canBuildHotel(
   }
 
   // CRITICAL RULE: Can only upgrade land WHERE the player is currently standing
-  const currentTile = HOGWARTS_TILES[player.position];
+  const currentTile = tiles[player.position];
   if (!currentTile || currentTile.id !== propertyId) {
     return { allowed: false, reason: 'Chỉ được nâng cấp mảnh đất nơi bạn đang đặt chân đến' };
   }
@@ -182,10 +187,11 @@ export function canBuildHotel(
 export function calculateNetWorth(player: Player, state: GameState): number {
   if (player.isBankrupt) return 0;
 
+  const tiles = state.boardTiles || HOGWARTS_TILES;
   let netWorth = player.balance;
 
   player.properties.forEach((tileId) => {
-    const tile = HOGWARTS_TILES.find((t) => t.id === tileId);
+    const tile = tiles.find((t) => t.id === tileId);
     if (!tile) return;
 
     const isMortgaged = !!state.mortgagedProperties[tileId];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameState, GameAction, HouseType } from './core/types';
+import { GameState, GameAction, HouseType, BankruptcyDetails } from './core/types';
 import { createInitialState, gameReducer } from './core/gameReducer';
 import { getBotAction } from './core/botAI';
 import { HOGWARTS_TILES } from './core/boardData';
@@ -12,6 +12,7 @@ import { RightSidebar } from './ui/RightSidebar';
 import { ActiveCardModal } from './ui/ActiveCardModal';
 import { DarkCurseModal } from './ui/DarkCurseModal';
 import { BankruptcyDraftModal } from './ui/BankruptcyDraftModal';
+import { DefeatHowlerModal } from './ui/DefeatHowlerModal';
 import { Lobby, GameSetupConfig } from './ui/Lobby';
 import { soundManager } from './audio/soundManager';
 import './App.css';
@@ -22,6 +23,9 @@ export function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [inLobby, setInLobby] = useState<boolean>(true);
   const [myPlayerId, setMyPlayerId] = useState<string | undefined>(undefined);
+  const [showDefeatModal, setShowDefeatModal] = useState<boolean>(false);
+  const [activeDefeatDetails, setActiveDefeatDetails] = useState<BankruptcyDetails | null>(null);
+  const [isSpectating, setIsSpectating] = useState<boolean>(false);
   // HPVN online room (server seats and phase); null = local game
   const [room, setRoom] = useState<RoomView | null>(null);
   const [notice, setNotice] = useState<string>('');
@@ -134,18 +138,26 @@ export function App() {
     }
   };
 
-  const startOnlineGame = async (bots: number) => {
+  const resetDefeatState = useCallback(() => {
+    setShowDefeatModal(false);
+    setActiveDefeatDetails(null);
+    setIsSpectating(false);
+  }, []);
+
+  const startOnlineGame = async (bots: number, boardSize: number = 40) => {
     const current = roomRef.current;
     if (!current || !identity) return;
     const started = await roomAction(() => roomOp('start', { code: current.code, level: 0 }));
     if (!started?.playerUids) return;
     baseVersionRef.current = 0; seenRef.current = {};
-    setGameState(seatPlayers(started.members, started.playerUids, bots));
+    resetDefeatState();
+    setGameState(seatPlayers(started.members, started.playerUids, bots, boardSize));
     setMyPlayerId(identity.uid); setInLobby(false);
   };
 
   // 1. Handle Start Game from Lobby
   const handleStartGame = async (config: GameSetupConfig) => {
+    resetDefeatState();
     if (config.mode === 'SOLO') {
       const botHouses: HouseType[] = ['Slytherin', 'Ravenclaw', 'Hufflepuff', 'Auror', 'DeathEater', 'OrderOfPhoenix', 'Ministry'];
       const botNames = ['Draco Malfoy', 'Luna Lovegood', 'Cedric Diggory', 'Severus Snape', 'Bellatrix Lestrange', 'Sirius Black', 'Alastor Moody'];
@@ -159,7 +171,7 @@ export function App() {
         })),
       ];
 
-      const initial = createInitialState(players);
+      const initial = createInitialState(players, config.boardSize || 40);
       setGameState(initial);
       setMyPlayerId(initial.players[0].id);
       setInLobby(false);
@@ -168,7 +180,7 @@ export function App() {
     } else if (config.mode === 'ONLINE_JOIN') {
       await roomAction(() => roomOp('join', { code: config.roomCode }));
     } else if (config.mode === 'HOTSEAT') {
-      const initial = createInitialState(config.players);
+      const initial = createInitialState(config.players, config.boardSize || 40);
       setGameState(initial);
       setMyPlayerId(undefined); // Hotseat controls all
       setInLobby(false);
@@ -177,6 +189,7 @@ export function App() {
 
   const resumeSaved = () => {
     if (!saved) return;
+    resetDefeatState();
     lastActionRef.current = Date.now();
     setGameState(resumeState(saved));
     setMyPlayerId(saved.myPlayerId);
@@ -227,6 +240,7 @@ export function App() {
   /** "Thoát": a local game is parked (resumable for 30 minutes); an online seat leaves the room. */
   const exitGame = async () => {
     cancelPendingSave();
+    resetDefeatState();
     if (room) { await roomAction(() => roomOp('leave', { code: room.code })); return; }
     if (gameState && gameState.turnPhase !== 'GAME_OVER') {
       writeSave(gameState, lastActionRef.current, myPlayerId);
@@ -235,6 +249,21 @@ export function App() {
     setGameState(null);
     setInLobby(true);
   };
+
+  // Watch for local player bankruptcy to trigger Defeat Howler Modal
+  useEffect(() => {
+    if (!gameState || inLobby) return;
+    const localP = myPlayerId
+      ? gameState.players.find((p) => p.id === myPlayerId)
+      : gameState.players.find((p) => !p.isAI);
+
+    if (localP && localP.isBankrupt && localP.bankruptcyDetails) {
+      if (!activeDefeatDetails || activeDefeatDetails.timestamp !== localP.bankruptcyDetails.timestamp) {
+        setActiveDefeatDetails(localP.bankruptcyDetails);
+        setShowDefeatModal(true);
+      }
+    }
+  }, [gameState, myPlayerId, inLobby, activeDefeatDetails]);
 
   // Staked room: the host reports the winner once; the server settles the pot and writes stakeResult
   // on the room, which every seat (and the HPVN result banner) then reads.
@@ -409,7 +438,8 @@ export function App() {
 
       // 'B' or 'b' -> Quick Buy, Hostile Takeover, or Upgrade Owned Property
       if (e.code === 'KeyB' && gameState.turnPhase === 'ACTION') {
-        const tile = HOGWARTS_TILES[curP.position];
+        const boardTiles = gameState.boardTiles || HOGWARTS_TILES;
+        const tile = boardTiles[curP.position];
         if (gameState.upgradeCandidate && tile && tile.id === gameState.upgradeCandidate.propertyId) {
           if (curP.balance >= gameState.upgradeCandidate.cost) {
             e.preventDefault();
@@ -502,7 +532,35 @@ export function App() {
           draft={gameState.bankruptcyDraft}
           players={gameState.players}
           myPlayerId={myPlayerId}
+          boardTiles={gameState.boardTiles}
           onSelectProperty={(propertyId) => uiDispatch({ type: 'SELECT_DRAFT_PROPERTY', propertyId })}
+        />
+      )}
+
+      {/* Spectator Mode Sticky Ribbon */}
+      {isSpectating && activeDefeatDetails && !isGameOver && (
+        <div className="spectator-badge-ribbon">
+          <span>👁️ Bạn đang là Khán Giả (Đã phá sản)</span>
+          <button
+            className="btn-view-howler-small"
+            onClick={() => setShowDefeatModal(true)}
+          >
+            Xem lại Thư Sấm
+          </button>
+        </div>
+      )}
+
+      {/* Howler Defeat Notification Modal */}
+      {showDefeatModal && activeDefeatDetails && (
+        <DefeatHowlerModal
+          details={activeDefeatDetails}
+          isGameOver={gameState.turnPhase === 'GAME_OVER'}
+          onSpectate={() => {
+            setShowDefeatModal(false);
+            setIsSpectating(true);
+          }}
+          onLeave={exitGame}
+          onRestart={!room ? () => { resetDefeatState(); setInLobby(true); } : undefined}
         />
       )}
 

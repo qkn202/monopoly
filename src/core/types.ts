@@ -57,6 +57,7 @@ export interface Player {
   houses: Record<string, number>; // tileId -> number of cottages (0-4)
   hotels: Record<string, number>; // tileId -> 1 if castle built
   netWorth: number;
+  bankruptcyDetails?: BankruptcyDetails | null;
 }
 
 export interface DiceRoll {
@@ -70,10 +71,13 @@ export interface AuctionState {
   active: boolean;
   propertyId: string;
   currentBid: number;
+  startingBid?: number; // Mức giá khởi điểm đấu giá
+  starterId?: string; // Người bắt đầu đấu giá (người bỏ qua mua ban đầu)
+  starterFolded?: boolean; // Người bắt đầu đã bấm rút lui hay chưa
   highBidderId: string | null;
   activeBidders: string[]; // List of playerIds still in the auction
   currentBidderIndex: number;
-  timerSeconds: number; // e.g. 10s countdown per round
+  timerSeconds: number; // 7s countdown
 }
 
 export interface TradeOffer {
@@ -170,6 +174,30 @@ export interface BankruptcyInfo {
   reason: string;
 }
 
+export interface BankruptcyDetails {
+  debtorId: string;
+  debtorName: string;
+  debtorHouse: HouseType;
+  debtorColor: string;
+  creditorId?: string;
+  creditorName?: string;
+  creditorHouse?: HouseType;
+  debtAmount: number;
+  reason: string;
+  tileId?: string;
+  tileName?: string;
+  timestamp: number;
+  humorousTitle: string;
+  humorousQuote: string;
+  humorousPunishment: string;
+  statSummary?: {
+    totalLost: number;
+    highestRentPaid: number;
+    jailVisits: number;
+    propertiesLost: number;
+  };
+}
+
 export type TransactionCategory =
   | 'RENT'
   | 'TAX'
@@ -263,6 +291,9 @@ export interface GameState {
   currentTurnTransactions?: CashTransaction[];
   playerFinances?: Record<string, PlayerFinanceStats>;
   propertyRevenue?: Record<string, PropertyRevenueStat>;
+  boardSize?: number; // 20, 28, or 40 (default 40)
+  boardTiles?: TileConfig[]; // Active tile list for this board
+  lastBankruptcyDetails?: BankruptcyDetails | null;
 }
 
 export interface EscalationEvent {
@@ -274,13 +305,14 @@ export interface EscalationEvent {
 }
 
 export type GameAction =
-  | { type: 'START_GAME'; players: Array<{ name: string; house: HouseType; isAI: boolean }> }
-  | { type: 'ROLL_DICE' }
+  | { type: 'START_GAME'; players: Array<{ name: string; house: HouseType; isAI: boolean }>; boardSize?: number }
+  | { type: 'ROLL_DICE'; forceRoll?: [number, number] }
   | { type: 'BUY_PROPERTY'; propertyId: string }
   | { type: 'PASS_PROPERTY' }
   | { type: 'TAKEOVER_PROPERTY'; propertyId: string }
   | { type: 'PLACE_BID'; playerId: string; amount: number }
   | { type: 'FOLD_AUCTION'; playerId: string }
+  | { type: 'PASS_BID_TURN'; playerId: string }
   | { type: 'AUCTION_TICK' }
   | { type: 'BUILD_HOUSE'; propertyId: string; playerId?: string }
   | { type: 'BUILD_HOTEL'; propertyId: string; playerId?: string }
