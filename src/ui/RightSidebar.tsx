@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, GameAction } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES, HOUSE_INFO } from '../core/boardData';
 import { getTileAssetId } from '../core/boardVariants';
@@ -8,6 +8,7 @@ import { soundManager } from '../audio/soundManager';
 import { openFloo, usePhoneFloo } from '../hpvn/usePhoneFloo';
 import { Icon } from '../hpvn/Icon';
 import { useHudInsets } from '../hpvn/useHudInsets';
+import { BankruptcyConfirmModal } from './BankruptcyConfirmModal';
 import './RightSidebar.css';
 import { g, galleons } from '../hpvn/money';
 
@@ -36,6 +37,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   stakeAtRisk = 0,
 }) => {
   const [confirmExit, setConfirmExit] = useState(false);
+  const [showBankruptcyConfirm, setShowBankruptcyConfirm] = useState(false);
   const phoneFloo = usePhoneFloo(true);
   useHudInsets();
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'properties' | 'events' | 'finances'>('properties');
@@ -43,6 +45,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const [selectedPropertyPlayerId, setSelectedPropertyPlayerId] = useState<string | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (gameState.turnPhase !== 'BANKRUPTCY') {
+      setShowBankruptcyConfirm(false);
+    }
+  }, [gameState.turnPhase]);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isMyTurn = myPlayerId ? currentPlayer?.id === myPlayerId : true;
@@ -866,7 +874,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <button
                 className="btn-pass-auction"
                 style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', marginTop: '8px' }}
-                onClick={() => dispatch({ type: 'DECLARE_BANKRUPTCY' })}
+                onClick={() => setShowBankruptcyConfirm(true)}
               >
                 💥 TUYÊN BỐ PHÁ SẢN
               </button>
@@ -1737,6 +1745,26 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
       )}
+
+      <BankruptcyConfirmModal
+        isOpen={showBankruptcyConfirm}
+        onCancel={() => setShowBankruptcyConfirm(false)}
+        onConfirm={() => {
+          setShowBankruptcyConfirm(false);
+          dispatch({ type: 'DECLARE_BANKRUPTCY' });
+        }}
+        debtorName={
+          (gameState.bankruptcyInfo?.debtorId
+            ? gameState.players.find((p) => p.id === gameState.bankruptcyInfo?.debtorId)?.name
+            : null) || currentPlayer?.name
+        }
+        debtAmount={gameState.bankruptcyInfo?.amount}
+        creditorName={
+          gameState.bankruptcyInfo?.creditorId
+            ? gameState.players.find((p) => p.id === gameState.bankruptcyInfo?.creditorId)?.name
+            : undefined
+        }
+      />
     </>
   );
 };
