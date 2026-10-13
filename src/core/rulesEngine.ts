@@ -234,16 +234,23 @@ export function determineLeaderboard(state: GameState): Player[] {
 
 /**
  * Calculates Hostile Takeover Cost for landing on another player's property:
- * 2x (Base Price + All Cottages & Castle Construction Values)
+ * 2x (Base Price + All Cottages Construction Values)
+ * 
+ * SPECIAL RULE: When a property has been upgraded to a Castle (Hotel / Cấp tối đa),
+ * it becomes an impregnable stronghold and CANNOT be bought out (returns 0).
  */
 export function calculateTakeoverCost(tile: TileConfig, owner: Player): number {
+  const hotelCount = owner.hotels[tile.id] || 0;
+  if (hotelCount > 0) {
+    return 0; // Castle is immune to takeover!
+  }
+
   let assetValue = tile.price || 300;
   const houseCount = owner.houses[tile.id] || 0;
-  const hotelCount = owner.hotels[tile.id] || 0;
   const houseCost = tile.houseCost || 150;
 
   assetValue += houseCount * houseCost;
-  assetValue += hotelCount * houseCost * 5;
 
   return assetValue * 2;
 }
+

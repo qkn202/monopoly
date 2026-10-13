@@ -179,6 +179,13 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
       const candidate = state.takeoverCandidate;
       const tiles = state.boardTiles || HOGWARTS_TILES;
       const tile = tiles.find((t) => t.id === candidate.propertyId);
+      const prevOwner = state.players.find((p) => p.id === candidate.ownerId);
+
+      // Castle is immune to takeover
+      if (prevOwner && (prevOwner.hotels[candidate.propertyId] || 0) > 0) {
+        return { type: 'PASS_PROPERTY' };
+      }
+
       if (tile && bot.balance >= candidate.cost) {
         const completesSet = tile.colorGroup
           ? ownsFullColorSet(
@@ -188,7 +195,6 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
             )
           : false;
 
-        const prevOwner = state.players.find((p) => p.id === candidate.ownerId);
         const brokeOpponentSet =
           prevOwner && tile.colorGroup ? ownsFullColorSet(prevOwner, tile.colorGroup, state) : false;
 

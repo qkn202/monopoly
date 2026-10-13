@@ -236,12 +236,16 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
                       Tiền thuê hiện tại: <strong>{galleons(currentRent)}</strong>{' '}
                       {hasHotel ? '(1 lâu đài)' : houseCount > 0 ? `(${houseCount} túp lều)` : '(đất trống)'}
                     </div>
-                    {takeoverCost > 0 && (
+                    {hasHotel ? (
+                      <div className="owner-rent-warning" style={{ color: '#f59e0b', marginTop: '6px' }}>
+                        🏰 <strong>Lâu Đài Kiên Cố:</strong> Bất khả xâm phạm (Không thể bị mua đứt).
+                      </div>
+                    ) : takeoverCost > 0 ? (
                       <div className="owner-rent-warning" style={{ color: '#f472b6', marginTop: '6px' }}>
                         Giá mua đứt (x2): <strong>{galleons(takeoverCost)}</strong>{' '}
                         <span style={{ fontSize: '0.72rem', color: '#bb9c7c' }}>(dừng chân ở đây để thâu tóm)</span>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 )}
               </div>

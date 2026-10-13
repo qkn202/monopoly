@@ -502,6 +502,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const previousOwner = state.players.find((p) => p.id === candidate.ownerId);
       if (!tile || !previousOwner || currentPlayer.balance < candidate.cost) return state;
 
+      // RULE: Land upgraded to Castle (Lâu đài) is an impregnable stronghold and cannot be bought out
+      if ((previousOwner.hotels[tile.id] || 0) > 0) return state;
+
       const cost = candidate.cost;
       const buyerId = currentPlayer.id;
       const ownerId = previousOwner.id;
@@ -1536,11 +1539,14 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
 
       const afterDebtPlayer = debtRes.state.players.find((p) => p.id === player.id);
 
-      // Check Hostile Takeover: If debtor survived and property is not mortgaged
+      // Check Hostile Takeover: If debtor survived, property is not mortgaged, and has NO castle
+      const hasCastle = (owner.hotels[tile.id] || 0) > 0;
       const takeoverCost = calculateTakeoverCost(tile, owner);
       const canTakeover =
         afterDebtPlayer &&
         !debtRes.isBankrupt &&
+        !hasCastle &&
+        takeoverCost > 0 &&
         afterDebtPlayer.balance >= takeoverCost &&
         !state.mortgagedProperties[tile.id];
 

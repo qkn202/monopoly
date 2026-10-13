@@ -1,5 +1,5 @@
 import { createInitialState, gameReducer } from '../src/core/gameReducer';
-import { canBuildHouse, canBuildHotel } from '../src/core/rulesEngine';
+import { canBuildHouse, canBuildHotel, calculateTakeoverCost } from '../src/core/rulesEngine';
 import { HOGWARTS_TILES } from '../src/core/boardData';
 
 // Upstream 7099e39: a build needs a visit to the tile since the last build (landing, buying).
@@ -230,8 +230,17 @@ function runTests() {
   }
   console.log('✅ Scenario 4B Passed: 4-house land takeover allowed immediate Hotel upgrade.');
 
-  // Scenario 4C: Takeover land that ALREADY has a Hotel (max level) -> transitions to END_TURN directly
+  // Scenario 4C: Land with existing Castle/Hotel CANNOT be bought out (Immune to Takeover)
+  console.log('\n--- Testing Castle Takeover Immunity ---');
   const pDraco4C = { ...pDraco, houses: { [takeoverTile.id]: 0 }, hotels: { [takeoverTile.id]: 1 } };
+  
+  // 1. calculateTakeoverCost must return 0 for properties with a castle
+  const castleCost = calculateTakeoverCost(takeoverTile, pDraco4C);
+  if (castleCost !== 0) {
+    throw new Error(`FAIL: Land with castle should have takeover cost 0, got ${castleCost}`);
+  }
+
+  // 2. Direct TAKEOVER_PROPERTY on castle property must be rejected
   const state4C: GameState = {
     ...state4A,
     players: [pHarry, pDraco4C] as any,
@@ -244,10 +253,10 @@ function runTests() {
   };
 
   const afterTakeover4C = gameReducer(state4C, { type: 'TAKEOVER_PROPERTY', propertyId: takeoverTile.id });
-  if (afterTakeover4C.turnPhase !== 'END_TURN' || afterTakeover4C.upgradeCandidate !== null) {
-    throw new Error('FAIL: Land with existing hotel should transition directly to END_TURN without upgradeCandidate');
+  if (afterTakeover4C.propertyOwnership[takeoverTile.id] === pHarry.id) {
+    throw new Error('FAIL: Land with castle must NOT allow hostile takeover!');
   }
-  console.log('✅ Scenario 4C Passed: Hotel max level takeover advances directly to END_TURN.');
+  console.log('✅ Scenario 4C Passed: Castle is an impregnable stronghold and immune to takeover.');
 
   // Scenario 4D: Takeover land, player declines upgrade via PASS_PROPERTY
   const afterPass4D = gameReducer(afterTakeover4A, { type: 'PASS_PROPERTY' });
