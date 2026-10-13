@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TileConfig, Player } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES } from '../core/boardData';
+import { getTileAssetId } from '../core/boardVariants';
 import { getCardCoord, CardCoord, CardOrientation } from './BoardCoordinates';
 
 export interface BoardCardItem {
@@ -519,7 +520,8 @@ export class BoardCards {
       const img = new Image();
       // the HPVN frame has an opaque origin: a CORS image keeps the card canvas usable as a WebGL texture
       img.crossOrigin = 'anonymous';
-      img.src = `${baseUrl}assets/cards/tile_${i}.webp?v=unified_master`;
+      const assetId = getTileAssetId(tile);
+      img.src = `${baseUrl}assets/cards/tile_${assetId}.webp?v=unified_master`;
       img.onload = () => {
         this.images.set(i, img);
         // Re-render canvas with loaded image

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GameState, GameAction } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES, HOUSE_INFO } from '../core/boardData';
+import { getTileAssetId } from '../core/boardVariants';
 import { determineLeaderboard, canBuildHouse, canBuildHotel } from '../core/rulesEngine';
 import { isEventRelevantToPlayer } from '../core/reducerHelpers';
 import { soundManager } from '../audio/soundManager';
@@ -198,7 +199,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                  src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -256,7 +257,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                  src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -349,7 +350,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="decision-card-row">
               <div className="decision-card-thumb-wrap">
                 <img
-                  src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                  src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                   alt={landedTile.name}
                   className="decision-card-thumb-img"
                   onError={(e) => {
@@ -536,7 +537,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   {landedTile && (
                     <div className="receipt-card-thumb-wrap">
                       <img
-                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                        src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                         alt={landedTile.name}
                         className="receipt-card-thumb-img"
                         onError={(e) => {
@@ -591,7 +592,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   {landedTile && (
                     <div className="receipt-card-thumb-wrap">
                       <img
-                        src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                        src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                         alt={landedTile.name}
                         className="receipt-card-thumb-img"
                         onError={(e) => {
@@ -643,7 +644,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <div className="receipt-split-body">
                   <div className="receipt-card-thumb-wrap">
                     <img
-                      src={`${baseUrl}assets/cards/tile_${landedTile.index}.webp`}
+                      src={`${baseUrl}assets/cards/tile_${getTileAssetId(landedTile)}.webp`}
                       alt={landedTile.name}
                       className="receipt-card-thumb-img"
                       onError={(e) => {

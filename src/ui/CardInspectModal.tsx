@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TileConfig, Player, GameState } from '../core/types';
 import { COLOR_GROUP_STYLES } from '../core/boardData';
 import { calculateTakeoverCost } from '../core/rulesEngine';
+import { getTileAssetId } from '../core/boardVariants';
 import './CardInspectModal.css';
 import { g, galleons } from '../hpvn/money';
 
@@ -22,7 +23,7 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
 
   useEffect(() => {
     setImageLoaded(false);
-  }, [tile?.index]);
+  }, [tile?.id, tile?.index]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,7 +58,8 @@ export const CardInspectModal: React.FC<CardInspectModalProps> = ({ tile, player
   // Determine district badge & color
   const colorStyle = tile.colorGroup ? COLOR_GROUP_STYLES[tile.colorGroup] : null;
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const cardImagePath = `${baseUrl}assets/cards/tile_${tile.index}.webp?v=unified_master`;
+  const assetId = getTileAssetId(tile);
+  const cardImagePath = `${baseUrl}assets/cards/tile_${assetId}.webp?v=unified_master`;
 
   // 3D Card Interactive Mouse Parallax Handler
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {

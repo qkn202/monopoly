@@ -2,577 +2,147 @@ import { TileConfig } from './types';
 import { HOGWARTS_TILES } from './boardData';
 
 /**
- * 28-TILE BOARD CONFIGURATION (Rút Gọn / 3 Người Chơi)
- * - 4 góc kinh điển: 0: Ga 9¾ (GO), 7: Ngục Azkaban (Jail), 14: Phòng Cứu Tế (Free Parking), 21: Đưa Vào Azkaban (Go To Jail)
- * - 20 ô đất mua được (7 bộ màu đôi 2-ô + 3 nhà ga + 1 tiện ích/thuế)
- * - 3 ô thẻ bài (2 Potions + 1 Charms)
+ * Resolves the canonical artwork asset index (0..39) corresponding to
+ * `public/assets/cards/tile_${assetId}.webp`.
+ *
+ * For example:
+ * - { id: 'tile-0' } -> 0 (Ga 9¾)
+ * - { id: 'tile-10' } -> 10 (Nhà Tù Azkaban)
+ * - { id: 'tile-20' } -> 20 (Phòng Yêu Cầu)
+ * - { id: 'tile-30' } -> 30 (Áp Giải Đến Azkaban)
+ * - { id: 'tile-39' } -> 39 (Văn Phòng Cụ Dumbledore)
  */
-export const HOGWARTS_TILES_28: TileConfig[] = [
-  // South (Góc 0 đến Góc 7)
-  {
-    id: 'tile-0',
-    index: 0,
-    name: 'Ga 9¾ (Khởi Hành)',
-    type: 'GO',
-    description: 'Nhận 500 Galleons khi vượt qua hoặc dừng tại đây.',
-    icon: '🚂',
-  },
-  {
-    id: 'tile-1',
-    index: 1,
-    name: 'Borgin & Burkes',
-    type: 'PROPERTY',
-    colorGroup: 'BROWN',
-    price: 200,
-    baseRent: 10,
-    rentTiers: [10, 40, 120, 360, 600, 900],
-    houseCost: 150,
-    mortgageValue: 100,
-    icon: '💀',
-  },
-  {
-    id: 'tile-3',
-    index: 2,
-    name: 'Quán Cái Vạc Lủng',
-    type: 'PROPERTY',
-    colorGroup: 'BROWN',
-    price: 200,
-    baseRent: 15,
-    rentTiers: [15, 60, 180, 540, 900, 1400],
-    houseCost: 150,
-    mortgageValue: 100,
-    icon: '🍲',
-  },
-  {
-    id: 'tile-2',
-    index: 3,
-    name: 'Hộp Độc Dược',
-    type: 'POTIONS',
-    description: 'Rút 1 thẻ Độc Dược bí ẩn từ hầm ngục Snape.',
-    icon: '🧪',
-  },
-  {
-    id: 'tile-6',
-    index: 4,
-    name: 'Tiệm Cú Eeylops',
-    type: 'PROPERTY',
-    colorGroup: 'LIGHT_BLUE',
-    price: 320,
-    baseRent: 20,
-    rentTiers: [20, 90, 270, 800, 1200, 1700],
-    houseCost: 150,
-    mortgageValue: 160,
-    icon: '🦉',
-  },
-  {
-    id: 'tile-9',
-    index: 5,
-    name: 'Tiệm Chổi Quidditch',
-    type: 'PROPERTY',
-    colorGroup: 'LIGHT_BLUE',
-    price: 350,
-    baseRent: 25,
-    rentTiers: [25, 110, 330, 950, 1450, 2000],
-    houseCost: 150,
-    mortgageValue: 175,
-    icon: '🧹',
-  },
-  {
-    id: 'tile-5',
-    index: 6,
-    name: 'Tàu Tốc Hành Hogwarts',
-    type: 'STATION',
-    colorGroup: 'STATION',
-    price: 600,
-    baseRent: 75,
-    rentTiers: [75, 150, 300, 600],
-    mortgageValue: 300,
-    icon: '🚆',
-  },
+export function getTileAssetId(tile: { id?: string; index?: number } | null | undefined): number {
+  if (!tile) return 0;
+  if (tile.id && tile.id.startsWith('tile-')) {
+    const parsed = parseInt(tile.id.replace('tile-', ''), 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 39) {
+      return parsed;
+    }
+  }
+  return tile.index ?? 0;
+}
 
-  // West (Góc 7 đến Góc 14)
-  {
-    id: 'tile-10',
-    index: 7,
-    name: 'Ngục Azkaban',
-    type: 'JAIL',
-    description: 'Nơi giam giữ phù thủy hắc ám. Thăm tù hoặc bị giam.',
-    icon: '⛓️',
-  },
-  {
-    id: 'tile-11',
-    index: 8,
-    name: 'Quán Ba Cây Chổi',
-    type: 'PROPERTY',
-    colorGroup: 'PINK',
-    price: 400,
-    baseRent: 30,
-    rentTiers: [30, 130, 390, 1100, 1650, 2300],
-    houseCost: 250,
-    mortgageValue: 200,
-    icon: '🍺',
-  },
-  {
-    id: 'tile-14',
-    index: 9,
-    name: 'Lều Hét (Shrieking Shack)',
-    type: 'PROPERTY',
-    colorGroup: 'PINK',
-    price: 420,
-    baseRent: 35,
-    rentTiers: [35, 150, 450, 1250, 1850, 2600],
-    houseCost: 250,
-    mortgageValue: 210,
-    icon: '🏚️',
-  },
-  {
-    id: 'tile-7',
-    index: 10,
-    name: 'Rương Bùa Chú',
-    type: 'CHARMS',
-    description: 'Rút 1 thẻ Bùa Chú kỳ diệu từ văn phòng Flitwick.',
-    icon: '✨',
-  },
-  {
-    id: 'tile-16',
-    index: 11,
-    name: 'Nhà Gia Đình Potter',
-    type: 'PROPERTY',
-    colorGroup: 'ORANGE',
-    price: 480,
-    baseRent: 40,
-    rentTiers: [40, 180, 500, 1400, 2100, 3000],
-    houseCost: 250,
-    mortgageValue: 240,
-    icon: '🏡',
-  },
-  {
-    id: 'tile-19',
-    index: 12,
-    name: 'Túp Lều Của Bathilda',
-    type: 'PROPERTY',
-    colorGroup: 'ORANGE',
-    price: 520,
-    baseRent: 45,
-    rentTiers: [45, 200, 580, 1600, 2400, 3400],
-    houseCost: 250,
-    mortgageValue: 260,
-    icon: '🕯️',
-  },
-  {
-    id: 'tile-15',
-    index: 13,
-    name: 'Ga Làng Hogsmeade',
-    type: 'STATION',
-    colorGroup: 'STATION',
-    price: 600,
-    baseRent: 75,
-    rentTiers: [75, 150, 300, 600],
-    mortgageValue: 300,
-    icon: '🚂',
-  },
+/**
+ * Create a variant board configuration by pulling canonical tile data from HOGWARTS_TILES.
+ * This guarantees:
+ * 1. 100% accurate location names, icons, descriptions, prices, and rent tiers matching the master board.
+ * 2. 100% accurate artwork image mapping (tile_${assetId}.webp where assetId matches canonical tile.id).
+ * 3. Board slot index is properly set from 0 to size - 1.
+ */
+function createVariantBoard(tileIds: string[]): TileConfig[] {
+  return tileIds.map((id, index) => {
+    const canonical = HOGWARTS_TILES.find((t) => t.id === id);
+    if (!canonical) {
+      throw new Error(`Canonical tile not found for ID: ${id}`);
+    }
+    return {
+      ...canonical,
+      index, // re-index to the position on this variant board
+    };
+  });
+}
 
-  // North (Góc 14 đến Góc 21)
-  {
-    id: 'tile-20',
-    index: 14,
-    name: 'Phòng Cứu Tế',
-    type: 'FREE_PARKING',
-    description: 'Nơi trú ẩn an toàn. Nhận toàn bộ tiền phạt tích lũy trong quỹ!',
-    icon: '🚪',
-  },
-  {
-    id: 'tile-21',
-    index: 15,
-    name: 'Bìa Rừng Cấm',
-    type: 'PROPERTY',
-    colorGroup: 'RED',
-    price: 550,
-    baseRent: 50,
-    rentTiers: [50, 220, 650, 1800, 2700, 3800],
-    houseCost: 350,
-    mortgageValue: 275,
-    icon: '🌲',
-  },
-  {
-    id: 'tile-24',
-    index: 16,
-    name: 'Hang Nhện Aragog',
-    type: 'PROPERTY',
-    colorGroup: 'RED',
-    price: 600,
-    baseRent: 55,
-    rentTiers: [55, 260, 750, 2000, 3000, 4200],
-    houseCost: 350,
-    mortgageValue: 300,
-    icon: '🕷️',
-  },
-  {
-    id: 'tile-17',
-    index: 17,
-    name: 'Hộp Độc Dược',
-    type: 'POTIONS',
-    description: 'Rút 1 thẻ Độc Dược bí ẩn từ hầm ngục Snape.',
-    icon: '🧪',
-  },
-  {
-    id: 'tile-26',
-    index: 18,
-    name: 'Đại Sảnh Đường Hogwarts',
-    type: 'PROPERTY',
-    colorGroup: 'YELLOW',
-    price: 650,
-    baseRent: 60,
-    rentTiers: [60, 280, 800, 2200, 3300, 4600],
-    houseCost: 350,
-    mortgageValue: 325,
-    icon: '🏰',
-  },
-  {
-    id: 'tile-29',
-    index: 19,
-    name: 'Tháp Thiên Văn',
-    type: 'PROPERTY',
-    colorGroup: 'YELLOW',
-    price: 700,
-    baseRent: 65,
-    rentTiers: [65, 300, 900, 2400, 3600, 5000],
-    houseCost: 350,
-    mortgageValue: 350,
-    icon: '🔭',
-  },
-  {
-    id: 'tile-25',
-    index: 20,
-    name: 'Ga Rừng Cấm',
-    type: 'STATION',
-    colorGroup: 'STATION',
-    price: 600,
-    baseRent: 75,
-    rentTiers: [75, 150, 300, 600],
-    mortgageValue: 300,
-    icon: '🌲',
-  },
+/**
+ * 28-TILE BOARD CONFIGURATION (Rút Gọn / 3 Người Chơi)
+ * - 4 góc kinh điển:
+ *   - 0: Ga 9¾ (GO)
+ *   - 7: Ngục Azkaban (JAIL)
+ *   - 14: Phòng Yêu Cầu (FREE PARKING)
+ *   - 21: Áp Giải Đến Azkaban (GO TO JAIL)
+ * - 16 ô đất mua được (8 bộ màu đôi 2-ô hoàn chỉnh: BROWN, LIGHT_BLUE, PINK, ORANGE, RED, YELLOW, GREEN, DARK_BLUE)
+ * - 3 nhà ga (Tàu Tốc Hành, Trạm Xe Buýt Hiệp Sĩ, Bến Cỗ Xe Vọng Mã)
+ * - 1 ô thuế (Thuế Thẩm Định Pháp Thuật)
+ * - 4 ô thẻ bài (2 Potions + 2 Charms)
+ */
+export const BOARD_28_TILE_IDS: string[] = [
+  // South (Góc 0 đến Góc 7) - 7 ô
+  'tile-0',  // 0: Ga 9¾ (Khởi Hành) - GO
+  'tile-1',  // 1: Borgin & Burkes - BROWN
+  'tile-3',  // 2: Quán Cái Vạc Lủng - BROWN
+  'tile-2',  // 3: Hộp Độc Dược - POTIONS
+  'tile-6',  // 4: Tiệm Cú Eeylops - LIGHT_BLUE
+  'tile-9',  // 5: Tiệm Đũa Phép Ollivanders - LIGHT_BLUE
+  'tile-5',  // 6: Tàu Tốc Hành Hogwarts - STATION
 
-  // East (Góc 21 đến 27)
-  {
-    id: 'tile-30',
-    index: 21,
-    name: 'Đưa Vào Azkaban',
-    type: 'GO_TO_JAIL',
-    description: 'Thần Sáng bắt giữ! Đi thẳng vào Ngục Azkaban, không qua Ga 9¾.',
-    icon: '👮',
-  },
-  {
-    id: 'tile-31',
-    index: 22,
-    name: 'Sảnh Chính Bộ Pháp Thuật',
-    type: 'PROPERTY',
-    colorGroup: 'GREEN',
-    price: 750,
-    baseRent: 70,
-    rentTiers: [70, 320, 950, 2600, 3900, 5400],
-    houseCost: 450,
-    mortgageValue: 375,
-    icon: '🏛️',
-  },
-  {
-    id: 'tile-34',
-    index: 23,
-    name: 'Tòa Án Wizengamot',
-    type: 'PROPERTY',
-    colorGroup: 'GREEN',
-    price: 800,
-    baseRent: 75,
-    rentTiers: [75, 350, 1050, 2800, 4200, 5800],
-    houseCost: 450,
-    mortgageValue: 400,
-    icon: '⚖️',
-  },
-  {
-    id: 'tile-4',
-    index: 24,
-    name: 'Thuế Thẩm Định Pháp Thuật',
-    type: 'TAX',
-    price: 300,
-    description: 'Nộp 300 Galleons vào quỹ phòng cứu tế.',
-    icon: '⚖️',
-  },
-  {
-    id: 'tile-37',
-    index: 25,
-    name: 'Hẻm Xéo Hoàng Gia',
-    type: 'PROPERTY',
-    colorGroup: 'DARK_BLUE',
-    price: 850,
-    baseRent: 85,
-    rentTiers: [85, 380, 1150, 3100, 4600, 6400],
-    houseCost: 450,
-    mortgageValue: 425,
-    icon: '👑',
-  },
-  {
-    id: 'tile-39',
-    index: 26,
-    name: 'Văn Phòng Cụ Dumbledore',
-    type: 'PROPERTY',
-    colorGroup: 'DARK_BLUE',
-    price: 1000,
-    baseRent: 100,
-    rentTiers: [100, 450, 1350, 3600, 5400, 7500],
-    houseCost: 450,
-    mortgageValue: 500,
-    icon: '🌟',
-  },
-  {
-    id: 'tile-36',
-    index: 27,
-    name: 'Rương Bùa Chú',
-    type: 'CHARMS',
-    description: 'Rút 1 thẻ Bùa Chú kỳ diệu từ văn phòng Flitwick.',
-    icon: '✨',
-  },
+  // West (Góc 7 đến Góc 14) - 7 ô
+  'tile-10', // 7: Nhà Tù Azkaban (Thăm Nuôi) - JAIL
+  'tile-11', // 8: Quán Ba Cây Chổi - PINK
+  'tile-13', // 9: Tiệm Kẹo Công Tước Mật - PINK
+  'tile-7',  // 10: Hộp Bùa Chú - CHARMS
+  'tile-18', // 11: Nhà Gia Đình Potter - ORANGE
+  'tile-19', // 12: Nhà Cụ Bathilda Bagshot - ORANGE
+  'tile-15', // 13: Trạm Xe Buýt Hiệp Sĩ - STATION
+
+  // North (Góc 14 đến Góc 21) - 7 ô
+  'tile-20', // 14: Phòng Yêu Cầu (Kho Báu) - FREE_PARKING
+  'tile-21', // 15: Tổ Nhện Khổng Lồ Aragog - RED
+  'tile-24', // 16: Cây Liễu Roi - RED
+  'tile-17', // 17: Hộp Độc Dược - POTIONS
+  'tile-26', // 18: Đại Sảnh Đường Hogwarts - YELLOW
+  'tile-27', // 19: Tháp Thiên Văn - YELLOW
+  'tile-25', // 20: Bến Cỗ Xe Vọng Mã - STATION
+
+  // East (Góc 21 đến 27) - 7 ô
+  'tile-30', // 21: Áp Giải Đến Azkaban - GO_TO_JAIL
+  'tile-31', // 22: Phòng Bí Mật (Sở Ban Ngành) - GREEN
+  'tile-34', // 23: Sảnh Trung Tâm Bộ Pháp Thuật - GREEN
+  'tile-4',  // 24: Thuế Thẩm Định Pháp Thuật - TAX
+  'tile-37', // 25: Hầm 713 Ngân Hàng Gringotts - DARK_BLUE
+  'tile-39', // 26: Văn Phòng Cụ Dumbledore - DARK_BLUE
+  'tile-36', // 27: Hộp Bùa Chú - CHARMS
 ];
+
+export const HOGWARTS_TILES_28: TileConfig[] = createVariantBoard(BOARD_28_TILE_IDS);
 
 /**
  * 20-TILE BOARD CONFIGURATION (Mini / 1v1 Siêu Tốc 2 Người Chơi)
- * - 4 góc kinh điển: 0: Ga 9¾ (GO), 5: Ngục Azkaban (Jail), 10: Phòng Cứu Tế (Free Parking), 15: Đưa Vào Azkaban (Go To Jail)
- * - 14 ô đất mua được (7 bộ màu 2-ô)
- * - 2 ô thẻ bài bí ẩn
+ * - 4 góc kinh điển:
+ *   - 0: Ga 9¾ (GO)
+ *   - 5: Ngục Azkaban (JAIL)
+ *   - 10: Phòng Yêu Cầu (FREE PARKING)
+ *   - 15: Áp Giải Đến Azkaban (GO TO JAIL)
+ * - 14 ô đất mua được (7 bộ màu đôi 2-ô liền kề):
+ *   - BROWN: Borgin & Burkes, Quán Cái Vạc Lủng
+ *   - LIGHT_BLUE: Tiệm Cú Eeylops, Tiệm Đũa Phép Ollivanders
+ *   - PINK: Quán Ba Cây Chổi, Tiệm Kẹo Công Tước Mật
+ *   - ORANGE: Nhà Gia Đình Potter, Nhà Cụ Bathilda Bagshot
+ *   - RED: Tổ Nhện Khổng Lồ Aragog, Cây Liễu Roi
+ *   - YELLOW: Đại Sảnh Đường Hogwarts, Tháp Thiên Văn
+ *   - DARK_BLUE: Hầm 713 Ngân Hàng Gringotts, Văn Phòng Cụ Dumbledore
+ * - 2 ô thẻ bài bí ẩn (1 Potions + 1 Charms)
  */
-export const HOGWARTS_TILES_20: TileConfig[] = [
-  // South (Góc 0 đến Góc 5)
-  {
-    id: 'tile-0',
-    index: 0,
-    name: 'Ga 9¾ (Khởi Hành)',
-    type: 'GO',
-    description: 'Nhận 500 Galleons khi vượt qua hoặc dừng tại đây.',
-    icon: '🚂',
-  },
-  {
-    id: 'tile-1',
-    index: 1,
-    name: 'Borgin & Burkes',
-    type: 'PROPERTY',
-    colorGroup: 'BROWN',
-    price: 200,
-    baseRent: 10,
-    rentTiers: [10, 40, 120, 360, 600, 900],
-    houseCost: 150,
-    mortgageValue: 100,
-    icon: '💀',
-  },
-  {
-    id: 'tile-3',
-    index: 2,
-    name: 'Quán Cái Vạc Lủng',
-    type: 'PROPERTY',
-    colorGroup: 'BROWN',
-    price: 200,
-    baseRent: 15,
-    rentTiers: [15, 60, 180, 540, 900, 1400],
-    houseCost: 150,
-    mortgageValue: 100,
-    icon: '🍲',
-  },
-  {
-    id: 'tile-2',
-    index: 3,
-    name: 'Hộp Độc Dược',
-    type: 'POTIONS',
-    description: 'Rút 1 thẻ Độc Dược bí ẩn từ hầm ngục Snape.',
-    icon: '🧪',
-  },
-  {
-    id: 'tile-5',
-    index: 4,
-    name: 'Tàu Tốc Hành Hogwarts',
-    type: 'STATION',
-    colorGroup: 'STATION',
-    price: 600,
-    baseRent: 75,
-    rentTiers: [75, 150, 300, 600],
-    mortgageValue: 300,
-    icon: '🚆',
-  },
+export const BOARD_20_TILE_IDS: string[] = [
+  // South (Góc 0 đến Góc 5) - 5 ô
+  'tile-0',  // 0: Ga 9¾ (Khởi Hành) - GO
+  'tile-1',  // 1: Borgin & Burkes - BROWN
+  'tile-3',  // 2: Quán Cái Vạc Lủng - BROWN
+  'tile-2',  // 3: Hộp Độc Dược - POTIONS
+  'tile-6',  // 4: Tiệm Cú Eeylops - LIGHT_BLUE
 
-  // West (Góc 5 đến Góc 10)
-  {
-    id: 'tile-10',
-    index: 5,
-    name: 'Ngục Azkaban',
-    type: 'JAIL',
-    description: 'Nơi giam giữ phù thủy hắc ám. Thăm tù hoặc bị giam.',
-    icon: '⛓️',
-  },
-  {
-    id: 'tile-11',
-    index: 6,
-    name: 'Quán Ba Cây Chổi',
-    type: 'PROPERTY',
-    colorGroup: 'PINK',
-    price: 400,
-    baseRent: 30,
-    rentTiers: [30, 130, 390, 1100, 1650, 2300],
-    houseCost: 250,
-    mortgageValue: 200,
-    icon: '🍺',
-  },
-  {
-    id: 'tile-14',
-    index: 7,
-    name: 'Lều Hét (Shrieking Shack)',
-    type: 'PROPERTY',
-    colorGroup: 'PINK',
-    price: 420,
-    baseRent: 35,
-    rentTiers: [35, 150, 450, 1250, 1850, 2600],
-    houseCost: 250,
-    mortgageValue: 210,
-    icon: '🏚️',
-  },
-  {
-    id: 'tile-7',
-    index: 8,
-    name: 'Rương Bùa Chú',
-    type: 'CHARMS',
-    description: 'Rút 1 thẻ Bùa Chú kỳ diệu từ văn phòng Flitwick.',
-    icon: '✨',
-  },
-  {
-    id: 'tile-16',
-    index: 9,
-    name: 'Nhà Gia Đình Potter',
-    type: 'PROPERTY',
-    colorGroup: 'ORANGE',
-    price: 480,
-    baseRent: 40,
-    rentTiers: [40, 180, 500, 1400, 2100, 3000],
-    houseCost: 250,
-    mortgageValue: 240,
-    icon: '🏡',
-  },
+  // West (Góc 5 đến Góc 10) - 5 ô
+  'tile-10', // 5: Nhà Tù Azkaban (Thăm Nuôi) - JAIL
+  'tile-9',  // 6: Tiệm Đũa Phép Ollivanders - LIGHT_BLUE
+  'tile-11', // 7: Quán Ba Cây Chổi - PINK
+  'tile-13', // 8: Tiệm Kẹo Công Tước Mật - PINK
+  'tile-7',  // 9: Hộp Bùa Chú - CHARMS
 
-  // North (Góc 10 đến Góc 15)
-  {
-    id: 'tile-20',
-    index: 10,
-    name: 'Phòng Cứu Tế',
-    type: 'FREE_PARKING',
-    description: 'Nơi trú ẩn an toàn. Nhận toàn bộ tiền phạt tích lũy trong quỹ!',
-    icon: '🚪',
-  },
-  {
-    id: 'tile-21',
-    index: 11,
-    name: 'Bìa Rừng Cấm',
-    type: 'PROPERTY',
-    colorGroup: 'RED',
-    price: 550,
-    baseRent: 50,
-    rentTiers: [50, 220, 650, 1800, 2700, 3800],
-    houseCost: 350,
-    mortgageValue: 275,
-    icon: '🌲',
-  },
-  {
-    id: 'tile-24',
-    index: 12,
-    name: 'Hang Nhện Aragog',
-    type: 'PROPERTY',
-    colorGroup: 'RED',
-    price: 600,
-    baseRent: 55,
-    rentTiers: [55, 260, 750, 2000, 3000, 4200],
-    houseCost: 350,
-    mortgageValue: 300,
-    icon: '🕷️',
-  },
-  {
-    id: 'tile-17',
-    index: 13,
-    name: 'Hộp Độc Dược',
-    type: 'POTIONS',
-    description: 'Rút 1 thẻ Độc Dược bí ẩn từ hầm ngục Snape.',
-    icon: '🧪',
-  },
-  {
-    id: 'tile-26',
-    index: 14,
-    name: 'Đại Sảnh Đường Hogwarts',
-    type: 'PROPERTY',
-    colorGroup: 'YELLOW',
-    price: 650,
-    baseRent: 60,
-    rentTiers: [60, 280, 800, 2200, 3300, 4600],
-    houseCost: 350,
-    mortgageValue: 325,
-    icon: '🏰',
-  },
+  // North (Góc 10 đến Góc 15) - 5 ô
+  'tile-20', // 10: Phòng Yêu Cầu (Kho Báu) - FREE_PARKING
+  'tile-18', // 11: Nhà Gia Đình Potter - ORANGE
+  'tile-19', // 12: Nhà Cụ Bathilda Bagshot - ORANGE
+  'tile-21', // 13: Tổ Nhện Khổng Lồ Aragog - RED
+  'tile-24', // 14: Cây Liễu Roi - RED
 
-  // East (Góc 15 đến 19)
-  {
-    id: 'tile-30',
-    index: 15,
-    name: 'Đưa Vào Azkaban',
-    type: 'GO_TO_JAIL',
-    description: 'Thần Sáng bắt giữ! Đi thẳng vào Ngục Azkaban, không qua Ga 9¾.',
-    icon: '👮',
-  },
-  {
-    id: 'tile-31',
-    index: 16,
-    name: 'Sảnh Chính Bộ Pháp Thuật',
-    type: 'PROPERTY',
-    colorGroup: 'GREEN',
-    price: 750,
-    baseRent: 70,
-    rentTiers: [70, 320, 950, 2600, 3900, 5400],
-    houseCost: 450,
-    mortgageValue: 375,
-    icon: '🏛️',
-  },
-  {
-    id: 'tile-34',
-    index: 17,
-    name: 'Tòa Án Wizengamot',
-    type: 'PROPERTY',
-    colorGroup: 'GREEN',
-    price: 800,
-    baseRent: 75,
-    rentTiers: [75, 350, 1050, 2800, 4200, 5800],
-    houseCost: 450,
-    mortgageValue: 400,
-    icon: '⚖️',
-  },
-  {
-    id: 'tile-37',
-    index: 18,
-    name: 'Hẻm Xéo Hoàng Gia',
-    type: 'PROPERTY',
-    colorGroup: 'DARK_BLUE',
-    price: 850,
-    baseRent: 85,
-    rentTiers: [85, 380, 1150, 3100, 4600, 6400],
-    houseCost: 450,
-    mortgageValue: 425,
-    icon: '👑',
-  },
-  {
-    id: 'tile-39',
-    index: 19,
-    name: 'Văn Phòng Cụ Dumbledore',
-    type: 'PROPERTY',
-    colorGroup: 'DARK_BLUE',
-    price: 1000,
-    baseRent: 100,
-    rentTiers: [100, 450, 1350, 3600, 5400, 7500],
-    houseCost: 450,
-    mortgageValue: 500,
-    icon: '🌟',
-  },
+  // East (Góc 15 đến 19) - 5 ô
+  'tile-30', // 15: Áp Giải Đến Azkaban - GO_TO_JAIL
+  'tile-26', // 16: Đại Sảnh Đường Hogwarts - YELLOW
+  'tile-27', // 17: Tháp Thiên Văn - YELLOW
+  'tile-37', // 18: Hầm 713 Ngân Hàng Gringotts - DARK_BLUE
+  'tile-39', // 19: Văn Phòng Cụ Dumbledore - DARK_BLUE
 ];
+
+export const HOGWARTS_TILES_20: TileConfig[] = createVariantBoard(BOARD_20_TILE_IDS);
 
 /**
  * Returns the active tiles for a given board size (20, 28, or default 40)
