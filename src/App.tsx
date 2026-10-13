@@ -15,17 +15,31 @@ import { BankruptcyDraftModal } from './ui/BankruptcyDraftModal';
 import { DefeatHowlerModal } from './ui/DefeatHowlerModal';
 import { Lobby, GameSetupConfig } from './ui/Lobby';
 import { soundManager } from './audio/soundManager';
+import {
+  generateMatchCode,
+  broadcastSpectatorState,
+  getLatestSpectatorState,
+  subscribeToSpectatorState,
+  getSpectatorUrl,
+} from './core/spectatorSync';
 import './App.css';
 import { g, galleons } from './hpvn/money';
 import { clearSave, loadSave, resumeState, writeSave, SavedGame, SAVE_TTL_MS } from './hpvn/saveGame';
 
+const watchCodeFromUrl = (() => {
+  if (typeof window === 'undefined') return '';
+  const code = (new URLSearchParams(window.location.search).get('watch') || new URLSearchParams(window.location.search).get('spectate'))?.trim().toUpperCase() ?? '';
+  return /^[A-Z0-9]{6}$/.test(code) ? code : '';
+})();
+
 export function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [inLobby, setInLobby] = useState<boolean>(true);
+  const [inLobby, setInLobby] = useState<boolean>(!watchCodeFromUrl);
   const [myPlayerId, setMyPlayerId] = useState<string | undefined>(undefined);
   const [showDefeatModal, setShowDefeatModal] = useState<boolean>(false);
   const [activeDefeatDetails, setActiveDefeatDetails] = useState<BankruptcyDetails | null>(null);
-  const [isSpectating, setIsSpectating] = useState<boolean>(false);
+  const [isSpectating, setIsSpectating] = useState<boolean>(() => !!watchCodeFromUrl);
+  const [matchCode, setMatchCode] = useState<string>(() => watchCodeFromUrl || generateMatchCode());
   // HPVN online room (server seats and phase); null = local game
   const [room, setRoom] = useState<RoomView | null>(null);
   const [notice, setNotice] = useState<string>('');
@@ -33,9 +47,15 @@ export function App() {
   const [saved, setSaved] = useState<SavedGame | null>(() => loadSave());
   const roomRef = useRef<RoomView | null>(null);
   roomRef.current = room;
+
+  const isSpectator = Boolean(
+    isSpectating ||
+    (gameState && myPlayerId && !gameState.players.some((p) => p.id === myPlayerId))
+  );
+
   const isHostRef = useRef<boolean>(true);
   const online = room !== null;
-  const isHost = !room || room.hostUid === identity?.uid;
+  const isHost = !isSpectator && (!room || room.hostUid === identity?.uid);
   isHostRef.current = isHost;
 
   // The host's runtime (clock ticks, bots, its own reducer): applies directly.
@@ -82,7 +102,13 @@ export function App() {
       const state = unpackSnapshot(event.s, current.epoch);
       if (!state) return;
       lastLiveRef.current = event.n;
-      setGameState(state); setMyPlayerId(identity?.uid); setInLobby(false);
+      setGameState(state);
+      const myUid = identity?.uid;
+      setMyPlayerId(myUid);
+      if (myUid && !state.players.some((p) => p.id === myUid)) {
+        setIsSpectating(true);
+      }
+      setInLobby(false);
     } else if (event.t === 'inputs' && current.hostUid === identity?.uid) {
       for (const input of event.list) {
         if (typeof input.n !== 'number' || typeof input.a !== 'string' || input.n <= (seenRef.current[input.uid] ?? 0)) continue;
@@ -107,6 +133,56 @@ export function App() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [gameState, room, isHost, inLobby]);
+
+  // Broadcast current game state for live spectators (cross-tab & persistent cache)
+  useEffect(() => {
+    if (!gameState || inLobby || isSpectator) return;
+    const code = room ? room.code : matchCode;
+    const timer = window.setTimeout(() => {
+      broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [gameState, room, matchCode, inLobby, isSpectator]);
+
+  // Subscribe to live spectator updates if in spectator mode
+  useEffect(() => {
+    if (!isSpectating) return;
+    const code = room ? room.code : matchCode;
+    if (!code) return;
+
+    // Check cached state immediately
+    const cached = getLatestSpectatorState(code, room?.epoch ?? 1);
+    if (cached && !gameState) {
+      setGameState(cached);
+      setInLobby(false);
+    }
+
+    const unsubscribe = subscribeToSpectatorState(
+      code,
+      (incoming) => {
+        setGameState(incoming);
+        setInLobby(false);
+      },
+      room?.epoch ?? 1
+    );
+
+    return () => unsubscribe();
+  }, [isSpectating, room?.code, matchCode, room?.epoch]);
+
+  // Auto-connect to match if ?watch=CODE was in the URL on startup
+  useEffect(() => {
+    if (!watchCodeFromUrl) return;
+    setIsSpectating(true);
+    setMatchCode(watchCodeFromUrl);
+    if (identity) {
+      void roomAction(() => roomOp('join', { code: watchCodeFromUrl }));
+    }
+    const cached = getLatestSpectatorState(watchCodeFromUrl);
+    if (cached) {
+      setGameState(cached);
+      setInLobby(false);
+    }
+  }, []);
 
   // A reload finds its table again: a guest waits for the next snapshot, the host picks the game up
   // from the newest one it published (or sends the room back to the lobby).
@@ -179,6 +255,19 @@ export function App() {
       await roomAction(() => roomOp('create', config.stake ? { stake: true } : {}));
     } else if (config.mode === 'ONLINE_JOIN') {
       await roomAction(() => roomOp('join', { code: config.roomCode }));
+    } else if (config.mode === 'SPECTATE') {
+      resetDefeatState();
+      const code = config.roomCode.trim().toUpperCase();
+      setMatchCode(code);
+      setIsSpectating(true);
+      if (identity) {
+        await roomAction(() => roomOp('join', { code }));
+      }
+      const cached = getLatestSpectatorState(code);
+      if (cached) {
+        setGameState(cached);
+      }
+      setInLobby(false);
     } else if (config.mode === 'HOTSEAT') {
       const initial = createInitialState(config.players, config.boardSize || 40);
       setGameState(initial);
@@ -208,7 +297,7 @@ export function App() {
     latestSaveRef.current = null;
   };
   useEffect(() => {
-    if (room || inLobby || !gameState) return;
+    if (room || inLobby || !gameState || isSpectator) return;
     if (gameState.turnPhase === 'GAME_OVER') { cancelPendingSave(); clearSave(); return; }
     latestSaveRef.current = { state: gameState, me: myPlayerId };
     if (saveTimerRef.current !== null) return;
@@ -217,19 +306,19 @@ export function App() {
       const latest = latestSaveRef.current;
       if (latest) writeSave(latest.state, lastActionRef.current, latest.me);
     }, 1500);
-  }, [gameState, room, inLobby, myPlayerId]);
+  }, [gameState, room, inLobby, myPlayerId, isSpectator]);
 
   // Idle timeout: an open local table with no action from the player for 30 minutes closes itself;
   // a parked one simply expires (loadSave / the lobby card below).
   useEffect(() => {
-    if (room || inLobby || !gameState) return;
+    if (room || inLobby || !gameState || isSpectator) return;
     const check = window.setInterval(() => {
       if (Date.now() - lastActionRef.current < SAVE_TTL_MS) return;
       cancelPendingSave(); clearSave(); setSaved(null); setGameState(null); setInLobby(true);
       setNotice('Ván đã tự đóng vì 30 phút không có thao tác.');
     }, 15000);
     return () => window.clearInterval(check);
-  }, [room, inLobby, !gameState]);
+  }, [room, inLobby, !gameState, isSpectator]);
   useEffect(() => {
     if (!saved) return;
     const left = saved.lastActionAt + SAVE_TTL_MS - Date.now();
@@ -242,20 +331,22 @@ export function App() {
     cancelPendingSave();
     resetDefeatState();
     if (room) { await roomAction(() => roomOp('leave', { code: room.code })); return; }
-    if (gameState && gameState.turnPhase !== 'GAME_OVER') {
+    if (gameState && gameState.turnPhase !== 'GAME_OVER' && !isSpectator) {
       writeSave(gameState, lastActionRef.current, myPlayerId);
       setSaved({ v: 1, savedAt: Date.now(), lastActionAt: lastActionRef.current, myPlayerId, state: gameState });
     }
     setGameState(null);
+    setIsSpectating(false);
     setInLobby(true);
   };
 
   // Watch for local player bankruptcy to trigger Defeat Howler Modal
   useEffect(() => {
     if (!gameState || inLobby) return;
+    if (isSpectator && !myPlayerId) return; // Outside spectator never gets defeat howler
     const localP = myPlayerId
       ? gameState.players.find((p) => p.id === myPlayerId)
-      : gameState.players.find((p) => !p.isAI);
+      : !isSpectator ? gameState.players.find((p) => !p.isAI) : null;
 
     if (localP && localP.isBankrupt && localP.bankruptcyDetails) {
       if (!activeDefeatDetails || activeDefeatDetails.timestamp !== localP.bankruptcyDetails.timestamp) {
@@ -263,7 +354,7 @@ export function App() {
         setShowDefeatModal(true);
       }
     }
-  }, [gameState, myPlayerId, inLobby, activeDefeatDetails]);
+  }, [gameState, myPlayerId, inLobby, activeDefeatDetails, isSpectator]);
 
   // Staked room: the host reports the winner once; the server settles the pot and writes stakeResult
   // on the room, which every seat (and the HPVN result banner) then reads.
@@ -388,7 +479,7 @@ export function App() {
 
   // 4. Global Quick Keyboard Shortcuts (Space: Roll/End Turn/Dismiss, B: Buy, P: Pass, T: Turbo)
   useEffect(() => {
-    if (!gameState || gameState.turnPhase === 'GAME_OVER' || inLobby) return;
+    if (!gameState || gameState.turnPhase === 'GAME_OVER' || inLobby || isSpectator) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is currently typing in an input or textarea
@@ -471,6 +562,29 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, inLobby, myPlayerId, uiDispatch]);
 
+  if (isSpectating && !gameState && !inLobby) {
+    return (
+      <div className="lobby-overlay">
+        <div className="lobby-modal-card hpvn-lobby" style={{ textAlign: 'center', padding: '32px 24px' }}>
+          <header className="hpvn-lobby-head">
+            <p className="hpvn-eyebrow">Khán giả · Đang kết nối trực tiếp</p>
+            <h1 className="lobby-title" style={{ fontSize: '1.45rem' }}>Phòng {room ? room.code : matchCode}</h1>
+          </header>
+          <div style={{ margin: '24px 0', fontSize: '2.5rem' }}>👁️</div>
+          <p style={{ color: '#ecdcc9', fontSize: '0.95rem', marginBottom: '8px' }}>
+            Đang đồng bộ dữ liệu thời gian thực từ bàn cờ…
+          </p>
+          <p className="hpvn-hint" style={{ marginBottom: '24px' }}>
+            Bàn cờ 3D và trạng thái sẽ tự động xuất hiện ngay khi chủ phòng bắt đầu hoặc phát tín hiệu lượt chơi.
+          </p>
+          <button className="btn-launch-game" onClick={exitGame} style={{ maxWidth: '240px', margin: '0 auto' }}>
+            Quay lại Sảnh
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (room && (inLobby || !gameState)) {
     return (
       <OnlineLobby
@@ -500,9 +614,10 @@ export function App() {
       <RightSidebar
         gameState={gameState}
         dispatch={uiDispatch}
-        roomCode={room?.code}
+        roomCode={room ? room.code : matchCode}
         myPlayerId={myPlayerId}
         isHost={isHost}
+        isSpectator={isSpectator}
         onExit={exitGame}
         stakeAtRisk={room?.stake && room.phase === 'playing' && room.stakeResult?.epoch !== room.epoch ? room.stake : 0}
       />
@@ -512,7 +627,7 @@ export function App() {
         <ActiveCardModal
           card={gameState.activeCard}
           player={gameState.players[gameState.currentPlayerIndex]}
-          isMyTurn={!myPlayerId || gameState.players[gameState.currentPlayerIndex]?.id === myPlayerId}
+          isMyTurn={!isSpectator && (!myPlayerId || gameState.players[gameState.currentPlayerIndex]?.id === myPlayerId)}
           onDismiss={() => uiDispatch({ type: 'DISMISS_CARD' })}
           turboMode={gameState.turboMode}
         />
@@ -533,20 +648,49 @@ export function App() {
           players={gameState.players}
           myPlayerId={myPlayerId}
           boardTiles={gameState.boardTiles}
+          isSpectator={isSpectator}
           onSelectProperty={(propertyId) => uiDispatch({ type: 'SELECT_DRAFT_PROPERTY', propertyId })}
         />
       )}
 
       {/* Spectator Mode Sticky Ribbon */}
-      {isSpectating && activeDefeatDetails && !isGameOver && (
+      {isSpectator && !isGameOver && (
         <div className="spectator-badge-ribbon">
-          <span>👁️ Bạn đang là Khán Giả (Đã phá sản)</span>
-          <button
-            className="btn-view-howler-small"
-            onClick={() => setShowDefeatModal(true)}
-          >
-            Xem lại Thư Sấm
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="live-dot" />
+            <span>
+              👁️ {activeDefeatDetails ? 'Bạn đang là Khán Giả (Đã phá sản)' : `Khán Giả · Đang xem ván ${room ? room.code : matchCode}`}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {activeDefeatDetails && (
+              <button
+                className="btn-view-howler-small"
+                onClick={() => setShowDefeatModal(true)}
+              >
+                Xem lại Thư Sấm
+              </button>
+            )}
+            <button
+              className="btn-view-howler-small"
+              onClick={() => {
+                const code = room ? room.code : matchCode;
+                navigator.clipboard.writeText(getSpectatorUrl(code));
+                setNotice('Đã chép link xem ván cho khán giả!');
+                setTimeout(() => setNotice(''), 2500);
+              }}
+              title="Sao chép link mời bạn bè xem cùng"
+            >
+              🔗 Link xem
+            </button>
+            <button
+              className="btn-view-howler-small"
+              onClick={exitGame}
+              title="Rời trận đấu về sảnh"
+            >
+              Về sảnh
+            </button>
+          </div>
         </div>
       )}
 
@@ -605,8 +749,16 @@ export function App() {
               </div>
             </div>
 
-            {online && !isHost ? (
+            {online && !isHost && !isSpectator ? (
               <div style={{ marginTop: '12px', color: '#bb9c7c' }}>Chờ chủ phòng mở ván mới…</div>
+            ) : isSpectator ? (
+              <button
+                className="btn-launch-game"
+                style={{ marginTop: '12px' }}
+                onClick={exitGame}
+              >
+                Về sảnh chính
+              </button>
             ) : (
               <button
                 className="btn-launch-game"

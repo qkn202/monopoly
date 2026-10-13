@@ -9,6 +9,7 @@ interface BankruptcyDraftModalProps {
   myPlayerId?: string | null;
   boardTiles?: TileConfig[];
   onSelectProperty: (propertyId: string) => void;
+  isSpectator?: boolean;
 }
 
 export const BankruptcyDraftModal: React.FC<BankruptcyDraftModalProps> = ({
@@ -17,13 +18,14 @@ export const BankruptcyDraftModal: React.FC<BankruptcyDraftModalProps> = ({
   myPlayerId,
   boardTiles,
   onSelectProperty,
+  isSpectator = false,
 }) => {
   const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
   const currentDrafter = players.find((p) => p.id === currentDrafterId);
   const drafterHouse = currentDrafter?.house ? HOUSE_INFO[currentDrafter.house] : null;
 
-  // Local play: if no myPlayerId is set, any human turn is playable by the local player
-  const isMyTurn = (!myPlayerId && !currentDrafter?.isAI) || (!!myPlayerId && myPlayerId === currentDrafterId);
+  // Local play: if no myPlayerId is set, any human turn is playable by the local player (never for spectators)
+  const isMyTurn = !isSpectator && ((!myPlayerId && !currentDrafter?.isAI) || (!!myPlayerId && myPlayerId === currentDrafterId));
 
   const debtor = players.find((p) => p.id === draft.debtorId);
 

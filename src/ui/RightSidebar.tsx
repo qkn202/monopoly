@@ -9,6 +9,7 @@ import { openFloo, usePhoneFloo } from '../hpvn/usePhoneFloo';
 import { Icon } from '../hpvn/Icon';
 import { useHudInsets } from '../hpvn/useHudInsets';
 import { BankruptcyConfirmModal } from './BankruptcyConfirmModal';
+import { getSpectatorUrl } from '../core/spectatorSync';
 import './RightSidebar.css';
 import { g, galleons } from '../hpvn/money';
 
@@ -21,6 +22,7 @@ interface RightSidebarProps {
   roomCode?: string;
   myPlayerId?: string;
   isHost?: boolean;
+  isSpectator?: boolean;
   /** Leave the table: a local game is parked for 30 minutes, an online seat leaves the room. */
   onExit?: () => void | Promise<void>;
   /** Galleons this seat loses by leaving a running staked match (0 = nothing at stake). */
@@ -33,6 +35,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   roomCode,
   myPlayerId,
   isHost = true,
+  isSpectator = false,
   onExit,
   stakeAtRisk = 0,
 }) => {
@@ -42,6 +45,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   useHudInsets();
   const [activeTab, setActiveTab] = useState<'leaderboard' | 'properties' | 'events' | 'finances'>('properties');
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [selectedPropertyPlayerId, setSelectedPropertyPlayerId] = useState<string | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -53,12 +57,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   }, [gameState.turnPhase]);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const isMyTurn = myPlayerId ? currentPlayer?.id === myPlayerId : true;
+  const isMyTurn = isSpectator ? false : (myPlayerId ? currentPlayer?.id === myPlayerId : true);
 
   const myPlayer = myPlayerId ? gameState.players.find((p) => p.id === myPlayerId) : null;
   const viewingPlayerId = selectedPropertyPlayerId || myPlayer?.id || currentPlayer?.id;
   const viewingPlayer = gameState.players.find((p) => p.id === viewingPlayerId) || currentPlayer;
-  const isControllingViewingPlayer = viewingPlayer?.id === (myPlayerId || currentPlayer?.id);
+  const isControllingViewingPlayer = !isSpectator && viewingPlayer?.id === (myPlayerId || currentPlayer?.id);
 
   const currentBidderId = gameState.auction?.active
     ? gameState.auction.activeBidders[gameState.auction.currentBidderIndex]
@@ -66,8 +70,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const currentBidder = currentBidderId
     ? gameState.players.find((p) => p.id === currentBidderId)
     : null;
-  // Solo/hotseat: only a human seat bids from these buttons; bots bid through botAI.
-  const isMyBidTurn = myPlayerId ? currentBidderId === myPlayerId : !!currentBidder && !currentBidder.isAI;
+  // Solo/hotseat: only a human seat bids from these buttons; bots bid through botAI (never spectator).
+  const isMyBidTurn = !isSpectator && (myPlayerId ? currentBidderId === myPlayerId : !!currentBidder && !currentBidder.isAI);
   const baseUrl = import.meta.env.BASE_URL || '/';
 
   // Format 30m countdown timer
@@ -100,6 +104,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     }
   };
 
+  const copySpectatorLink = () => {
+    if (roomCode) {
+      navigator.clipboard.writeText(getSpectatorUrl(roomCode));
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    }
+  };
+
   const boardTiles = gameState.boardTiles || HOGWARTS_TILES;
   const landedTile = currentPlayer ? boardTiles[currentPlayer.position] : null;
   const ownerId = landedTile ? gameState.propertyOwnership[landedTile.id] : undefined;
@@ -112,8 +124,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     setMuted(isNowMuted);
   };
 
-  // "You" is the seat this screen controls; in solo that is the one human seat.
-  const me = myPlayer || gameState.players.find((p) => !p.isAI) || currentPlayer;
+  // "You" is the seat this screen controls; in solo that is the one human seat. For pure spectators, me is null.
+  const me = myPlayer || (!isSpectator ? gameState.players.find((p) => !p.isAI) || currentPlayer : null);
   const myBuildings = me
     ? Object.values(me.houses).reduce((a, b) => a + b, 0) + Object.values(me.hotels).reduce((a, b) => a + b, 0)
     : 0;
@@ -158,6 +170,72 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   // --- Sub-renderers ---
   const renderTurnActions = (isMobile = false) => {
     if (!currentPlayer) return null;
+
+    if (isSpectator) {
+      return (
+        <div className={`turn-action-content spectator-turn-content ${isMobile ? 'mobile-turn-content' : ''}`}>
+          <div className="spectator-action-card">
+            <div className="spectator-card-badge">
+              <span className="live-dot" />
+              <span>CHẾ ĐỘ KHÁN GIẢ · ĐANG THEO DÕI</span>
+            </div>
+
+            <div className="spectator-current-player-row">
+              <span
+                className="player-avatar-circle mini-avatar"
+                style={{ borderColor: currentPlayer.color, background: `${currentPlayer.color}22` }}
+              >
+                {currentPlayer.tokenIcon}
+              </span>
+              <div className="spectator-current-text">
+                <span className="spectator-label">Lượt hiện tại:</span>
+                <strong style={{ color: currentPlayer.color }}>{currentPlayer.name}</strong>
+                <small style={{ color: '#bb9c7c' }}> ({currentPlayer.house})</small>
+              </div>
+            </div>
+
+            <div className="spectator-phase-message">
+              {gameState.turnPhase === 'ROLL' && (
+                <span>
+                  🎲 {currentPlayer.inJail ? `${currentPlayer.name} đang ở Azkaban (Cần trả bảo lãnh hoặc gieo xúc xắc)…` : `Đang chờ ${currentPlayer.name} gieo xúc xắc…`}
+                </span>
+              )}
+              {gameState.turnPhase === 'ACTION' && (
+                <span>
+                  {gameState.takeoverCandidate
+                    ? `⚡ ${currentPlayer.name} đang cân nhắc mua đứt ${landedTile?.name}!`
+                    : gameState.upgradeCandidate
+                    ? `🏰 ${currentPlayer.name} đang cân nhắc nâng cấp ${landedTile?.name}!`
+                    : landedTile && !ownerId && landedTile.price
+                    ? `🏰 ${currentPlayer.name} đang cân nhắc mua hoặc đấu giá ${landedTile.name}…`
+                    : `⚖️ ${currentPlayer.name} đang xem xét ô đất ${landedTile?.name || 'hiện tại'}…`}
+                </span>
+              )}
+              {gameState.turnPhase === 'AUCTION' && gameState.auction && (
+                <span>
+                  🏛️ Đang đấu giá ô <strong>{gameState.auction.propertyId}</strong>.
+                  <br />
+                  Lượt ra giá: <strong style={{ color: '#f3d189' }}>{currentBidder?.name || 'Người chơi'}</strong> (Hiện tại: {galleons(gameState.auction.currentBid)})
+                </span>
+              )}
+              {gameState.turnPhase === 'BANKRUPTCY' && (
+                <span>⚡ {currentPlayer.name} đang xử lý nợ / giải quyết phá sản…</span>
+              )}
+              {gameState.turnPhase === 'END_TURN' && (
+                <span>⏳ Đang hoàn tất lượt của {currentPlayer.name}…</span>
+              )}
+              {gameState.turnPhase === 'GAME_OVER' && (
+                <span>🏆 Ván đấu đã kết thúc! Người thắng: {gameState.winner?.name}</span>
+              )}
+            </div>
+
+            <div className="spectator-guide-note">
+              💡 <em>Bạn có thể click trực tiếp vào các ô đất trên bàn cờ 3D hoặc chuyển tab để xem chi tiết tài sản của từng người chơi.</em>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={`turn-action-content ${isMobile ? 'mobile-turn-content' : ''}`}>
@@ -1423,7 +1501,16 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <div className="hpvn-cmd-room">
                 {roomCode && (
                   <button className="room-badge" onClick={copyRoomCode} title="Chép mã phòng">
-                    {copied ? 'Đã chép mã' : `Phòng ${roomCode}`}
+                    {copied ? 'Đã chép mã' : isSpectator ? `👁️ Khán giả · ${roomCode}` : `Phòng ${roomCode}`}
+                  </button>
+                )}
+                {roomCode && (
+                  <button
+                    className="spectate-share-badge"
+                    onClick={copySpectatorLink}
+                    title="Sao chép link mời bạn bè xem trận đấu trực tiếp"
+                  >
+                    {copiedLink ? '✓ Đã chép link' : '👁️ Mời xem ván'}
                   </button>
                 )}
                 {phoneFloo && <button className="hpvn-floo-btn" onClick={openFloo}>Floo</button>}
@@ -1431,7 +1518,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             )}
 
             {/* You: compact 1-card snapshot */}
-            {me && (
+            {me ? (
               <section className="hpvn-you hpvn-you-compact">
                 <div className="player-avatar-circle" style={{ borderColor: me.color, background: `${me.color}22` }}>{me.tokenIcon}</div>
                 <div className="hpvn-you-name">
@@ -1454,7 +1541,24 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   ))}
                 </div>
               </section>
-            )}
+            ) : isSpectator ? (
+              <section className="hpvn-you hpvn-you-compact hpvn-spectator-summary">
+                <div className="player-avatar-circle" style={{ borderColor: '#60a5fa', background: 'rgba(96, 165, 250, 0.15)' }}>👁️</div>
+                <div className="hpvn-you-name">
+                  <strong style={{ color: '#93c5fd' }}>Khán giả quan sát</strong>
+                  <span>Đang theo dõi trực tiếp</span>
+                </div>
+                <div className="hpvn-you-worth">
+                  <strong style={{ color: '#f3d189' }}>{gameState.players.filter((p) => !p.isBankrupt).length}</strong>
+                  <span>người chơi</span>
+                </div>
+                <div className="hpvn-you-stats">
+                  <div><b>{gameState.turnNumber}</b><span>vòng đấu</span></div>
+                  <div><b>{gameState.boardTiles?.length || 40} ô</b><span>bàn cờ</span></div>
+                  <div><b>{gameState.events.length}</b><span>sự kiện</span></div>
+                </div>
+              </section>
+            ) : null}
 
             {/* Turn Action Block: Chỉ hiện bảng hành động khi đến lượt của mình hoặc trong phiên đấu giá. Khi là lượt người khác, hiển thị thanh chờ gọn nhẹ không chiếm chỗ */}
             {currentPlayer && (
@@ -1728,9 +1832,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       {confirmExit && onExit && (
         <div className="hpvn-confirm-backdrop" onClick={() => setConfirmExit(false)}>
           <div className="hpvn-confirm" role="dialog" aria-modal="true" aria-labelledby="hpvn-exit-title" onClick={(e) => e.stopPropagation()}>
-            <h2 id="hpvn-exit-title">Thoát ván?</h2>
+            <h2 id="hpvn-exit-title">{isSpectator ? 'Rời chế độ xem?' : 'Thoát ván?'}</h2>
             <p>
-              {roomCode && stakeAtRisk > 0
+              {isSpectator
+                ? 'Bạn đang là khán giả theo dõi trận đấu. Rời đi sẽ đưa bạn trở lại Sảnh chính.'
+                : roomCode && stakeAtRisk > 0
                 ? (isHost
                   ? `Bạn là chủ phòng: thoát sẽ đóng phòng, ván không có kết quả và mọi người được hoàn ${galleons(stakeAtRisk)}.`
                   : `Bạn sẽ rời phòng và mất ${galleons(stakeAtRisk)} tiền cược. Ván của những người còn lại vẫn tiếp tục.`)
@@ -1740,7 +1846,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             </p>
             <div className="hpvn-confirm-actions">
               <button className="btn-bid" onClick={() => setConfirmExit(false)} autoFocus>Ở lại</button>
-              <button className="btn-fold" onClick={() => { setConfirmExit(false); void onExit(); }}>Thoát</button>
+              <button className="btn-fold" onClick={() => { setConfirmExit(false); void onExit(); }}>{isSpectator ? 'Rời đi' : 'Thoát'}</button>
             </div>
           </div>
         </div>

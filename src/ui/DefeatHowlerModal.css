@@ -390,3 +390,38 @@
   background: #f59e0b;
   color: #000000;
 }
+
+.spectator-badge-ribbon .spectator-badge-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spectator-badge-ribbon .spectator-badge-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spectator-badge-ribbon .btn-copy-spectate-ribbon {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(96, 165, 250, 0.6);
+  color: #bfdbfe;
+}
+
+.spectator-badge-ribbon .btn-copy-spectate-ribbon:hover {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.spectator-badge-ribbon .btn-exit-spectate-ribbon {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fca5a5;
+}
+
+.spectator-badge-ribbon .btn-exit-spectate-ribbon:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+

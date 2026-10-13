@@ -12,11 +12,18 @@ const invitedRoom = (() => {
   return /^[A-Z0-9]{6}$/.test(code) ? code : '';
 })();
 
+// A spectator link opens the game with ?watch=CODE or ?spectate=CODE.
+const spectateRoom = (() => {
+  const code = (new URLSearchParams(location.search).get('watch') || new URLSearchParams(location.search).get('spectate'))?.trim().toUpperCase() ?? '';
+  return /^[A-Z0-9]{6}$/.test(code) ? code : '';
+})();
+
 export type GameSetupConfig =
   | { mode: 'SOLO'; playerName: string; playerHouse: HouseType; botCount: number; boardSize?: number }
   | { mode: 'HOTSEAT'; players: Array<{ name: string; house: HouseType; isAI: boolean }>; boardSize?: number }
   | { mode: 'ONLINE_HOST'; stake: boolean; boardSize?: number }
-  | { mode: 'ONLINE_JOIN'; roomCode: string };
+  | { mode: 'ONLINE_JOIN'; roomCode: string }
+  | { mode: 'SPECTATE'; roomCode: string };
 
 export interface BoardSizePreset {
   size: number;
@@ -92,14 +99,18 @@ const AVAILABLE_HOUSES: HouseType[] = [
 ];
 
 export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResume, onDiscard }) => {
-  const [selectedMode, setSelectedMode] = useState<'SOLO' | 'ONLINE_HOST' | 'ONLINE_JOIN' | 'HOTSEAT'>(identity && invitedRoom ? 'ONLINE_JOIN' : 'SOLO');
+  const [selectedMode, setSelectedMode] = useState<'SOLO' | 'ONLINE_HOST' | 'ONLINE_JOIN' | 'HOTSEAT' | 'SPECTATE'>(
+    spectateRoom ? 'SPECTATE' : (identity && invitedRoom ? 'ONLINE_JOIN' : 'SOLO')
+  );
   // In HPVN the name is the signed-in member's; only a standalone page lets you type one.
   const [playerName, setPlayerName] = useState(identity?.displayName || 'Harry Potter');
   const [selectedHouse, setSelectedHouse] = useState<HouseType>(
     () => (Object.keys(HOUSE_INFO) as HouseType[]).find((h) => h.toLowerCase() === identity?.house?.toLowerCase()) ?? 'Gryffindor');
   const [botCount, setBotCount] = useState<number>(3);
   const [boardSize, setBoardSize] = useState<number>(() => getRecommendedBoardSize(3 + 1));
-  const [joinCodeInput, setJoinCodeInput] = useState<string>(identity ? invitedRoom : '');
+  const [joinCodeInput, setJoinCodeInput] = useState<string>(
+    spectateRoom ? spectateRoom : (identity ? invitedRoom : '')
+  );
   const [busy, setBusy] = useState(false);
   // The host chooses at creation: a friendly room, or each seat stakes 5.000 real Galleons.
   const [stake, setStake] = useState(false);
@@ -115,9 +126,14 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
     setBoardSize(getRecommendedBoardSize(count + 1));
   };
 
-  // Following an invite joins straight away (once).
+  // Following an invite or spectator link joins straight away (once).
   const autoJoined = useRef(false);
   useEffect(() => {
+    if (spectateRoom && !autoJoined.current) {
+      autoJoined.current = true;
+      launch({ mode: 'SPECTATE', roomCode: spectateRoom });
+      return;
+    }
     if (!identity || !invitedRoom || autoJoined.current) return;
     autoJoined.current = true;
     launch({ mode: 'ONLINE_JOIN', roomCode: invitedRoom });
@@ -147,6 +163,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
         return;
       }
       launch({ mode: 'ONLINE_JOIN', roomCode: code });
+    } else if (selectedMode === 'SPECTATE') {
+      const code = joinCodeInput.trim().toUpperCase();
+      if (!/^[A-Z0-9]{6}$/.test(code)) {
+        setError('Mã phòng / ván đấu gồm 6 ký tự (Ví dụ: HGW7K2).');
+        return;
+      }
+      launch({ mode: 'SPECTATE', roomCode: code });
     } else if (selectedMode === 'HOTSEAT') {
       // 4 local players
       const hotseatPlayers = [
@@ -165,6 +188,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
       { id: 'ONLINE_HOST' as const, label: 'Tạo phòng', hint: 'Mời bạn qua Floo' },
       { id: 'ONLINE_JOIN' as const, label: 'Vào phòng', hint: 'Nhập mã 6 ký tự' },
     ] : []),
+    { id: 'SPECTATE' as const, label: '👁️ Xem ván', hint: 'Khán giả theo dõi' },
   ];
 
   const totalTilesCount = boardSize === 20 ? 14 : boardSize === 28 ? 20 : 28;
@@ -215,7 +239,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
           </label>
         )}
 
-        {!isOnline && (
+        {!isOnline && selectedMode !== 'SPECTATE' && (
           <section className="hpvn-field">
             <span className="lobby-label">Quân cờ của bạn</span>
             <div className="hpvn-houses">
@@ -245,7 +269,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
         )}
 
         {/* Board Size Selector for Host */}
-        {!isOnline && (
+        {!isOnline && selectedMode !== 'SPECTATE' && (
           <section className="hpvn-field">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <span className="lobby-label">Kích thước bàn cờ (Chủ phòng chọn)</span>
@@ -308,10 +332,36 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
           </label>
         )}
 
+        {selectedMode === 'SPECTATE' && (
+          <section className="hpvn-field">
+            <span className="lobby-label">Mã phòng / Mã ván muốn xem</span>
+            <input
+              className="lobby-text-input hpvn-code"
+              value={joinCodeInput}
+              onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              placeholder="VD: HGW7K2"
+              maxLength={6}
+              autoCapitalize="characters"
+              autoComplete="off"
+            />
+            <p className="hpvn-hint" style={{ marginTop: '8px' }}>
+              💡 Nhập mã phòng 6 ký tự (hoặc mở trực tiếp link chia sẻ có dạng <code>?watch=MÃ_PHÒNG</code>) để theo dõi trận đấu trong thời gian thực.
+            </p>
+          </section>
+        )}
+
         {(error || notice) && <div className="hpvn-notice" role="alert">{error || notice}</div>}
 
         <button className="btn-launch-game" onClick={handleLaunch} disabled={busy}>
-          {busy ? 'Đang kết nối…' : selectedMode === 'ONLINE_HOST' ? 'Tạo phòng' : selectedMode === 'ONLINE_JOIN' ? 'Vào phòng' : 'Bắt đầu ván đấu'}
+          {busy
+            ? 'Đang kết nối…'
+            : selectedMode === 'ONLINE_HOST'
+            ? 'Tạo phòng'
+            : selectedMode === 'ONLINE_JOIN'
+            ? 'Vào phòng'
+            : selectedMode === 'SPECTATE'
+            ? '👁️ Vào xem trận đấu'
+            : 'Bắt đầu ván đấu'}
         </button>
       </div>
     </div>
