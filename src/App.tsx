@@ -699,6 +699,12 @@ export function App() {
         <DefeatHowlerModal
           details={activeDefeatDetails}
           isGameOver={gameState.turnPhase === 'GAME_OVER'}
+          onClose={() => {
+            setShowDefeatModal(false);
+            if (gameState.turnPhase !== 'GAME_OVER') {
+              setIsSpectating(true);
+            }
+          }}
           onSpectate={() => {
             setShowDefeatModal(false);
             setIsSpectating(true);
