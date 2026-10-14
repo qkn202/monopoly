@@ -3,6 +3,7 @@ import { identity, request, RoomView } from './bridge';
 import { MAX_SEATS } from './onlineGame';
 import { g, galleons } from './money';
 import { BOARD_SIZE_PRESETS, getRecommendedBoardSize } from '../ui/Lobby';
+import { GameState } from '../core/types';
 import '../ui/Lobby.css';
 
 interface OnlineLobbyProps {
@@ -11,10 +12,22 @@ interface OnlineLobbyProps {
   waiting: boolean;
   onStart: (bots: number, boardSize: number) => void;
   onLeave: () => void;
+  activeGame?: GameState | null;
+  onSpectateActiveGame?: () => void;
+  onForceCloseRoom?: () => void;
 }
 
 /** The HPVN room before a game: members from the server, bots and the start button for the host. */
-export const OnlineLobby: React.FC<OnlineLobbyProps> = ({ room, notice, waiting, onStart, onLeave }) => {
+export const OnlineLobby: React.FC<OnlineLobbyProps> = ({
+  room,
+  notice,
+  waiting,
+  onStart,
+  onLeave,
+  activeGame,
+  onSpectateActiveGame,
+  onForceCloseRoom,
+}) => {
   const isHost = room.hostUid === identity?.uid;
   const freeSeats = MAX_SEATS - room.members.length;
   const [bots, setBots] = useState(0);
@@ -44,15 +57,86 @@ export const OnlineLobby: React.FC<OnlineLobbyProps> = ({ room, notice, waiting,
     try { await onStart(botCount, boardSize); } finally { setBusy(false); }
   };
 
+  const isBackgroundGameActive = Boolean(activeGame && activeGame.turnPhase !== 'GAME_OVER');
+  const isBackgroundGameOver = Boolean(activeGame && activeGame.turnPhase === 'GAME_OVER');
+
   return (
     <div className="lobby-overlay">
       <div className="lobby-modal-card">
         <div className="lobby-header-center">
           <div className="lobby-title">Phòng {room.code}</div>
           <div className="lobby-subtitle">
-            {waiting ? 'Đang vào ván…' : isHost ? 'Mời bạn bè vào phòng rồi bắt đầu ván' : 'Chờ chủ phòng bắt đầu ván'}
+            {isBackgroundGameActive
+              ? 'Trận đấu đang tiếp tục trên máy chủ phòng của bạn'
+              : waiting
+              ? 'Đang vào ván…'
+              : isHost
+              ? 'Mời bạn bè vào phòng rồi bắt đầu ván'
+              : 'Chờ chủ phòng bắt đầu ván'}
           </div>
         </div>
+
+        {/* Active background match banner for host who was defeated early */}
+        {isBackgroundGameActive && activeGame && (
+          <div className="hpvn-active-match-card">
+            <div className="active-match-header">
+              <span className="live-dot" />
+              <strong>Trận đấu đang tiếp tục ({activeGame.players.filter((p) => !p.isBankrupt).length} người còn lại)</strong>
+            </div>
+            <p className="active-match-desc">
+              Bạn đã dừng cuộc chơi, nhưng ván đấu vẫn đang tiếp tục diễn ra cho các đối thủ còn lại.
+            </p>
+            <div className="active-match-actions">
+              {onSpectateActiveGame && (
+                <button
+                  type="button"
+                  className="btn-launch-game"
+                  style={{ marginTop: 0 }}
+                  onClick={onSpectateActiveGame}
+                >
+                  👁️ Xem tiếp trận đấu (Khán giả)
+                </button>
+              )}
+              {onForceCloseRoom && isHost && (
+                <button
+                  type="button"
+                  className="btn-force-close-room"
+                  onClick={() => {
+                    if (window.confirm('Ván đấu vẫn đang diễn ra giữa các người chơi khác. Bạn có chắc chắn muốn đóng phòng và huỷ ván không?')) {
+                      onForceCloseRoom();
+                    }
+                  }}
+                >
+                  🛑 Huỷ ván & Đóng phòng
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isBackgroundGameOver && activeGame && (
+          <div className="hpvn-active-match-card is-finished">
+            <div className="active-match-header">
+              <span>🏆</span>
+              <strong>Trận đấu đã kết thúc!</strong>
+            </div>
+            <p className="active-match-desc">
+              Quán quân: <strong style={{ color: '#f3d189' }}>{activeGame.winner?.name} ({activeGame.winner?.house})</strong>
+            </p>
+            <div className="active-match-actions">
+              {onSpectateActiveGame && (
+                <button
+                  type="button"
+                  className="btn-launch-game"
+                  style={{ marginTop: 0 }}
+                  onClick={onSpectateActiveGame}
+                >
+                  🏆 Xem Bảng Vàng Tổng Kết
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {staked && (
           <section className="hpvn-stake-card" aria-label="Phòng cược">
@@ -143,7 +227,23 @@ export const OnlineLobby: React.FC<OnlineLobbyProps> = ({ room, notice, waiting,
         )}
         <div className="hpvn-room-actions">
           {!waiting && <button className="btn-bid" onClick={invite}>Mời qua Mạng Floo</button>}
-          <button className="btn-bid" onClick={onLeave}>{isHost ? 'Đóng phòng' : 'Rời phòng'}</button>
+          <button
+            className="btn-bid"
+            onClick={() => {
+              if (
+                isBackgroundGameActive &&
+                isHost &&
+                !window.confirm(
+                  'Ván đấu vẫn đang tiếp tục diễn ra cho các đối thủ còn lại. Bạn có chắc chắn muốn đóng phòng và kết thúc ván không?'
+                )
+              ) {
+                return;
+              }
+              onLeave();
+            }}
+          >
+            {isHost ? 'Đóng phòng' : 'Rời phòng'}
+          </button>
         </div>
       </div>
     </div>

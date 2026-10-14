@@ -133,18 +133,18 @@ export function App() {
   // The host publishes every change (at most 4 a second) to the room ring for the guests.
   const slotRef = useRef(0);
   useEffect(() => {
-    if (!room || room.phase !== 'playing' || !isHost || !gameState || inLobby) return;
+    if (!room || room.phase !== 'playing' || !isHost || !gameState) return;
     const timer = window.setTimeout(() => {
       const n = stamp();
       if (!baseVersionRef.current) baseVersionRef.current = n;
       post('sb-live', { slot: slotRef.current++ % 6, n, s: packSnapshot(room.epoch, gameState) });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [gameState, room, isHost, inLobby]);
+  }, [gameState, room, isHost]);
 
   // Host keeps WebRTC & cross-tab broadcaster alive for incoming spectators
   useEffect(() => {
-    if (!gameState || inLobby || !isHost) return;
+    if (!gameState || !isHost) return;
     const code = room ? room.code : matchCode;
     if (!code) return;
 
@@ -154,19 +154,19 @@ export function App() {
     // Keep host broadcaster alive for incoming spectators (P2P WebRTC & cross-tab sync)
     const cleanup = initHostSpectatorBroadcaster(code, () => gameStateRef.current, room?.epoch ?? 1);
     return () => cleanup();
-  }, [matchCode, room?.code, inLobby, isHost]);
+  }, [matchCode, room?.code, isHost]);
 
   // Broadcast every game state change immediately to spectators
   useEffect(() => {
-    if (!gameState || inLobby || !isHost) return;
+    if (!gameState || !isHost) return;
     const code = room ? room.code : matchCode;
     if (!code) return;
     broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
-  }, [gameState, room?.code, matchCode, inLobby, isHost]);
+  }, [gameState, room?.code, matchCode, isHost]);
 
-  // Subscribe to live spectator updates if in spectator mode
+  // Subscribe to live spectator updates if in spectator mode (guest/external spectator only)
   useEffect(() => {
-    if (!isSpectating) return;
+    if (!isSpectating || isHost) return;
     const code = room ? room.code : matchCode;
     if (!code) return;
 
@@ -351,6 +351,24 @@ export function App() {
   const exitGame = async () => {
     cancelPendingSave();
     resetDefeatState();
+
+    const hostPlayer = gameState ? (myPlayerId ? gameState.players.find((p) => p.id === myPlayerId) : gameState.players.find((p) => !p.isAI)) : null;
+    const isHostDefeatedEarly = Boolean(
+      isHost &&
+      hostPlayer?.isBankrupt &&
+      gameState &&
+      gameState.turnPhase !== 'GAME_OVER'
+    );
+
+    if (isHostDefeatedEarly) {
+      // Host lost early: DO NOT destroy the room or cancel the game!
+      // Keep authoritative engine and background publisher running so other players continue.
+      setInLobby(true);
+      setIsSpectating(false);
+      setNotice('Bạn đã rời về sảnh. Trận đấu vẫn đang tiếp tục diễn ra trong nền cho các đối thủ còn lại.');
+      return;
+    }
+
     if (room) { await roomAction(() => roomOp('leave', { code: room.code })); return; }
     if (gameState && gameState.turnPhase !== 'GAME_OVER' && !isSpectator) {
       writeSave(gameState, lastActionRef.current, myPlayerId);
@@ -366,6 +384,28 @@ export function App() {
         }
       } catch {}
     }
+    setGameState(null);
+    setIsSpectating(false);
+    setInLobby(true);
+  };
+
+  /** Explicitly close room / abort match from lobby when host confirms */
+  const forceCloseRoom = async () => {
+    cancelPendingSave();
+    resetDefeatState();
+    if (room) {
+      await roomAction(() => roomOp('leave', { code: room.code }));
+      return;
+    }
+    setGameState(null);
+    setIsSpectating(false);
+    setInLobby(true);
+  };
+
+  /** Cancel offline active match from lobby */
+  const cancelActiveGame = () => {
+    cancelPendingSave();
+    resetDefeatState();
     setGameState(null);
     setIsSpectating(false);
     setInLobby(true);
@@ -402,7 +442,7 @@ export function App() {
 
   // 2. 30-Minute Timer Interval & Auction Countdown
   useEffect(() => {
-    if (!gameState || gameState.turnPhase === 'GAME_OVER' || inLobby) return;
+    if (!gameState || gameState.turnPhase === 'GAME_OVER') return;
     if (!isHostRef.current) return; // Only host ticks
 
     const timerInterval = setInterval(() => {
@@ -418,7 +458,7 @@ export function App() {
     }, 1000);
 
     return () => clearInterval(timerInterval);
-  }, [inLobby, gameState?.turnPhase === 'GAME_OVER', dispatch]);
+  }, [gameState?.turnPhase === 'GAME_OVER', dispatch]);
 
   // Turn Countdown Audio Warning (Ticks during last 5 seconds, chime on timeout)
   const prevTurnSecRef = useRef<number>(60);
@@ -448,7 +488,7 @@ export function App() {
 
   // 3. Bot AI Auto-Play Runner (Host-only execution)
   useEffect(() => {
-    if (!gameState || gameState.turnPhase === 'GAME_OVER' || inLobby) return;
+    if (!gameState || gameState.turnPhase === 'GAME_OVER') return;
     if (!isHostRef.current) return;
 
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -502,7 +542,7 @@ export function App() {
 
       return () => clearTimeout(aiTimer);
     }
-  }, [gameState, inLobby, dispatch]);
+  }, [gameState, dispatch]);
 
   // 4. Global Quick Keyboard Shortcuts (Space: Roll/End Turn/Dismiss, B: Buy, P: Pass, T: Turbo)
   useEffect(() => {
@@ -635,12 +675,34 @@ export function App() {
         waiting={room.phase === 'playing'}
         onStart={startOnlineGame}
         onLeave={() => roomAction(() => roomOp('leave', { code: room.code }))}
+        activeGame={gameState}
+        onSpectateActiveGame={() => {
+          setInLobby(false);
+          setIsSpectating(true);
+        }}
+        onForceCloseRoom={forceCloseRoom}
       />
     );
   }
   if (inLobby || !gameState) {
-    return <Lobby onStartGame={(config) => { if (config.mode === 'SOLO' || config.mode === 'HOTSEAT') discardSaved(); return handleStartGame(config); }} notice={notice}
-      saved={saved} onResume={resumeSaved} onDiscard={discardSaved} />;
+    return (
+      <Lobby
+        onStartGame={(config) => {
+          if (config.mode === 'SOLO' || config.mode === 'HOTSEAT') discardSaved();
+          return handleStartGame(config);
+        }}
+        notice={notice}
+        saved={saved}
+        onResume={resumeSaved}
+        onDiscard={discardSaved}
+        activeGame={gameState}
+        onSpectateActiveGame={() => {
+          setInLobby(false);
+          setIsSpectating(true);
+        }}
+        onCancelActiveGame={cancelActiveGame}
+      />
+    );
   }
 
   const isGameOver = gameState.turnPhase === 'GAME_OVER';

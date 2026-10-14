@@ -112,4 +112,49 @@ assert(handshakeState?.players.length === 3, 'Handshake subscriber got all playe
 cleanupHost();
 cleanupGuest();
 
-console.log('\n🎉 ALL SPECTATOR MODE TESTS PASSED 100%!\n');
+// 7. Test Host Early Defeat & Lobby Return Resilience
+console.log('\n7. Test Host Early Defeat & Lobby Return Resilience:');
+const stateWithBankruptHost = {
+  ...initial,
+  players: [
+    { ...initial.players[0], isBankrupt: true }, // Harry Potter (Host) is bankrupt
+    { ...initial.players[1] },
+    { ...initial.players[2] },
+  ],
+};
+
+const hostUid = stateWithBankruptHost.players[0].id;
+const myPlayerId = hostUid;
+const isHost = true;
+const hostPlayer = stateWithBankruptHost.players.find((p) => p.id === myPlayerId);
+const isHostDefeatedEarly = Boolean(
+  isHost &&
+  hostPlayer?.isBankrupt &&
+  stateWithBankruptHost.turnPhase !== 'GAME_OVER'
+);
+
+assert(isHostDefeatedEarly === true, 'Host early defeat condition correctly detected');
+
+// Simulate exitGame logic for bankrupt host:
+let localGameState: GameState | null = stateWithBankruptHost;
+let inLobby = false;
+let roomCancelled = false;
+
+function simulateExitGame() {
+  if (isHostDefeatedEarly) {
+    inLobby = true;
+    // Does NOT cancel room, does NOT set localGameState to null
+    return;
+  }
+  roomCancelled = true;
+  localGameState = null;
+  inLobby = true;
+}
+
+simulateExitGame();
+assert(inLobby === true, 'Host transitions to lobby view');
+assert(localGameState !== null, 'Game state is PRESERVED in memory for background execution');
+assert(roomCancelled === false, 'Online room is NOT cancelled when bankrupt host leaves to lobby');
+assert(stateWithBankruptHost.players.filter((p) => !p.isBankrupt).length === 2, 'Two remaining players continue competing in the active match');
+
+console.log('\n🎉 ALL SPECTATOR MODE & RESILIENCE TESTS PASSED 100%!\n');

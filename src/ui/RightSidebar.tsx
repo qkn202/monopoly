@@ -1832,10 +1832,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       {confirmExit && onExit && (
         <div className="hpvn-confirm-backdrop" onClick={() => setConfirmExit(false)}>
           <div className="hpvn-confirm" role="dialog" aria-modal="true" aria-labelledby="hpvn-exit-title" onClick={(e) => e.stopPropagation()}>
-            <h2 id="hpvn-exit-title">{isSpectator ? 'Rời chế độ xem?' : 'Thoát ván?'}</h2>
+            <h2 id="hpvn-exit-title">{isSpectator ? 'Rời chế độ xem?' : (myPlayer?.isBankrupt ? 'Về sảnh chính?' : 'Thoát ván?')}</h2>
             <p>
               {isSpectator
-                ? 'Bạn đang là khán giả theo dõi trận đấu. Rời đi sẽ đưa bạn trở lại Sảnh chính.'
+                ? (isHost && myPlayer?.isBankrupt
+                  ? 'Bạn sẽ quay lại sảnh chính. Trận đấu của các đối thủ còn lại vẫn tiếp tục diễn ra trong nền.'
+                  : 'Bạn đang là khán giả theo dõi trận đấu. Rời đi sẽ đưa bạn trở lại Sảnh chính.')
+                : myPlayer?.isBankrupt
+                ? 'Bạn đã phá sản và dừng cuộc chơi. Rời về sảnh chính, trận đấu của các đối thủ còn lại vẫn tiếp tục bình thường.'
                 : roomCode && stakeAtRisk > 0
                 ? (isHost
                   ? `Bạn là chủ phòng: thoát sẽ đóng phòng, ván không có kết quả và mọi người được hoàn ${galleons(stakeAtRisk)}.`
@@ -1846,7 +1850,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             </p>
             <div className="hpvn-confirm-actions">
               <button className="btn-bid" onClick={() => setConfirmExit(false)} autoFocus>Ở lại</button>
-              <button className="btn-fold" onClick={() => { setConfirmExit(false); void onExit(); }}>{isSpectator ? 'Rời đi' : 'Thoát'}</button>
+              <button className="btn-fold" onClick={() => { setConfirmExit(false); void onExit(); }}>{isSpectator ? 'Rời đi' : (myPlayer?.isBankrupt ? 'Về sảnh' : 'Thoát')}</button>
             </div>
           </div>
         </div>

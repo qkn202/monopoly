@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HouseType } from '../core/types';
+import { HouseType, GameState } from '../core/types';
 import { HOUSE_INFO } from '../core/boardData';
 import { identity } from '../hpvn/bridge';
 import { SAVE_TTL_MS, SavedGame } from '../hpvn/saveGame';
@@ -82,6 +82,9 @@ interface LobbyProps {
   saved?: SavedGame | null;
   onResume?: () => void;
   onDiscard?: () => void;
+  activeGame?: GameState | null;
+  onSpectateActiveGame?: () => void;
+  onCancelActiveGame?: () => void;
 }
 
 const clock = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
@@ -98,7 +101,16 @@ const AVAILABLE_HOUSES: HouseType[] = [
   'Ministry',
 ];
 
-export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResume, onDiscard }) => {
+export const Lobby: React.FC<LobbyProps> = ({
+  onStartGame,
+  notice,
+  saved,
+  onResume,
+  onDiscard,
+  activeGame,
+  onSpectateActiveGame,
+  onCancelActiveGame,
+}) => {
   const [selectedMode, setSelectedMode] = useState<'SOLO' | 'ONLINE_HOST' | 'ONLINE_JOIN' | 'HOTSEAT' | 'SPECTATE'>(
     spectateRoom ? 'SPECTATE' : (identity && invitedRoom ? 'ONLINE_JOIN' : 'SOLO')
   );
@@ -201,6 +213,43 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
           <h1 className="lobby-title">Cờ Tỷ Phú Hogwarts</h1>
           {identity && <p className="hpvn-lobby-who">Phù thủy <strong>{identity.displayName}</strong></p>}
         </header>
+
+        {activeGame && activeGame.turnPhase !== 'GAME_OVER' && (
+          <div className="hpvn-active-match-card">
+            <div className="active-match-header">
+              <span className="live-dot" />
+              <strong>Trận đấu đang tiếp tục ({activeGame.players.filter((p) => !p.isBankrupt).length} người còn lại)</strong>
+            </div>
+            <p className="active-match-desc">
+              Bạn đã dừng cuộc chơi, nhưng ván đấu vẫn đang tiếp tục diễn ra cho các đối thủ còn lại.
+            </p>
+            <div className="active-match-actions">
+              {onSpectateActiveGame && (
+                <button
+                  type="button"
+                  className="btn-launch-game"
+                  style={{ marginTop: 0 }}
+                  onClick={onSpectateActiveGame}
+                >
+                  👁️ Xem tiếp trận đấu (Khán giả)
+                </button>
+              )}
+              {onCancelActiveGame && (
+                <button
+                  type="button"
+                  className="btn-force-close-room"
+                  onClick={() => {
+                    if (window.confirm('Ván đấu vẫn đang diễn ra giữa các người chơi khác. Bạn có chắc chắn muốn huỷ ván không?')) {
+                      onCancelActiveGame();
+                    }
+                  }}
+                >
+                  🛑 Huỷ ván này
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {saved && (() => {
           const st = saved.state;
