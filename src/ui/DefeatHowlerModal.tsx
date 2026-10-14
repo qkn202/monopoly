@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { BankruptcyDetails } from '../core/types';
 import { soundManager } from '../audio/soundManager';
 import { galleons } from '../hpvn/money';
@@ -21,14 +21,18 @@ export const DefeatHowlerModal: React.FC<DefeatHowlerModalProps> = ({
   onLeave,
   onRestart,
   onClose,
-  autoDismissSeconds = 12,
+  autoDismissSeconds = 10,
 }) => {
   const [secondsLeft, setSecondsLeft] = useState<number>(autoDismissSeconds);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const audioPlayedRef = useRef(false);
 
-  // Trigger procedural audio on mount
+  // Trigger procedural audio exactly once on mount
   useEffect(() => {
-    soundManager.playDefeatHowler();
+    if (!audioPlayedRef.current) {
+      audioPlayedRef.current = true;
+      soundManager.playDefeatHowler();
+    }
   }, []);
 
   const handleDismiss = useCallback(() => {
@@ -207,9 +211,13 @@ export const DefeatHowlerModal: React.FC<DefeatHowlerModalProps> = ({
             ✕ Tắt Thư Sấm ({secondsLeft > 0 ? `${secondsLeft}s` : 'Ngay'})
           </button>
 
-          {!isGameOver && (
-            <button className="btn-howler-spectate" onClick={onSpectate}>
+          {!isGameOver ? (
+            <button className="btn-howler-spectate" onClick={onSpectate} title="Làm khán giả theo dõi các đối thủ còn lại">
               👁️ Làm Khán Giả Xem Tiếp
+            </button>
+          ) : (
+            <button className="btn-howler-spectate is-podium" onClick={handleDismiss} title="Xem Bảng Vàng vinh danh chiến thắng">
+              🏆 Xem Bảng Vàng Tổng Kết
             </button>
           )}
 

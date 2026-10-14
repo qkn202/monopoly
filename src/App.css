@@ -407,15 +407,14 @@ body {
 .game-over-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(14, 9, 5, 0.92);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
+  background: rgba(14, 9, 5, 0.96);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   font-family: 'Cinzel', -apple-system, sans-serif;
   color: #ffffff;
+  contain: strict;
 }
 
 .victory-card {

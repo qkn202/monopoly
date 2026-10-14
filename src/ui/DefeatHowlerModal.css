@@ -3,14 +3,14 @@
 .howler-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: radial-gradient(circle at center, rgba(30, 0, 0, 0.88) 0%, rgba(10, 2, 2, 0.96) 100%);
-  backdrop-filter: blur(8px);
+  z-index: 200000;
+  background: radial-gradient(circle at center, rgba(32, 6, 6, 0.96) 0%, rgba(10, 2, 2, 0.98) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  animation: howlerBackdropFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: howlerBackdropFade 0.25s ease-out;
+  contain: strict;
 }
 
 @keyframes howlerBackdropFade {
@@ -25,19 +25,21 @@
 .howler-envelope-card {
   position: relative;
   width: 100%;
-  max-width: 680px;
-  max-height: 92vh;
+  max-width: 660px;
+  max-height: 90vh;
   overflow-y: auto;
   background: linear-gradient(145deg, #2b0b0b 0%, #170404 60%, #200505 100%);
   border: 2px solid #ef4444;
   border-radius: 16px;
-  padding: 28px 24px;
+  padding: 24px 20px 20px;
   color: #fef2f2;
   box-shadow: 
-    0 0 50px rgba(239, 68, 68, 0.35),
-    inset 0 0 30px rgba(185, 28, 28, 0.4),
-    0 25px 50px -12px rgba(0, 0, 0, 0.85);
-  animation: howlerCardEntrance 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    0 16px 48px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(220, 38, 38, 0.35);
+  contain: layout style;
+  transform: translateZ(0);
+  will-change: transform;
+  animation: howlerCardEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Top-Right Corner Close Button */
@@ -135,42 +137,17 @@
   color: #ffffff;
 }
 
-@keyframes howlerCardEntrance {
-  0% {
-    transform: scale(0.7) translateY(40px) rotate(-3deg);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.03) translateY(-6px) rotate(1deg);
-  }
-  100% {
-    transform: scale(1) translateY(0) rotate(0deg);
-  }
-}
-
 /* Smoldering smoke & ember glowing corners */
 .howler-smoke-fx {
   position: absolute;
-  top: -12px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   letter-spacing: 8px;
-  opacity: 0.85;
-  filter: drop-shadow(0 0 10px #f87171);
-  animation: howlerSmokePuff 2s infinite ease-in-out;
+  opacity: 0.9;
+  text-shadow: 0 0 10px #f87171;
   pointer-events: none;
-}
-
-@keyframes howlerSmokePuff {
-  0%, 100% {
-    transform: translateX(-50%) translateY(0) scale(1);
-    opacity: 0.6;
-  }
-  50% {
-    transform: translateX(-50%) translateY(-8px) scale(1.15);
-    opacity: 0.95;
-  }
 }
 
 /* Wax Seal Header */
@@ -212,16 +189,7 @@
   align-items: center;
   justify-content: center;
   margin: 10px 0 16px;
-  animation: howlerMouthTremble 0.15s infinite alternate;
-}
-
-@keyframes howlerMouthTremble {
-  0% {
-    transform: rotate(-0.5deg) scale(0.995);
-  }
-  100% {
-    transform: rotate(0.5deg) scale(1.005);
-  }
+  transform: translateZ(0);
 }
 
 .howler-teeth-top {
@@ -361,9 +329,16 @@
 /* Action Buttons */
 .howler-actions-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 14px;
+  position: sticky;
+  bottom: -20px;
+  background: linear-gradient(180deg, rgba(23, 4, 4, 0.92) 0%, #170404 100%);
+  padding: 10px 0 4px;
+  border-top: 1px solid rgba(239, 68, 68, 0.25);
+  z-index: 5;
 }
 
 .btn-howler-dismiss {
@@ -414,6 +389,15 @@
   transform: translateY(-2px);
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.55);
+}
+
+.btn-howler-spectate.is-podium {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  border-color: #fef08a;
+}
+
+.btn-howler-spectate.is-podium:hover {
+  background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
 }
 
 .btn-howler-leave {
@@ -468,15 +452,14 @@
   position: fixed;
   top: 14px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate3d(-50%, 0, 0);
   z-index: 1000;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(20, 10, 10, 0.88);
+  background: rgba(20, 10, 10, 0.95);
   border: 1px solid #f59e0b;
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
-  backdrop-filter: blur(8px);
   border-radius: 999px;
   padding: 6px 18px;
   color: #fef08a;

@@ -58,10 +58,13 @@ export function App() {
     (gameState && myPlayerId && !gameState.players.some((p) => p.id === myPlayerId))
   );
 
+  // Engine host authority: does this device execute the authoritative game loop (reducer, AI bots, timers, sync)?
+  // CRITICAL: This MUST remain true even if the host's player goes bankrupt and becomes a spectator!
+  const isDeviceHost = !room || room.hostUid === identity?.uid;
   const isHostRef = useRef<boolean>(true);
+  isHostRef.current = isDeviceHost;
   const online = room !== null;
-  const isHost = !isSpectator && (!room || room.hostUid === identity?.uid);
-  isHostRef.current = isHost;
+  const isHost = isDeviceHost;
 
   // The host's runtime (clock ticks, bots, its own reducer): applies directly.
   const dispatch = useCallback((action: GameAction) => {
@@ -141,7 +144,7 @@ export function App() {
 
   // Host keeps WebRTC & cross-tab broadcaster alive for incoming spectators
   useEffect(() => {
-    if (!gameState || inLobby || isSpectator) return;
+    if (!gameState || inLobby || !isHost) return;
     const code = room ? room.code : matchCode;
     if (!code) return;
 
@@ -151,15 +154,15 @@ export function App() {
     // Keep host broadcaster alive for incoming spectators (P2P WebRTC & cross-tab sync)
     const cleanup = initHostSpectatorBroadcaster(code, () => gameStateRef.current, room?.epoch ?? 1);
     return () => cleanup();
-  }, [matchCode, room?.code, inLobby, isSpectator]);
+  }, [matchCode, room?.code, inLobby, isHost]);
 
   // Broadcast every game state change immediately to spectators
   useEffect(() => {
-    if (!gameState || inLobby || isSpectator) return;
+    if (!gameState || inLobby || !isHost) return;
     const code = room ? room.code : matchCode;
     if (!code) return;
     broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
-  }, [gameState, room?.code, matchCode, inLobby, isSpectator]);
+  }, [gameState, room?.code, matchCode, inLobby, isHost]);
 
   // Subscribe to live spectator updates if in spectator mode
   useEffect(() => {
@@ -641,12 +644,18 @@ export function App() {
   }
 
   const isGameOver = gameState.turnPhase === 'GAME_OVER';
+  const isOverlayActive = Boolean(
+    showDefeatModal ||
+    isGameOver ||
+    gameState.bankruptcyDraft ||
+    gameState.activeEscalationEvent
+  );
 
   return (
     <div className="main-game-layout">
       {/* Left Stage: 3D Three.js Board (70-75% screen width) */}
       <main className="board-3d-stage">
-        <BoardThreeJS gameState={gameState} myPlayerId={myPlayerId} />
+        <BoardThreeJS gameState={gameState} myPlayerId={myPlayerId} isOverlayActive={isOverlayActive} />
       </main>
 
       {/* Right Stage: Fixed Control Sidebar (25-30% screen width) */}
@@ -754,7 +763,7 @@ export function App() {
       )}
 
       {/* Victory / Game Over Podium Modal */}
-      {isGameOver && (
+      {isGameOver && !showDefeatModal && (
         <div className="game-over-overlay">
           <div className="victory-card">
                         <p className="hpvn-eyebrow">Kết thúc ván</p>

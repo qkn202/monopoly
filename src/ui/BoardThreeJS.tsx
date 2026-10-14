@@ -22,6 +22,7 @@ import { g, galleons } from '../hpvn/money';
 interface BoardThreeJSProps {
   gameState: GameState;
   myPlayerId?: string;
+  isOverlayActive?: boolean;
 }
 
 export interface HoveredTileInfo {
@@ -55,8 +56,10 @@ export interface UpgradeNotice {
   cost: number;
 }
 
-export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
+export function BoardThreeJS({ gameState, myPlayerId, isOverlayActive = false }: BoardThreeJSProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const isOverlayActiveRef = useRef<boolean>(isOverlayActive);
+  isOverlayActiveRef.current = isOverlayActive;
   const [loading, setLoading] = useState(false);
   const [hoveredTileInfo, setHoveredTileInfo] = useState<HoveredTileInfo | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<PurchaseNotice | null>(null);
@@ -374,6 +377,9 @@ export function BoardThreeJS({ gameState, myPlayerId }: BoardThreeJSProps) {
     const animate = () => {
       animId = requestAnimationFrame(animate);
       const now = performance.now();
+      if (isOverlayActiveRef.current && (now - lastTime) < 50) {
+        return;
+      }
       const deltaTime = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 

@@ -7,12 +7,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(5, 8, 18, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  animation: draftFadeIn 0.3s ease-out;
+  background: rgba(5, 8, 18, 0.95);
+  animation: draftFadeIn 0.25s ease-out;
   padding: 16px;
   box-sizing: border-box;
+  contain: strict;
 }
 
 @keyframes draftFadeIn {

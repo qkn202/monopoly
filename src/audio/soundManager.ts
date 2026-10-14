@@ -420,6 +420,22 @@ class SoundEngine {
     });
   }
 
+  private howlerNoiseBuffer: AudioBuffer | null = null;
+
+  private getHowlerNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (this.howlerNoiseBuffer && this.howlerNoiseBuffer.sampleRate === ctx.sampleRate) {
+      return this.howlerNoiseBuffer;
+    }
+    const bufferSize = Math.floor(ctx.sampleRate * 0.5);
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      output[i] = Math.random() * 2 - 1;
+    }
+    this.howlerNoiseBuffer = noiseBuffer;
+    return noiseBuffer;
+  }
+
   /**
    * Sound 13: Howler Screech & Fiery Explosion (Terrifying envelope roar, shriek, and sizzling ash burst)
    */
@@ -459,13 +475,8 @@ class SoundEngine {
     scream.start(now + 0.15);
     scream.stop(now + 1.4);
 
-    // 3. Sizzling Ash & Fire Burst (Buffer noise simulating Howler bursting into flames and ash)
-    const bufferSize = ctx.sampleRate * 0.8;
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      output[i] = Math.random() * 2 - 1;
-    }
+    // 3. Sizzling Ash & Fire Burst (Cached noise buffer to prevent UI freeze)
+    const noiseBuffer = this.getHowlerNoiseBuffer(ctx);
     const whiteNoise = ctx.createBufferSource();
     whiteNoise.buffer = noiseBuffer;
 
