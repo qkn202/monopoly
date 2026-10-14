@@ -701,46 +701,7 @@ export function App() {
         />
       )}
 
-      {/* Spectator Mode Sticky Ribbon */}
-      {isSpectator && !isGameOver && (
-        <div className="spectator-badge-ribbon">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="live-dot" />
-            <span>
-              👁️ {activeDefeatDetails ? 'Bạn đang là Khán Giả (Đã phá sản)' : `Khán Giả · Đang xem ván ${room ? room.code : matchCode}`}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {activeDefeatDetails && (
-              <button
-                className="btn-view-howler-small"
-                onClick={() => setShowDefeatModal(true)}
-              >
-                Xem lại Thư Sấm
-              </button>
-            )}
-            <button
-              className="btn-view-howler-small"
-              onClick={() => {
-                const code = room ? room.code : matchCode;
-                navigator.clipboard.writeText(getSpectatorUrl(code));
-                setNotice('Đã chép link xem ván cho khán giả!');
-                setTimeout(() => setNotice(''), 2500);
-              }}
-              title="Sao chép link mời bạn bè xem cùng"
-            >
-              🔗 Link xem
-            </button>
-            <button
-              className="btn-view-howler-small"
-              onClick={exitGame}
-              title="Rời trận đấu về sảnh"
-            >
-              Về sảnh
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Howler Defeat Notification Modal */}
       {showDefeatModal && activeDefeatDetails && (
