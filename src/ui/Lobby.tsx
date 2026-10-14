@@ -9,13 +9,13 @@ import './Lobby.css';
 // An HPVN invite link opens the game with ?room=CODE.
 const invitedRoom = (() => {
   const code = new URLSearchParams(location.search).get('room')?.trim().toUpperCase() ?? '';
-  return /^[A-Z0-9]{6}$/.test(code) ? code : '';
+  return /^[A-Z0-9]{4,12}$/.test(code) ? code : '';
 })();
 
 // A spectator link opens the game with ?watch=CODE or ?spectate=CODE.
 const spectateRoom = (() => {
   const code = (new URLSearchParams(location.search).get('watch') || new URLSearchParams(location.search).get('spectate'))?.trim().toUpperCase() ?? '';
-  return /^[A-Z0-9]{6}$/.test(code) ? code : '';
+  return /^[A-Z0-9]{4,12}$/.test(code) ? code : '';
 })();
 
 export type GameSetupConfig =
@@ -158,15 +158,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onStartGame, notice, saved, onResu
       launch({ mode: 'ONLINE_HOST', stake, boardSize });
     } else if (selectedMode === 'ONLINE_JOIN') {
       const code = joinCodeInput.trim().toUpperCase();
-      if (!/^[A-Z0-9]{6}$/.test(code)) {
-        setError('Mã phòng gồm 6 ký tự.');
+      if (!/^[A-Z0-9]{4,12}$/.test(code)) {
+        setError('Mã phòng gồm 4 đến 12 ký tự.');
         return;
       }
       launch({ mode: 'ONLINE_JOIN', roomCode: code });
     } else if (selectedMode === 'SPECTATE') {
       const code = joinCodeInput.trim().toUpperCase();
-      if (!/^[A-Z0-9]{6}$/.test(code)) {
-        setError('Mã phòng / ván đấu gồm 6 ký tự (Ví dụ: HGW7K2).');
+      if (!/^[A-Z0-9]{4,12}$/.test(code)) {
+        setError('Mã phòng / ván đấu gồm 4 đến 12 ký tự (Ví dụ: QF2R7U).');
         return;
       }
       launch({ mode: 'SPECTATE', roomCode: code });

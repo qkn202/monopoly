@@ -21,6 +21,7 @@ import {
   getLatestSpectatorState,
   subscribeToSpectatorState,
   getSpectatorUrl,
+  initHostSpectatorBroadcaster,
 } from './core/spectatorSync';
 import './App.css';
 import { g, galleons } from './hpvn/money';
@@ -29,7 +30,7 @@ import { clearSave, loadSave, resumeState, writeSave, SavedGame, SAVE_TTL_MS } f
 const watchCodeFromUrl = (() => {
   if (typeof window === 'undefined') return '';
   const code = (new URLSearchParams(window.location.search).get('watch') || new URLSearchParams(window.location.search).get('spectate'))?.trim().toUpperCase() ?? '';
-  return /^[A-Z0-9]{6}$/.test(code) ? code : '';
+  return /^[A-Z0-9]{4,12}$/.test(code) ? code : '';
 })();
 
 export function App() {
@@ -40,6 +41,8 @@ export function App() {
   const [activeDefeatDetails, setActiveDefeatDetails] = useState<BankruptcyDetails | null>(null);
   const [isSpectating, setIsSpectating] = useState<boolean>(() => !!watchCodeFromUrl);
   const [matchCode, setMatchCode] = useState<string>(() => watchCodeFromUrl || generateMatchCode());
+  const [spectatorStatus, setSpectatorStatus] = useState<string>('Đang tìm phòng đấu và kết nối với bàn cờ…');
+  const [retryCount, setRetryCount] = useState<number>(0);
   // HPVN online room (server seats and phase); null = local game
   const [room, setRoom] = useState<RoomView | null>(null);
   const [notice, setNotice] = useState<string>('');
@@ -47,6 +50,8 @@ export function App() {
   const [saved, setSaved] = useState<SavedGame | null>(() => loadSave());
   const roomRef = useRef<RoomView | null>(null);
   roomRef.current = room;
+  const gameStateRef = useRef<GameState | null>(gameState);
+  gameStateRef.current = gameState;
 
   const isSpectator = Boolean(
     isSpectating ||
@@ -134,15 +139,27 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [gameState, room, isHost, inLobby]);
 
-  // Broadcast current game state for live spectators (cross-tab & persistent cache)
+  // Host keeps WebRTC & cross-tab broadcaster alive for incoming spectators
   useEffect(() => {
     if (!gameState || inLobby || isSpectator) return;
     const code = room ? room.code : matchCode;
-    const timer = window.setTimeout(() => {
-      broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [gameState, room, matchCode, inLobby, isSpectator]);
+    if (!code) return;
+
+    // Immediately broadcast first snapshot
+    broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
+
+    // Keep host broadcaster alive for incoming spectators (P2P WebRTC & cross-tab sync)
+    const cleanup = initHostSpectatorBroadcaster(code, () => gameStateRef.current, room?.epoch ?? 1);
+    return () => cleanup();
+  }, [matchCode, room?.code, inLobby, isSpectator]);
+
+  // Broadcast every game state change immediately to spectators
+  useEffect(() => {
+    if (!gameState || inLobby || isSpectator) return;
+    const code = room ? room.code : matchCode;
+    if (!code) return;
+    broadcastSpectatorState(code, gameState, room?.epoch ?? 1);
+  }, [gameState, room?.code, matchCode, inLobby, isSpectator]);
 
   // Subscribe to live spectator updates if in spectator mode
   useEffect(() => {
@@ -163,11 +180,12 @@ export function App() {
         setGameState(incoming);
         setInLobby(false);
       },
-      room?.epoch ?? 1
+      room?.epoch ?? 1,
+      (status) => setSpectatorStatus(status)
     );
 
     return () => unsubscribe();
-  }, [isSpectating, room?.code, matchCode, room?.epoch]);
+  }, [isSpectating, room?.code, matchCode, room?.epoch, retryCount]);
 
   // Auto-connect to match if ?watch=CODE was in the URL on startup
   useEffect(() => {
@@ -335,6 +353,16 @@ export function App() {
       writeSave(gameState, lastActionRef.current, myPlayerId);
       setSaved({ v: 1, savedAt: Date.now(), lastActionAt: lastActionRef.current, myPlayerId, state: gameState });
     }
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('watch') || url.searchParams.has('spectate')) {
+          url.searchParams.delete('watch');
+          url.searchParams.delete('spectate');
+          window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+        }
+      } catch {}
+    }
     setGameState(null);
     setIsSpectating(false);
     setInLobby(true);
@@ -368,10 +396,6 @@ export function App() {
       .then((next) => { if (next && next.phase !== 'closed') setRoom(next); })
       .catch((error) => setNotice(error instanceof Error ? error.message : 'Chưa chốt được tiền cược.'));
   }, [room, isHost, gameState?.turnPhase, gameState?.winner]);
-
-  // Keep latest gameState in ref so intervals and timeouts never get stale or reset prematurely
-  const gameStateRef = useRef<GameState | null>(gameState);
-  gameStateRef.current = gameState;
 
   // 2. 30-Minute Timer Interval & Auction Countdown
   useEffect(() => {
@@ -563,23 +587,38 @@ export function App() {
   }, [gameState, inLobby, myPlayerId, uiDispatch]);
 
   if (isSpectating && !gameState && !inLobby) {
+    const code = room ? room.code : matchCode;
     return (
       <div className="lobby-overlay">
-        <div className="lobby-modal-card hpvn-lobby" style={{ textAlign: 'center', padding: '32px 24px' }}>
+        <div className="lobby-modal-card hpvn-lobby" style={{ textAlign: 'center', padding: '36px 24px', maxWidth: '460px' }}>
           <header className="hpvn-lobby-head">
             <p className="hpvn-eyebrow">Khán giả · Đang kết nối trực tiếp</p>
-            <h1 className="lobby-title" style={{ fontSize: '1.45rem' }}>Phòng {room ? room.code : matchCode}</h1>
+            <h1 className="lobby-title" style={{ fontSize: '1.5rem', letterSpacing: '2px', color: 'var(--hp-gold-hi, #f3d189)' }}>
+              PHÒNG {code}
+            </h1>
           </header>
-          <div style={{ margin: '24px 0', fontSize: '2.5rem' }}>👁️</div>
-          <p style={{ color: '#ecdcc9', fontSize: '0.95rem', marginBottom: '8px' }}>
-            Đang đồng bộ dữ liệu thời gian thực từ bàn cờ…
+          <div style={{ margin: '24px 0', fontSize: '2.8rem', animation: 'pulse 1.8s infinite' }}>👁️</div>
+          <p style={{ color: '#f3d189', fontSize: '1.05rem', fontWeight: 600, marginBottom: '8px' }}>
+            {spectatorStatus}
           </p>
-          <p className="hpvn-hint" style={{ marginBottom: '24px' }}>
-            Bàn cờ 3D và trạng thái sẽ tự động xuất hiện ngay khi chủ phòng bắt đầu hoặc phát tín hiệu lượt chơi.
+          <p className="hpvn-hint" style={{ marginBottom: '24px', lineHeight: 1.5, fontSize: '0.88rem' }}>
+            Bàn cờ 3D và trạng thái sẽ tự động xuất hiện ngay khi nhận được dữ liệu từ chủ phòng. Hỗ trợ đồng bộ trực tiếp cả cùng máy (qua tab) lẫn thiết bị khác (qua mạng P2P).
           </p>
-          <button className="btn-launch-game" onClick={exitGame} style={{ maxWidth: '240px', margin: '0 auto' }}>
-            Quay lại Sảnh
-          </button>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn-launch-game"
+              onClick={() => {
+                setSpectatorStatus('Đang gửi lại tín hiệu tìm phòng…');
+                setRetryCount((c) => c + 1);
+              }}
+              style={{ background: 'linear-gradient(135deg, #3a2712, #5a3e1b)', border: '1px solid #c89b3c', minWidth: '150px' }}
+            >
+              🔄 Kết nối lại
+            </button>
+            <button className="btn-launch-game" onClick={exitGame} style={{ minWidth: '140px' }}>
+              Quay lại Sảnh
+            </button>
+          </div>
         </div>
       </div>
     );

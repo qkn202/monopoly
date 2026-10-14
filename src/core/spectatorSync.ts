@@ -1,5 +1,6 @@
 import { GameState } from './types';
 import { packSnapshot, unpackSnapshot } from '../hpvn/onlineGame';
+import { withVisitList } from './reducerHelpers';
 
 const CHANNEL_NAME = 'hogwarts_monopoly_spectator_sync';
 const STORAGE_PREFIX = 'monopoly_spectate_';
@@ -10,6 +11,29 @@ export interface SpectatorPayload {
   epoch: number;
   timestamp: number;
   snapshot: string;
+}
+
+export interface SpectatorMessage {
+  type: 'LIVE_UPDATE' | 'REQUEST_SYNC' | 'SYNC_REPLY' | 'HEARTBEAT';
+  roomCode: string;
+  epoch?: number;
+  timestamp?: number;
+  snapshot?: string;
+}
+
+let sharedSenderChannel: BroadcastChannel | null = null;
+
+function getSenderChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!sharedSenderChannel) {
+    try {
+      sharedSenderChannel = new BroadcastChannel(CHANNEL_NAME);
+      (sharedSenderChannel as any).unref?.();
+    } catch {
+      return null;
+    }
+  }
+  return sharedSenderChannel;
 }
 
 /**
@@ -26,7 +50,30 @@ export function generateMatchCode(): string {
 }
 
 /**
- * Broadcast current game state to all listeners (cross-tab via BroadcastChannel & localStorage)
+ * Unpack snapshot with flexible epoch support
+ */
+export function unpackSpectatorSnapshot(snapshotStr: string, epoch?: number): GameState | null {
+  if (!snapshotStr) return null;
+  try {
+    const data = JSON.parse(snapshotStr);
+    const targetEpoch = epoch ?? data?.e ?? 1;
+    if (data?.e === targetEpoch && Array.isArray(data.state?.players)) {
+      return withVisitList(data.state);
+    }
+    // Fallback if epoch differs but state structure is valid
+    if (Array.isArray(data?.state?.players)) {
+      return withVisitList(data.state);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Broadcast current game state to all listeners:
+ * 1. Persistent BroadcastChannel (cross-tab)
+ * 2. localStorage (cross-tab / reload)
  */
 export function broadcastSpectatorState(roomCode: string, state: GameState, epoch: number = 1): void {
   if (!roomCode || !state) return;
@@ -39,15 +86,14 @@ export function broadcastSpectatorState(roomCode: string, state: GameState, epoc
     snapshot: packed,
   };
 
-  // 1. BroadcastChannel (0ms real-time event stream across tabs/windows)
+  // 1. BroadcastChannel (persistent sender channel)
   try {
-    if (typeof BroadcastChannel !== 'undefined') {
-      const channel = new BroadcastChannel(CHANNEL_NAME);
+    const channel = getSenderChannel();
+    if (channel) {
       channel.postMessage({ type: 'LIVE_UPDATE', ...payload });
-      channel.close();
     }
   } catch {
-    // Graceful fallback if BroadcastChannel is blocked
+    // Ignore fallback
   }
 
   // 2. localStorage for immediate catch-up when spectator opens mid-game
@@ -75,10 +121,63 @@ export function getLatestSpectatorState(roomCode: string, epoch: number = 1): Ga
       localStorage.removeItem(`${STORAGE_PREFIX}${upperCode}`);
       return null;
     }
-    return unpackSnapshot(data.snapshot, epoch || data.epoch);
+    return unpackSpectatorSnapshot(data.snapshot, epoch || data.epoch);
   } catch {
     return null;
   }
+}
+
+/**
+ * Host Broadcaster Service:
+ * - Dedicated BroadcastChannel listener responding immediately to cross-tab REQUEST_SYNC messages
+ * - Heartbeat pulse every 2000ms so newly opened spectator tabs catch up instantly
+ */
+export function initHostSpectatorBroadcaster(
+  roomCode: string,
+  getState: () => GameState | null,
+  epoch: number = 1
+): () => void {
+  const upperCode = roomCode.trim().toUpperCase();
+  let destroyed = false;
+  let hostChannel: BroadcastChannel | null = null;
+
+  // 1. Dedicated host listener channel for incoming spectator requests
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      hostChannel = new BroadcastChannel(CHANNEL_NAME);
+      (hostChannel as any).unref?.();
+      hostChannel.onmessage = (event: MessageEvent) => {
+        if (destroyed) return;
+        const data = event.data;
+        if (data?.type === 'REQUEST_SYNC' && data.roomCode === upperCode) {
+          const current = getState();
+          if (current) {
+            broadcastSpectatorState(upperCode, current, epoch);
+          }
+        }
+      };
+    }
+  } catch {}
+
+  // 2. Heartbeat pulse every 2000ms
+  const heartbeatTimer = setInterval(() => {
+    if (destroyed) return;
+    const current = getState();
+    if (current) {
+      broadcastSpectatorState(upperCode, current, epoch);
+    }
+  }, 2000);
+
+  return () => {
+    destroyed = true;
+    clearInterval(heartbeatTimer);
+    if (hostChannel) {
+      try {
+        hostChannel.close();
+      } catch {}
+      hostChannel = null;
+    }
+  };
 }
 
 /**
@@ -87,52 +186,98 @@ export function getLatestSpectatorState(roomCode: string, epoch: number = 1): Ga
 export function subscribeToSpectatorState(
   roomCode: string,
   onUpdate: (state: GameState) => void,
-  epoch: number = 1
+  epoch: number = 1,
+  onStatusChange?: (status: string) => void
 ): () => void {
   const upperCode = roomCode.trim().toUpperCase();
-  let channel: BroadcastChannel | null = null;
+  let destroyed = false;
+  let receivedAny = false;
+  let spectatorChannel: BroadcastChannel | null = null;
 
-  const handlePayload = (payload: SpectatorPayload) => {
-    if (!payload || payload.roomCode !== upperCode) return;
-    const state = unpackSnapshot(payload.snapshot, epoch || payload.epoch);
+  const handlePayload = (payload: SpectatorPayload | SpectatorMessage) => {
+    if (destroyed || !payload || payload.roomCode !== upperCode) return;
+    if (!payload.snapshot) return;
+    const state = unpackSpectatorSnapshot(payload.snapshot, epoch || payload.epoch);
     if (state) {
+      receivedAny = true;
+      onStatusChange?.('Đã kết nối trực tiếp · Đang cập nhật lượt đấu');
       onUpdate(state);
     }
   };
 
-  // 1. Setup BroadcastChannel listener
-  try {
-    if (typeof BroadcastChannel !== 'undefined') {
-      channel = new BroadcastChannel(CHANNEL_NAME);
-      channel.onmessage = (event) => {
-        if (event.data?.type === 'LIVE_UPDATE') {
-          handlePayload(event.data);
-        }
-      };
-    }
-  } catch {
-    // Fallback
+  // 1. Immediate cache check
+  const cached = getLatestSpectatorState(upperCode, epoch);
+  if (cached) {
+    receivedAny = true;
+    onStatusChange?.('Đã tải trạng thái bàn cờ');
+    onUpdate(cached);
   }
 
-  // 2. Setup Storage Event listener (triggers on other tabs/windows)
+  // 2. Dedicated spectator BroadcastChannel listener
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      spectatorChannel = new BroadcastChannel(CHANNEL_NAME);
+      (spectatorChannel as any).unref?.();
+      spectatorChannel.onmessage = (event: MessageEvent) => {
+        if (destroyed) return;
+        const data = event.data;
+        if (data?.type === 'LIVE_UPDATE' || data?.type === 'SYNC_REPLY') {
+          handlePayload(data);
+        }
+      };
+      // Actively ask any host in another tab for latest snapshot
+      spectatorChannel.postMessage({ type: 'REQUEST_SYNC', roomCode: upperCode });
+    }
+  } catch {}
+
+  // 3. Storage Event listener
   const storageHandler = (e: StorageEvent) => {
     if (e.key === `${STORAGE_PREFIX}${upperCode}` && e.newValue) {
       try {
         const payload: SpectatorPayload = JSON.parse(e.newValue);
         handlePayload(payload);
-      } catch {
-        // Malformed
-      }
+      } catch {}
     }
   };
+
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', storageHandler);
   }
 
+  // 4. Active Poll & Ping Interval (every 800ms until state received, then every 3000ms)
+  const pollTimer = setInterval(() => {
+    if (destroyed) return;
+
+    // Check localStorage in case storage event was suppressed or cross-window timing
+    if (!receivedAny) {
+      const pollCache = getLatestSpectatorState(upperCode, epoch);
+      if (pollCache) {
+        handlePayload({
+          roomCode: upperCode,
+          epoch,
+          timestamp: Date.now(),
+          snapshot: packSnapshot(epoch, pollCache),
+        });
+      }
+    }
+
+    // Ping BroadcastChannel to ask Host for state
+    if (spectatorChannel) {
+      try {
+        spectatorChannel.postMessage({ type: 'REQUEST_SYNC', roomCode: upperCode });
+      } catch {}
+    }
+  }, 800);
+
   // Cleanup function
   return () => {
-    if (channel) {
-      channel.close();
+    destroyed = true;
+    clearInterval(pollTimer);
+    if (spectatorChannel) {
+      try {
+        spectatorChannel.close();
+      } catch {}
+      spectatorChannel = null;
     }
     if (typeof window !== 'undefined') {
       window.removeEventListener('storage', storageHandler);

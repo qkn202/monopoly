@@ -3,7 +3,9 @@ import {
   generateMatchCode,
   broadcastSpectatorState,
   getLatestSpectatorState,
+  subscribeToSpectatorState,
   getSpectatorUrl,
+  initHostSpectatorBroadcaster,
 } from '../src/core/spectatorSync';
 import { packSnapshot, unpackSnapshot } from '../src/hpvn/onlineGame';
 import { GameState } from '../src/core/types';
@@ -93,5 +95,21 @@ assert(isControllingViewingPlayer === false, 'Spectator isControllingViewingPlay
 // isMyBidTurn check in auction
 const isMyBidTurn = !isSpectator && (spectatorId ? false : true);
 assert(isMyBidTurn === false, 'Spectator isMyBidTurn is STRICTLY FALSE');
+
+// 6. Test Host Broadcaster & Active Spectator Handshake
+console.log('\n6. Test Host Broadcaster & Active Spectator Handshake:');
+let handshakeState: GameState | null = null;
+const cleanupHost = initHostSpectatorBroadcaster('SYNC01', () => initial, 1);
+const cleanupGuest = subscribeToSpectatorState('SYNC01', (state) => {
+  handshakeState = state;
+}, 1);
+
+// Allow microtask tick for BroadcastChannel message passing
+await new Promise((r) => setTimeout(r, 60));
+
+assert(handshakeState !== null, 'Handshake subscriber received state');
+assert(handshakeState?.players.length === 3, 'Handshake subscriber got all players');
+cleanupHost();
+cleanupGuest();
 
 console.log('\n🎉 ALL SPECTATOR MODE TESTS PASSED 100%!\n');
