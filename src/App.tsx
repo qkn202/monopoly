@@ -479,8 +479,9 @@ export function App() {
   }, [room, isHost, gameState?.turnPhase, gameState?.winner]);
 
   // 2. 30-Minute Timer Interval & Auction Countdown
+  const isGameActive = Boolean(gameState && gameState.turnPhase !== 'GAME_OVER' && !inLobby);
   useEffect(() => {
-    if (!gameState || gameState.turnPhase === 'GAME_OVER') return;
+    if (!isGameActive) return;
     if (!isHostRef.current) return; // Only host ticks
 
     const timerInterval = setInterval(() => {
@@ -496,7 +497,7 @@ export function App() {
     }, 1000);
 
     return () => clearInterval(timerInterval);
-  }, [gameState?.turnPhase === 'GAME_OVER', dispatch]);
+  }, [isGameActive, isDeviceHost, dispatch]);
 
   // Turn Countdown Audio Warning (Ticks during last 5 seconds, chime on timeout)
   const prevTurnSecRef = useRef<number>(60);

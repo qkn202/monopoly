@@ -1441,6 +1441,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="hpvn-rail-divider" />
 
             <button
+              className={`hpvn-rail-btn ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
+              onClick={() => { setActiveTab('leaderboard'); setIsCollapsed(false); }}
+              title="Bảng xếp hạng"
+              aria-label="Bảng xếp hạng"
+            >
+              <Icon name="trophy" size={16} />
+            </button>
+
+            <button
               className={`hpvn-rail-btn ${activeTab === 'properties' ? 'is-active' : ''}`}
               onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); setIsCollapsed(false); }}
               title={`Đất và nhà (${me?.properties.length || 0})`}
@@ -1627,6 +1636,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             {/* Segmented Hogwarts Tabs */}
             <div className="hpvn-segmented-tabs" role="tablist">
               <button
+                className={`hpvn-seg-tab ${activeTab === 'leaderboard' ? 'is-active' : ''}`}
+                onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('leaderboard'); }}
+                role="tab"
+                aria-selected={activeTab === 'leaderboard'}
+              >
+                <Icon name="trophy" size={14} />
+                <span>Bảng điểm</span>
+              </button>
+              <button
                 className={`hpvn-seg-tab ${activeTab === 'properties' ? 'is-active' : ''}`}
                 onClick={() => { setSelectedPropertyPlayerId(null); setActiveTab('properties'); }}
                 role="tab"
@@ -1658,7 +1676,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             {/* Active Tab Content Area */}
             <section className="hpvn-list hpvn-list-tabbed">
               <div className="tab-content-area">
-                {activeTab === 'events' ? renderEventLogs() : activeTab === 'finances' ? renderFinances() : renderProperties()}
+                {activeTab === 'leaderboard'
+                  ? renderLeaderboard()
+                  : activeTab === 'events'
+                  ? renderEventLogs()
+                  : activeTab === 'finances'
+                  ? renderFinances()
+                  : renderProperties()}
               </div>
             </section>
 
