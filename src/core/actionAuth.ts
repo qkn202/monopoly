@@ -22,6 +22,12 @@ export function authorizeAction(state: GameState, input: unknown, playerId: stri
 
   // the Dark Curse notice is the same for everyone; any seat may close it (a bot never does)
   if (type === 'DISMISS_ESCALATION') return { type };
+
+  // Allow debtor in BANKRUPTCY phase to settle debt via END_TURN (even if not the current turn player)
+  if (type === 'END_TURN' && state.turnPhase === 'BANKRUPTCY' && state.bankruptcyInfo?.debtorId === playerId) {
+    return { type };
+  }
+
   if (TURN_ACTIONS.has(type)) {
     if (current?.id !== playerId) return null;
     if (type === 'BUY_PROPERTY' || type === 'TAKEOVER_PROPERTY') return propertyId ? { type, propertyId } as GameAction : null;

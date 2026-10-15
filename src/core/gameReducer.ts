@@ -172,7 +172,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (nextDraftSec <= 0) {
           // Current drafter timed out: auto-select the highest-price available property
           const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
-          const bestPropId = getBestDraftProperty(draft.availablePropertyIds);
+          const bestPropId = getBestDraftProperty(draft.availablePropertyIds, state.boardTiles);
           return selectDraftProperty(
             nextBaseState,
             currentDrafterId,
@@ -300,7 +300,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                 ...debtRes.state,
                 dice: { die1: d1, die2: d2, total, isDouble: false }, // Not a double for jail timeout
                 consecutiveDoubles: 0, // Reset doubles - this was not a regular roll
-                freeParkingPot: debtRes.state.freeParkingPot + Math.min(150, currentPlayer.balance),
                 // Don't override turnPhase - keep BANKRUPTCY from resolveDebtOrLiquidate
               };
             }
@@ -394,7 +393,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const activeTiles = state.boardTiles || HOGWARTS_TILES;
       const tile = activeTiles.find((t) => t.id === action.propertyId);
       const currentPlayer = state.players[state.currentPlayerIndex];
-      if (!tile || !tile.price || currentPlayer.balance < tile.price) return state;
+      if (!tile || !tile.price || state.propertyOwnership[tile.id] || currentPlayer.balance < tile.price) return state;
+
+      const currentStandingTile = activeTiles[currentPlayer.position];
+      if (!currentStandingTile || currentStandingTile.id !== tile.id) return state;
 
       // Only buy land; must land on it again in a subsequent turn to build/upgrade house
       const updatedPlayer: Player = {
@@ -1239,8 +1241,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             );
           }
           const creditor = creditorId ? state.players.find((p) => p.id === creditorId) : null;
+          let updatedState = state;
+          if (!creditorId) {
+            updatedState = { ...state, freeParkingPot: state.freeParkingPot + amount };
+          }
+
           let debtPaidState = refreshAllNetWorth({
-            ...state,
+            ...updatedState,
             players: updatedPlayers,
             turnPhase: 'END_TURN',
             bankruptcyInfo: null,
@@ -1728,7 +1735,7 @@ function advanceTurn(state: GameState): GameState {
     nextIndex = (nextIndex + 1) % finalizedState.players.length;
   }
 
-  const nextTurnNumber = nextIndex === 0 ? finalizedState.turnNumber + 1 : finalizedState.turnNumber;
+  const nextTurnNumber = nextIndex <= finalizedState.currentPlayerIndex ? finalizedState.turnNumber + 1 : finalizedState.turnNumber;
 
   const rentMultiplier = finalizedState.rentMultiplier || 1;
   const maxRentMultiplier = finalizedState.maxRentMultiplier || 5;
@@ -1847,6 +1854,14 @@ function limitEvents(events: GameEvent[]): GameEvent[] {
 
 export function handleTurnTimeout(state: GameState): GameState {
   if (state.turnPhase === 'GAME_OVER') return state;
+  if (state.turnPhase === 'AUCTION') return state;
+
+  if (state.bankruptcyDraft) {
+    const draft = state.bankruptcyDraft;
+    const currentDrafterId = draft.draftOrder[draft.currentDraftIndex];
+    const bestPropId = getBestDraftProperty(draft.availablePropertyIds, state.boardTiles);
+    return selectDraftProperty(state, currentDrafterId, bestPropId);
+  }
 
   const currentPlayer = state.players[state.currentPlayerIndex];
   if (!currentPlayer || currentPlayer.isBankrupt) {

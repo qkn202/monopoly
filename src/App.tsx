@@ -84,6 +84,10 @@ export function App() {
   const lastActionRef = useRef(Date.now());
   const uiDispatch = useCallback((action: GameAction) => {
     lastActionRef.current = Date.now();
+    if (action.type === 'TOGGLE_TURBO' || action.type === 'SET_TURBO') {
+      if (isHostRef.current || !roomRef.current) dispatch(action);
+      return;
+    }
     if (!roomRef.current || !identity) dispatch(action);
     else if (isHostRef.current) applyAs(identity.uid, action);
     else post('sb-input', { a: JSON.stringify({ action, v: lastLiveRef.current }), n: stamp() });

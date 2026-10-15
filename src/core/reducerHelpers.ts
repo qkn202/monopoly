@@ -153,8 +153,8 @@ export function executeCardEffect(
       const totalTiles = s.boardSize || 40;
       // Use proper modulo: ((oldPos + steps) % totalTiles + totalTiles) % totalTiles to handle negative steps
       const newPos = ((oldPos + steps) % totalTiles + totalTiles) % totalTiles;
-      // Check if player wrapped around the board (crossed position 0/GO)
-      if (newPos < oldPos) {
+      // Check if player wrapped around the board (crossed position 0/GO while moving forward)
+      if (steps > 0 && newPos < oldPos) {
         // Passed GO
         p.balance += 500;
         s.events = [createEvent(`${p.name} vượt qua Ga 9¾ và nhận 500 Galleons!`, 'success', p.id), ...s.events];
@@ -232,6 +232,9 @@ export function executeCardEffect(
             const debtRes = resolveDebtOrLiquidate(s, currentOther, amt, p.id, `quà tặng cho ${p.name}`);
             s = debtRes.state;
             p = s.players.find((item) => item.id === p.id) || p;
+            if (debtRes.state.turnPhase === 'BANKRUPTCY') {
+              break;
+            }
           }
         }
       }
@@ -589,10 +592,14 @@ export function handleBankruptcy(
     // Advance turn if debtor was current player
     let nextIdx = state.currentPlayerIndex;
     let nextPhase = state.turnPhase;
+    let nextTurnNumber = state.turnNumber;
     if (debtor.id === state.players[state.currentPlayerIndex]?.id) {
       let idx = (nextIdx + 1) % state.players.length;
       while (idx !== nextIdx && finalPlayers[idx].isBankrupt) {
         idx = (idx + 1) % state.players.length;
+      }
+      if (idx <= nextIdx) {
+        nextTurnNumber = state.turnNumber + 1;
       }
       nextIdx = idx;
       nextPhase = 'ROLL';
@@ -611,6 +618,7 @@ export function handleBankruptcy(
       freeParkingPot: state.freeParkingPot + changeCents,
       currentPlayerIndex: nextIdx,
       turnPhase: nextPhase,
+      turnNumber: nextTurnNumber,
       dice: null,
       consecutiveDoubles: 0,
       auction: null,
@@ -798,10 +806,14 @@ export function selectDraftProperty(state: GameState, playerId: string, property
   // Advance turn if debtor was current player
   let nextIdx = state.currentPlayerIndex;
   let nextPhase = state.turnPhase;
+  let nextTurnNumber = state.turnNumber;
   if (draft.debtorId === state.players[state.currentPlayerIndex]?.id) {
     let idx = (nextIdx + 1) % state.players.length;
     while (idx !== nextIdx && finalPlayers[idx].isBankrupt) {
       idx = (idx + 1) % state.players.length;
+    }
+    if (idx <= nextIdx) {
+      nextTurnNumber = state.turnNumber + 1;
     }
     nextIdx = idx;
     nextPhase = 'ROLL';
@@ -837,6 +849,7 @@ export function selectDraftProperty(state: GameState, playerId: string, property
     freeParkingPot: state.freeParkingPot + changeCents,
     currentPlayerIndex: nextIdx,
     turnPhase: nextPhase,
+    turnNumber: nextTurnNumber,
     dice: null,
     consecutiveDoubles: 0,
     auction: null,
