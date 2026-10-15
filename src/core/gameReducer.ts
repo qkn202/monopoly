@@ -393,6 +393,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const activeTiles = state.boardTiles || HOGWARTS_TILES;
       const tile = activeTiles.find((t) => t.id === action.propertyId);
       const currentPlayer = state.players[state.currentPlayerIndex];
+      if (state.turnPhase !== 'ACTION') return state;
       if (!tile || !tile.price || state.propertyOwnership[tile.id] || currentPlayer.balance < tile.price) return state;
 
       const currentStandingTile = activeTiles[currentPlayer.position];

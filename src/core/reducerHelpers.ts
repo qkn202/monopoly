@@ -130,7 +130,8 @@ export function executeCardEffect(
         const debt = Math.abs(amt);
         const debtRes = resolveDebtOrLiquidate(s, p, debt, undefined, `thẻ phạt: "${card.title}"`);
         s = debtRes.state;
-        if (!debtRes.isBankrupt) {
+        // Pot is credited here only when paid in cash; a BANKRUPTCY-phase debt credits it on settlement
+        if (!debtRes.isBankrupt && debtRes.state.turnPhase !== 'BANKRUPTCY') {
           s = { ...s, freeParkingPot: s.freeParkingPot + debt };
         }
         p = s.players.find((item) => item.id === p.id) || p;
@@ -216,7 +217,7 @@ export function executeCardEffect(
       if (totalCost > 0) {
         const debtRes = resolveDebtOrLiquidate(s, p, totalCost, undefined, `trùng tu tài sản ("${card.title}")`);
         s = debtRes.state;
-        if (!debtRes.isBankrupt) {
+        if (!debtRes.isBankrupt && debtRes.state.turnPhase !== 'BANKRUPTCY') {
           s = { ...s, freeParkingPot: s.freeParkingPot + totalCost };
         }
         p = s.players.find((item) => item.id === p.id) || p;

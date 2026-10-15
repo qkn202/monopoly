@@ -226,4 +226,50 @@ console.log('\nTest 6: Turn timeout resilience during bankruptcy draft and aucti
   console.log('✅ Test 6 Passed: Turn timeout safely delegates during bankruptcy drafts and auctions.');
 }
 
+// =========================================================================
+// TEST 7: Card penalty entering BANKRUPTCY must credit the pot exactly once
+// =========================================================================
+console.log('\nTest 7: Card penalty pot credited exactly once through BANKRUPTCY phase...');
+{
+  const base = createInitialState([
+    { id: 'p0', name: 'Harry', house: 'Gryffindor', isAI: false },
+    { id: 'p1', name: 'Ron', house: 'Gryffindor', isAI: false },
+  ]);
+  const tile1 = HOGWARTS_TILES[1];
+  const s0: GameState = {
+    ...base,
+    freeParkingPot: 0,
+    propertyOwnership: { [tile1.id]: 'p0' },
+    players: [{ ...base.players[0], balance: 50, properties: [tile1.id], houses: {}, hotels: {} }, base.players[1]],
+  };
+  const penalty: CardConfig = { id: 'fine', title: 'Phạt', description: 'Phạt', action: 'MONEY', amount: -80 };
+  const afterCard = executeCardEffect(s0, s0.players[0], penalty).nextState;
+  assert.equal(afterCard.turnPhase, 'BANKRUPTCY', 'Debtor enters BANKRUPTCY (can mortgage to cover)');
+  assert.equal(afterCard.freeParkingPot, 0, 'Pot must NOT be credited before the debt is paid');
+  const afterMortgage = gameReducer(afterCard, { type: 'MORTGAGE_PROPERTY', propertyId: tile1.id, playerId: 'p0' });
+  assert.equal(afterMortgage.turnPhase, 'END_TURN', 'Debt auto-settled after mortgage');
+  assert.equal(afterMortgage.freeParkingPot, 80, 'Pot credited exactly once (80G)');
+  console.log('✅ Test 7 Passed: No phantom cash from card penalties.');
+}
+
+// =========================================================================
+// TEST 8: BUY_PROPERTY rejected outside ACTION phase
+// =========================================================================
+console.log('\nTest 8: BUY_PROPERTY rejected outside ACTION phase...');
+{
+  const base = createInitialState([
+    { id: 'p0', name: 'Harry', house: 'Gryffindor', isAI: false },
+    { id: 'p1', name: 'Ron', house: 'Gryffindor', isAI: false },
+  ]);
+  const tile3 = HOGWARTS_TILES[3];
+  const endTurnState: GameState = {
+    ...base,
+    turnPhase: 'END_TURN',
+    players: [{ ...base.players[0], position: 3, balance: 1000 }, base.players[1]],
+  };
+  const res = gameReducer(endTurnState, { type: 'BUY_PROPERTY', propertyId: tile3.id });
+  assert.equal(res.propertyOwnership[tile3.id], undefined, 'Cannot buy after the decision phase is over');
+  console.log('✅ Test 8 Passed: BUY_PROPERTY only allowed in ACTION phase.');
+}
+
 console.log('\n🎉 ALL BACKEND AUDIT TESTS PASSED FLAWLESSLY!');
