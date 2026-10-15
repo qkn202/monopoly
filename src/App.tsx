@@ -130,17 +130,51 @@ export function App() {
     }
   }), [applyAs]);
 
-  // The host publishes every change (at most 4 a second) to the room ring for the guests.
+  // The host publishes changes to the room ring for guests with leading-edge throttle (min interval 100ms)
   const slotRef = useRef(0);
+  const lastPostTimeRef = useRef(0);
+  const pendingTimerRef = useRef<number | null>(null);
+
+  const broadcastLiveState = useCallback((state: GameState, epoch: number) => {
+    const n = stamp();
+    if (!baseVersionRef.current) baseVersionRef.current = n;
+    post('sb-live', { slot: slotRef.current++ % 6, n, s: packSnapshot(epoch, state) });
+    lastPostTimeRef.current = Date.now();
+  }, []);
+
   useEffect(() => {
     if (!room || room.phase !== 'playing' || !isHost || !gameState) return;
-    const timer = window.setTimeout(() => {
-      const n = stamp();
-      if (!baseVersionRef.current) baseVersionRef.current = n;
-      post('sb-live', { slot: slotRef.current++ % 6, n, s: packSnapshot(room.epoch, gameState) });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [gameState, room, isHost]);
+
+    const MIN_INTERVAL_MS = 100;
+    const now = Date.now();
+    const elapsed = now - lastPostTimeRef.current;
+
+    if (elapsed >= MIN_INTERVAL_MS) {
+      if (pendingTimerRef.current !== null) {
+        window.clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = null;
+      }
+      broadcastLiveState(gameState, room.epoch);
+    } else {
+      if (pendingTimerRef.current !== null) {
+        window.clearTimeout(pendingTimerRef.current);
+      }
+      const delay = MIN_INTERVAL_MS - elapsed;
+      pendingTimerRef.current = window.setTimeout(() => {
+        pendingTimerRef.current = null;
+        if (gameStateRef.current && roomRef.current?.phase === 'playing') {
+          broadcastLiveState(gameStateRef.current, roomRef.current.epoch);
+        }
+      }, delay);
+    }
+
+    return () => {
+      if (pendingTimerRef.current !== null) {
+        window.clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = null;
+      }
+    };
+  }, [gameState, room?.epoch, room?.phase, isHost, broadcastLiveState]);
 
   // Host keeps WebRTC & cross-tab broadcaster alive for incoming spectators
   useEffect(() => {

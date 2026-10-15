@@ -1,6 +1,6 @@
 import { GameState, Player, GameAction } from './types';
 import { HOGWARTS_TILES } from './boardData';
-import { canBuildHouse, canBuildHotel, ownsFullColorSet } from './rulesEngine';
+import { canBuildHouse, canBuildHotel, ownsFullColorSet, canMortgageProperty, canUnmortgageProperty } from './rulesEngine';
 
 /**
  * Chooses the most strategic property to draft during a bankruptcy draft:
@@ -93,9 +93,9 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
         }
       }
 
-      // 3. Try mortgaging unmortgaged properties (without houses/hotels)
+      // 3. Try mortgaging unmortgaged properties (using centralized validator)
       const mortgagableProps = bot.properties.filter(
-        (id) => !state.mortgagedProperties[id] && (bot.houses[id] || 0) === 0 && (bot.hotels[id] || 0) === 0
+        (id) => canMortgageProperty(bot, id, state).allowed
       );
 
       if (mortgagableProps.length > 0) {
@@ -242,18 +242,11 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
 
   // 5. End Turn phase: Check if bot can unmortgage properties before ending turn
   if (state.turnPhase === 'END_TURN') {
-
     // Unmortgage check if bot has plenty of funds
-    const tiles = state.boardTiles || HOGWARTS_TILES;
     for (const propId of bot.properties) {
-      if (state.mortgagedProperties[propId]) {
-        const tile = tiles.find((t) => t.id === propId);
-        if (tile && tile.mortgageValue) {
-          const cost = Math.floor(tile.mortgageValue * 1.1);
-          if (bot.balance >= cost + 600) {
-            return { type: 'UNMORTGAGE_PROPERTY', propertyId: propId };
-          }
-        }
+      const check = canUnmortgageProperty(bot, propId, state);
+      if (check.allowed && check.cost && bot.balance >= check.cost + 600) {
+        return { type: 'UNMORTGAGE_PROPERTY', propertyId: propId, playerId: bot.id };
       }
     }
 

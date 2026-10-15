@@ -1,7 +1,7 @@
 import { GameState, GameAction, Player, HouseType, AuctionState, GameEvent, TakeoverCandidate, TileConfig } from './types';
 import { HOGWARTS_TILES, HOUSE_INFO, CHARMS_CARDS, POTIONS_CARDS } from './boardData';
 import { getBoardTiles } from './boardVariants';
-import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost } from './rulesEngine';
+import { calculateRent, canBuildHouse, canBuildHotel, determineLeaderboard, calculateTakeoverCost, canMortgageProperty, canUnmortgageProperty } from './rulesEngine';
 import { createEvent, refreshAllNetWorth, executeCardEffect, handleBankruptcy, resolveDebtOrLiquidate, selectDraftProperty, getBestDraftProperty, recordTransaction, finalizeTurnFinances } from './reducerHelpers';
 import { getBotAction } from './botAI';
 import { g, galleons } from '../hpvn/money';
@@ -988,18 +988,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'MORTGAGE_PROPERTY': {
       const activeTiles = state.boardTiles || HOGWARTS_TILES;
       const tile = activeTiles.find((t) => t.id === action.propertyId);
-      if (!tile || !tile.mortgageValue || state.mortgagedProperties[tile.id]) return state;
+      if (!tile || !tile.mortgageValue) return state;
 
       const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
 
-      // Check if any property in color group has houses or hotels
-      if (tile.colorGroup) {
-        const groupTiles = activeTiles.filter((t) => t.colorGroup === tile.colorGroup);
-        const hasBuildings = groupTiles.some(
-          (t) => (player.houses[t.id] || 0) > 0 || (player.hotels[t.id] || 0) > 0
-        );
-        if (hasBuildings) return state;
+      const check = canMortgageProperty(player, tile.id, state);
+      if (!check.allowed) {
+        if (check.reason && !player.isAI) {
+          return {
+            ...state,
+            events: [
+              createEvent(`⚠️ Không thể thế chấp "${tile.name}": ${check.reason}`, 'warning', player.id),
+              ...state.events,
+            ],
+          };
+        }
+        return state;
       }
 
       const updatedPlayer: Player = {
@@ -1031,13 +1036,26 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'UNMORTGAGE_PROPERTY': {
       const activeTiles = state.boardTiles || HOGWARTS_TILES;
       const tile = activeTiles.find((t) => t.id === action.propertyId);
-      if (!tile || !tile.mortgageValue || !state.mortgagedProperties[tile.id]) return state;
+      if (!tile || !tile.mortgageValue) return state;
 
       const player = actingOwner(state, tile, action.playerId);
       if (!player) return state;
 
-      const cost = Math.floor(tile.mortgageValue * 1.1); // 10% interest
-      if (player.balance < cost) return state;
+      const check = canUnmortgageProperty(player, tile.id, state);
+      if (!check.allowed) {
+        if (check.reason && !player.isAI) {
+          return {
+            ...state,
+            events: [
+              createEvent(`⚠️ Không thể chuộc "${tile.name}": ${check.reason}`, 'warning', player.id),
+              ...state.events,
+            ],
+          };
+        }
+        return state;
+      }
+
+      const cost = check.cost ?? Math.floor(tile.mortgageValue * 1.1);
 
       const updatedPlayer: Player = {
         ...player,

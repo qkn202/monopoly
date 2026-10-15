@@ -181,6 +181,89 @@ export function canBuildHotel(
 }
 
 /**
+ * Validates whether a player can mortgage a specific property:
+ * - Must own the property
+ * - Property must have mortgageValue
+ * - Property must not already be mortgaged
+ * - No property in the same color group may have houses or hotels
+ * - Player must not be bankrupt
+ */
+export function canMortgageProperty(
+  player: Player,
+  propertyId: string,
+  state: GameState
+): { allowed: boolean; reason?: string } {
+  if (player.isBankrupt) {
+    return { allowed: false, reason: 'Người chơi đã phá sản' };
+  }
+
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = tiles.find((t) => t.id === propertyId);
+  if (!tile || !tile.mortgageValue) {
+    return { allowed: false, reason: 'Ô đất này không thể thế chấp' };
+  }
+
+  if (state.propertyOwnership[tile.id] !== player.id) {
+    return { allowed: false, reason: 'Bạn không sở hữu ô đất này' };
+  }
+
+  if (state.mortgagedProperties[tile.id]) {
+    return { allowed: false, reason: 'Ô đất này đã được thế chấp từ trước' };
+  }
+
+  // Check if any property in the same color group has houses or castles
+  if (tile.colorGroup) {
+    const groupTiles = tiles.filter((t) => t.colorGroup === tile.colorGroup);
+    const hasBuildings = groupTiles.some(
+      (t) => (player.houses[t.id] || 0) > 0 || (player.hotels[t.id] || 0) > 0
+    );
+    if (hasBuildings) {
+      return { allowed: false, reason: 'Cần bán hết nhà/lâu đài trong cùng nhóm màu trước khi thế chấp' };
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Validates whether a player can unmortgage a specific property:
+ * - Must own the property
+ * - Property must currently be mortgaged
+ * - Player must have enough balance (mortgageValue * 1.1)
+ * - Player must not be bankrupt
+ */
+export function canUnmortgageProperty(
+  player: Player,
+  propertyId: string,
+  state: GameState
+): { allowed: boolean; reason?: string; cost?: number } {
+  if (player.isBankrupt) {
+    return { allowed: false, reason: 'Người chơi đã phá sản' };
+  }
+
+  const tiles = state.boardTiles || HOGWARTS_TILES;
+  const tile = tiles.find((t) => t.id === propertyId);
+  if (!tile || !tile.mortgageValue) {
+    return { allowed: false, reason: 'Ô đất này không thể chuộc lại' };
+  }
+
+  if (state.propertyOwnership[tile.id] !== player.id) {
+    return { allowed: false, reason: 'Bạn không sở hữu ô đất này' };
+  }
+
+  if (!state.mortgagedProperties[tile.id]) {
+    return { allowed: false, reason: 'Ô đất này không trong tình trạng thế chấp' };
+  }
+
+  const cost = Math.floor(tile.mortgageValue * 1.1); // 10% interest
+  if (player.balance < cost) {
+    return { allowed: false, reason: `Không đủ tiền chuộc (Cần ${galleons(cost)}, bạn có ${galleons(player.balance)})`, cost };
+  }
+
+  return { allowed: true, cost };
+}
+
+/**
  * Calculates total Net Worth of a player:
  * Cash + Non-mortgaged properties full price + Mortgaged properties 50% price + Houses/Hotels value
  */

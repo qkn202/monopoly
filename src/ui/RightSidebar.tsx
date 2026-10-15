@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameState, GameAction } from '../core/types';
 import { HOGWARTS_TILES, COLOR_GROUP_STYLES, HOUSE_INFO } from '../core/boardData';
 import { getTileAssetId } from '../core/boardVariants';
-import { determineLeaderboard, canBuildHouse, canBuildHotel } from '../core/rulesEngine';
+import { determineLeaderboard, canBuildHouse, canBuildHotel, canMortgageProperty, canUnmortgageProperty } from '../core/rulesEngine';
 import { isEventRelevantToPlayer } from '../core/reducerHelpers';
 import { soundManager } from '../audio/soundManager';
 import { openFloo, usePhoneFloo } from '../hpvn/usePhoneFloo';
@@ -62,7 +62,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const myPlayer = myPlayerId ? gameState.players.find((p) => p.id === myPlayerId) : null;
   const viewingPlayerId = selectedPropertyPlayerId || myPlayer?.id || currentPlayer?.id;
   const viewingPlayer = gameState.players.find((p) => p.id === viewingPlayerId) || currentPlayer;
-  const isControllingViewingPlayer = !isSpectator && viewingPlayer?.id === (myPlayerId || currentPlayer?.id);
+  const isDebtorInBankruptcy = gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo?.debtorId === viewingPlayer?.id;
+  const isControllingViewingPlayer = !isSpectator && (
+    myPlayerId ? viewingPlayer?.id === myPlayerId : (viewingPlayer?.id === currentPlayer?.id || isDebtorInBankruptcy)
+  );
 
   const currentBidderId = gameState.auction?.active
     ? gameState.auction.activeBidders[gameState.auction.currentBidderIndex]
@@ -890,22 +893,22 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       const tile = boardTiles.find((t) => t.id === propId);
                       if (!tile || !tile.mortgageValue || gameState.mortgagedProperties[propId]) return null;
 
-                      const hasBuildings = (debtor.houses[propId] || 0) > 0 || (debtor.hotels[propId] || 0) > 0;
+                      const mortCheck = canMortgageProperty(debtor, propId, gameState);
 
                       return (
                         <button
                           key={propId}
                           className="btn-bid"
-                          disabled={hasBuildings}
+                          disabled={!mortCheck.allowed}
                           style={{
                             fontSize: '0.7rem',
                             padding: '6px 8px',
                             flex: '1 1 45%',
-                            opacity: hasBuildings ? 0.4 : 1,
-                            cursor: hasBuildings ? 'not-allowed' : 'pointer',
+                            opacity: mortCheck.allowed ? 1 : 0.45,
+                            cursor: mortCheck.allowed ? 'pointer' : 'not-allowed',
                           }}
-                          onClick={() => !hasBuildings && dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: propId, playerId: debtor.id })}
-                          title={hasBuildings ? 'Cần bán hết nhà trước khi thế chấp' : ''}
+                          onClick={() => mortCheck.allowed && dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: propId, playerId: debtor.id })}
+                          title={mortCheck.allowed ? `Thế chấp nhận +${tile.mortgageValue}G` : mortCheck.reason}
                         >
                           📋 {tile.name.substring(0, 12)}... (+{tile.mortgageValue}G)
                         </button>
@@ -1065,7 +1068,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               const hasHotel = (viewingPlayer.hotels[tile.id] || 0) > 0;
               const houseCheck = canBuildHouse(viewingPlayer, tile.id, gameState);
               const hotelCheck = canBuildHotel(viewingPlayer, tile.id, gameState);
+              const mortgageCheck = canMortgageProperty(viewingPlayer, tile.id, gameState);
+              const unmortgageCheck = canUnmortgageProperty(viewingPlayer, tile.id, gameState);
               const style = tile.colorGroup ? COLOR_GROUP_STYLES[tile.colorGroup] : null;
+
+              const isDebtor = gameState.turnPhase === 'BANKRUPTCY' && gameState.bankruptcyInfo?.debtorId === viewingPlayer.id;
+              const canAct = (isMyTurn || isDebtor) && isControllingViewingPlayer;
 
               return (
                 <div
@@ -1101,7 +1109,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                         Chưa xây nhà
                       </span>
                     )}
-                    {/* Hiển thị lý do không thể xây nhà */}
+                    {/* Hiển thị lý do không thể xây nhà hoặc thế chấp */}
                     {!isMortgaged && houseCount === 0 && !houseCheck.allowed && houseCheck.reason && (
                       <span style={{
                         fontSize: '0.65rem',
@@ -1112,7 +1120,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                         ⚠️ {houseCheck.reason}
                       </span>
                     )}
-                    {!isMortgaged && houseCount === 0 && !isMyTurn && (
+                    {!isMortgaged && houseCount === 0 && !mortgageCheck.allowed && mortgageCheck.reason && houseCheck.allowed && (
+                      <span style={{
+                        fontSize: '0.65rem',
+                        color: '#f87171',
+                        display: 'block',
+                        marginTop: '2px'
+                      }}>
+                        ⚠️ {mortgageCheck.reason}
+                      </span>
+                    )}
+                    {!isMortgaged && houseCount === 0 && !canAct && (
                       <span style={{
                         fontSize: '0.65rem',
                         color: '#94a3b8',
@@ -1129,10 +1147,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       <button
                         className="btn-bid"
                         style={{ flex: 1 }}
-                        disabled={!isMyTurn || !isControllingViewingPlayer || viewingPlayer.balance < Math.floor((tile.mortgageValue || 50) * 1.1)}
+                        disabled={!canAct || !unmortgageCheck.allowed}
                         onClick={() => dispatch({ type: 'UNMORTGAGE_PROPERTY', propertyId: tile.id, playerId: viewingPlayer.id })}
+                        title={!canAct ? 'Chờ lượt của bạn' : (unmortgageCheck.reason || 'Chuộc lại bất động sản')}
                       >
-                        Chuộc lại · {g(Math.floor((tile.mortgageValue || 50) * 1.1))}
+                        Chuộc lại · {g(unmortgageCheck.cost ?? Math.floor((tile.mortgageValue || 50) * 1.1))}
                       </button>
                     ) : (
                       <>
@@ -1140,7 +1159,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                           <button
                             className="btn-fold"
                             style={{ flex: 1 }}
-                            disabled={!isMyTurn || !isControllingViewingPlayer}
+                            disabled={!canAct}
                             onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                             title="Hạ cấp lâu đài về 4 túp lều"
                           >
@@ -1151,7 +1170,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             <button
                               className="btn-bid"
                               style={{ flex: 1, background: 'linear-gradient(135deg, #d97706, #b45309)' }}
-                              disabled={!isMyTurn || !isControllingViewingPlayer || !hotelCheck.allowed}
+                              disabled={!canAct || !hotelCheck.allowed}
                               onClick={() => dispatch({ type: 'BUILD_HOTEL', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title={hotelCheck.reason || 'Nâng cấp lên lâu đài Hogwarts'}
                             >
@@ -1160,7 +1179,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             <button
                               className="btn-fold"
                               style={{ flex: 1 }}
-                              disabled={!isMyTurn || !isControllingViewingPlayer}
+                              disabled={!canAct}
                               onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title="Dỡ 1 túp lều"
                             >
@@ -1172,7 +1191,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             <button
                               className="btn-bid"
                               style={{ flex: 1 }}
-                              disabled={!isMyTurn || !isControllingViewingPlayer || !houseCheck.allowed}
+                              disabled={!canAct || !houseCheck.allowed}
                               onClick={() => dispatch({ type: 'BUILD_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                               title={houseCheck.reason || 'Xây 1 túp lều'}
                             >
@@ -1182,7 +1201,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                               <button
                                 className="btn-fold"
                                 style={{ flex: 1 }}
-                                disabled={!isMyTurn || !isControllingViewingPlayer}
+                                disabled={!canAct}
                                 onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: tile.id, playerId: viewingPlayer.id })}
                                 title="Dỡ 1 túp lều"
                               >
@@ -1194,9 +1213,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                         <button
                           className="btn-fold"
                           style={{ flex: 1 }}
-                          disabled={!isMyTurn || !isControllingViewingPlayer || houseCount > 0 || hasHotel}
+                          disabled={!canAct || !mortgageCheck.allowed}
                           onClick={() => dispatch({ type: 'MORTGAGE_PROPERTY', propertyId: tile.id, playerId: viewingPlayer.id })}
-                          title={houseCount > 0 || hasHotel ? 'Cần bán hết nhà trước khi thế chấp' : ''}
+                          title={!canAct ? 'Chờ lượt của bạn' : (mortgageCheck.reason || 'Thế chấp ô đất')}
                         >
                           Thế chấp · +{g(tile.mortgageValue)}
                         </button>

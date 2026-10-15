@@ -71,6 +71,7 @@ export function BoardThreeJS({ gameState, myPlayerId, isOverlayActive = false }:
   const currentViewRef = useRef<'follow' | 'overview' | 'topdown'>('overview');
   const prevRentPaymentRef = useRef<number>(0);
   const prevBuildingsRef = useRef<Record<string, { houses: Record<string, number>; hotels: Record<string, number> }>>({});
+  const prevBuildingStateRef = useRef<{ ownership: string; buildings: string; mortgaged: string }>({ ownership: '', buildings: '', mortgaged: '' });
   const isFirstBuildingsSyncRef = useRef<boolean>(true);
 
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -490,10 +491,27 @@ export function BoardThreeJS({ gameState, myPlayerId, isOverlayActive = false }:
       cardMeshesRef.current?.setActivePlayerTileIndex(curPlayer.position);
     }
 
-    buildingManagerRef.current?.syncBuildings(gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, activeTiles);
+    // Only rebuild 3D buildings & card textures when ownership, mortgaged status, or buildings count actually changes
+    const currentOwnershipStr = JSON.stringify(gameState.propertyOwnership);
+    const currentMortgagedStr = JSON.stringify(gameState.mortgagedProperties);
+    const currentBuildingsStr = JSON.stringify(gameState.players.map((p) => ({ id: p.id, h: p.houses, o: p.hotels })));
 
-    // Sync card ownership visual representation on 3D deed cards (canvas textures + neon border glow + mortgaged banner)
-    cardMeshesRef.current?.syncOwnership(gameState.propertyOwnership, gameState.players, gameState.mortgagedProperties);
+    const buildingsNeedUpdate = (
+      currentOwnershipStr !== prevBuildingStateRef.current.ownership ||
+      currentMortgagedStr !== prevBuildingStateRef.current.mortgaged ||
+      currentBuildingsStr !== prevBuildingStateRef.current.buildings
+    );
+
+    if (buildingsNeedUpdate) {
+      buildingManagerRef.current?.syncBuildings(gameState.players, gameState.propertyOwnership, gameState.mortgagedProperties, activeTiles);
+      // Sync card ownership visual representation on 3D deed cards (canvas textures + neon border glow + mortgaged banner)
+      cardMeshesRef.current?.syncOwnership(gameState.propertyOwnership, gameState.players, gameState.mortgagedProperties);
+      prevBuildingStateRef.current = {
+        ownership: currentOwnershipStr,
+        mortgaged: currentMortgagedStr,
+        buildings: currentBuildingsStr,
+      };
+    }
 
     // Detect newly acquired properties to trigger card particle burst, audio chime & announcement toast
     const prevOwnership = prevOwnershipRef.current;
