@@ -856,8 +856,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             className="btn-fold"
                             style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
                             onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: debtor.id })}
+                            title="Hạ cấp Lâu Đài về 4 Túp Lều để lấy tiền cứu nguy"
                           >
-                            🏰 Hạ Lâu Đài (+{refundAmount * 5}G)
+                            🏰 Hạ Lâu Đài (+{refundAmount}G)
                           </button>
                         );
                       }
@@ -868,8 +869,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             className="btn-fold"
                             style={{ fontSize: '0.7rem', padding: '6px 8px', flex: '1 1 45%' }}
                             onClick={() => dispatch({ type: 'SELL_HOUSE', propertyId: propId, playerId: debtor.id })}
+                            title={`Dỡ bớt 1 Túp Lều để nhận ${refundAmount}G (Hiện có ${houseCount} lều)`}
                           >
-                            🏚️ Dỡ {houseCount} lều (+{refundAmount * houseCount}G)
+                            🏚️ Dỡ 1 lều (+{refundAmount}G) [{houseCount}]
                           </button>
                         );
                       }

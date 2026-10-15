@@ -86,9 +86,9 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
         }
       }
 
-      // 2. Try selling houses
+      // 2. Try downgrading hotels or selling houses to raise emergency funds
       for (const propId of bot.properties) {
-        if ((bot.houses[propId] || 0) > 0) {
+        if ((bot.hotels[propId] || 0) > 0 || (bot.houses[propId] || 0) > 0) {
           return { type: 'SELL_HOUSE', propertyId: propId, playerId: bot.id };
         }
       }

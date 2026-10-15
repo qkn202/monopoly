@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { canMortgageProperty, canUnmortgageProperty } from '../src/core/rulesEngine';
+import { canMortgageProperty, canUnmortgageProperty, canBuildHouse, canBuildHotel, calculateRent } from '../src/core/rulesEngine';
 import { gameReducer } from '../src/core/gameReducer';
 import { authorizeAction } from '../src/core/actionAuth';
-import { canBotActNow } from '../src/core/botAI';
+import { getBotAction } from '../src/core/botAI';
 import { GameState, Player } from '../src/core/types';
 import { HOGWARTS_TILES } from '../src/core/boardData';
 
@@ -152,4 +152,60 @@ botState.propertyOwnership['tile-9'] = 'p2';
 const validForMortgage = bot.properties.filter((id) => canMortgageProperty(bot, id, botState).allowed);
 assert.equal(validForMortgage.length, 0, 'No properties can be mortgaged until tile_8 houses are sold');
 
-console.log('\n🎉 ALL MORTGAGE & ANTI-LAG AUDIT TESTS PASSED 100%!\n');
+// TEST 10: cannot build houses if any property in group is mortgaged
+console.log('10. Testing cannot build houses when partner in color group is mortgaged...');
+const s10 = createTestState();
+s10.mortgagedProperties['tile-1'] = true; // tile-1 is mortgaged
+s10.players[0].position = 3; // Standing on tile-3
+s10.players[0].visitedProperties = ['tile-3'];
+const buildCheck = canBuildHouse(s10.players[0], 'tile-3', s10);
+assert.equal(buildCheck.allowed, false);
+assert.match(buildCheck.reason || '', /nhóm màu/);
+
+// TEST 11: cannot build hotel if any property in group is mortgaged
+console.log('11. Testing cannot build hotel when partner in color group is mortgaged...');
+s10.players[0].houses['tile-3'] = 4;
+const hotelCheck = canBuildHotel(s10.players[0], 'tile-3', s10);
+assert.equal(hotelCheck.allowed, false);
+assert.match(hotelCheck.reason || '', /nhóm màu/);
+
+// TEST 12: double rent is disabled if any property in color group is mortgaged
+console.log('12. Testing double rent disabled on unimproved property when partner is mortgaged...');
+const s12 = createTestState();
+const tile3 = HOGWARTS_TILES.find((t) => t.id === 'tile-3')!;
+// When not mortgaged: full color set gives double rent (e.g. 20 * 2 = 40)
+const unmortgagedRent = calculateRent(tile3, s12.players[0], 7, s12);
+assert.equal(unmortgagedRent, (tile3.baseRent || 20) * 2);
+
+// When partner tile-1 is mortgaged: double rent must be disabled! Only base rent!
+s12.mortgagedProperties['tile-1'] = true;
+const mortgagedPartnerRent = calculateRent(tile3, s12.players[0], 7, s12);
+assert.equal(mortgagedPartnerRent, tile3.baseRent || 20);
+
+// TEST 13: cannot unmortgage during bankruptcy phase
+console.log('13. Testing cannot unmortgage while in BANKRUPTCY phase owing debt...');
+const s13 = createTestState();
+s13.turnPhase = 'BANKRUPTCY';
+s13.bankruptcyInfo = { debtorId: 'p1', amountOwed: 500 };
+s13.mortgagedProperties['tile-1'] = true;
+s13.players[0].balance = 1000;
+const unmortCheck = canUnmortgageProperty(s13.players[0], 'tile-1', s13);
+assert.equal(unmortCheck.allowed, false);
+assert.match(unmortCheck.reason || '', /vỡ nợ/);
+
+// TEST 14: bot downgrades hotel to raise money before declaring bankruptcy
+console.log('14. Testing bot AI sells hotel before declaring bankruptcy...');
+const s14 = createTestState();
+s14.turnPhase = 'BANKRUPTCY';
+s14.bankruptcyInfo = { debtorId: 'p2', creditorId: 'p1', amountOwed: 2000, reason: 'Nợ tiền thuê' };
+const botPlayer = s14.players[1];
+botPlayer.balance = 50;
+botPlayer.properties = ['tile-6'];
+botPlayer.hotels['tile-6'] = 1;
+botPlayer.houses['tile-6'] = 0;
+s14.propertyOwnership['tile-6'] = 'p2';
+
+const botAction = getBotAction(s14, botPlayer);
+assert.deepEqual(botAction, { type: 'SELL_HOUSE', propertyId: 'tile-6', playerId: 'p2' });
+
+console.log('\n🎉 ALL 14 MORTGAGE & ANTI-LAG AUDIT TESTS PASSED 100%!\n');

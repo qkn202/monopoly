@@ -46,8 +46,13 @@ export function calculateRent(
     if (houseCount > 0) {
       baseRent = tile.rentTiers[houseCount] || tile.baseRent || 0;
     } else if (tile.colorGroup && ownsFullColorSet(owner, tile.colorGroup, state)) {
-      // If unbuilt but owner has full color group: Double Base Rent!
-      baseRent = (tile.baseRent || 0) * 2;
+      // If unbuilt but owner has full color group: Double Base Rent (disabled if any property in group is mortgaged)
+      const tiles = state.boardTiles || HOGWARTS_TILES;
+      const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
+      const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
+      if (!anyMortgaged) {
+        baseRent = (tile.baseRent || 0) * 2;
+      }
     }
   }
 
@@ -103,6 +108,15 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
   }
 
+  // RULE: Cannot develop houses if ANY property in the same color group is mortgaged
+  if (tile.colorGroup) {
+    const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
+    const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
+    if (anyMortgaged) {
+      return { allowed: false, reason: 'Cần chuộc lại toàn bộ đất trong nhóm màu trước khi xây dựng' };
+    }
+  }
+
   const currentHotels = player.hotels[tile.id] || 0;
   if (currentHotels > 0) {
     return { allowed: false, reason: 'Đã xây dựng Lâu Đài tối đa' };
@@ -149,6 +163,15 @@ export function canBuildHotel(
 
   if (state.mortgagedProperties[tile.id]) {
     return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
+  }
+
+  // RULE: Cannot build Castle if ANY property in the same color group is mortgaged
+  if (tile.colorGroup) {
+    const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
+    const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
+    if (anyMortgaged) {
+      return { allowed: false, reason: 'Cần chuộc lại toàn bộ đất trong nhóm màu trước khi nâng cấp Lâu Đài' };
+    }
   }
 
   const currentHotels = player.hotels[tile.id] || 0;
@@ -239,6 +262,11 @@ export function canUnmortgageProperty(
 ): { allowed: boolean; reason?: string; cost?: number } {
   if (player.isBankrupt) {
     return { allowed: false, reason: 'Người chơi đã phá sản' };
+  }
+
+  // Debtor during bankruptcy phase should prioritize clearing debt rather than spending on unmortgaging
+  if (state.turnPhase === 'BANKRUPTCY' && state.bankruptcyInfo?.debtorId === player.id) {
+    return { allowed: false, reason: 'Đang trong tình trạng vỡ nợ, cần ưu tiên thanh toán nợ trước' };
   }
 
   const tiles = state.boardTiles || HOGWARTS_TILES;

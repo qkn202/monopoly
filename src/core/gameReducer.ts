@@ -1466,7 +1466,10 @@ function resolveLanding(state: GameState, player: Player, diceTotal: number): Ga
 
       if (ownerId === player.id) {
         // Check if property can be upgraded (houses or castle)
-        if (tile.type === 'PROPERTY' && tile.houseCost && !state.mortgagedProperties[tile.id]) {
+        const hasMortgagedInGroup = tile.colorGroup
+          ? activeTiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup).some((t) => !!state.mortgagedProperties[t.id])
+          : false;
+        if (tile.type === 'PROPERTY' && tile.houseCost && !state.mortgagedProperties[tile.id] && !hasMortgagedInGroup) {
           const currentHouses = updatedPlayer.houses[tile.id] || 0;
           const currentHotels = updatedPlayer.hotels[tile.id] || 0;
           if (currentHotels === 0) {
