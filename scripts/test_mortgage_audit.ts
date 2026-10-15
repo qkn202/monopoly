@@ -73,26 +73,25 @@ const s1 = createTestState();
 const check1 = canMortgageProperty(s1.players[0], 'tile-1', s1);
 assert.equal(check1.allowed, true, 'Property with 0 houses should be mortgagable');
 
-// TEST 2: Color group houses rejection
-console.log('2. Testing color group building rejection...');
-s1.players[0].houses['tile-3'] = 1; // Partner tile has 1 house
+// TEST 2: Independence: Property CAN be mortgaged even if partner in same color group has houses
+console.log('2. Testing independent mortgage (allowed even if partner has houses)...');
+s1.players[0].houses['tile-3'] = 2; // Partner tile has 2 houses
 const check2 = canMortgageProperty(s1.players[0], 'tile-1', s1);
-assert.equal(check2.allowed, false, 'Should be rejected because partner property has houses');
-assert.match(check2.reason || '', /nhóm màu/, 'Reason should mention color group buildings');
+assert.equal(check2.allowed, true, 'Property with 0 houses should be mortgagable regardless of other properties');
 
-// TEST 3: Reducer rejects mortgage when partner has house
-console.log('3. Testing gameReducer handles invalid mortgage cleanly without crashing or mutating...');
-const s3BeforeBal = s1.players[0].balance;
-const s3 = gameReducer(s1, { type: 'MORTGAGE_PROPERTY', propertyId: 'tile-1', playerId: 'p1' });
-assert.equal(s3.players[0].balance, s3BeforeBal, 'Balance should not change on rejected mortgage');
-assert.equal(s3.mortgagedProperties['tile-1'], undefined, 'Property must not be mortgaged');
-assert.ok(s3.events.some((e) => e.message.includes('⚠️')), 'Warning event should be recorded');
+// TEST 3: Cannot mortgage if THIS property has houses
+console.log('3. Testing mortgage rejected when THIS property itself has houses...');
+s1.players[0].houses['tile-1'] = 1;
+const check3 = canMortgageProperty(s1.players[0], 'tile-1', s1);
+assert.equal(check3.allowed, false, 'Should be rejected because THIS property has houses');
+assert.match(check3.reason || '', /trên ô đất này/, 'Reason should mention this property');
 
-// TEST 4: Sell house then mortgage succeeds
-console.log('4. Testing sell house then mortgage succeeds...');
-s1.players[0].houses['tile-3'] = 0;
+// TEST 4: Sell house on this property then mortgage succeeds
+console.log('4. Testing sell house on this property then mortgage succeeds...');
+s1.players[0].houses['tile-1'] = 0;
 const tile1 = HOGWARTS_TILES.find((t) => t.id === 'tile-1')!;
-const expectedMortgageVal = tile1.mortgageValue || 30;
+const expectedMortgageVal = tile1.mortgageValue || 100;
+const s3BeforeBal = s1.players[0].balance;
 
 const s4 = gameReducer(s1, { type: 'MORTGAGE_PROPERTY', propertyId: 'tile-1', playerId: 'p1' });
 assert.equal(s4.players[0].balance, s3BeforeBal + expectedMortgageVal, 'Balance increased by mortgage value');
@@ -138,49 +137,40 @@ assert.deepEqual(authMort, { type: 'MORTGAGE_PROPERTY', propertyId: 'tile-1', pl
 const authStranger = authorizeAction(s8, { type: 'MORTGAGE_PROPERTY', propertyId: 'tile-1' }, 'p2');
 assert.equal(authStranger, null, 'Creditor or stranger cannot mortgage someone else property');
 
-// TEST 9: Bot AI doesn't get stuck in an infinite mortgage dispatch loop
-console.log('9. Testing Bot AI mortgagableProps filter with group buildings...');
+// TEST 9: Bot AI can mortgage properties independently
+console.log('9. Testing Bot AI can mortgage unbuilt properties even if another tile in group has houses...');
 const botState = createTestState();
 const bot = botState.players[1];
-bot.properties = ['tile-6', 'tile-8', 'tile-9']; // Light blue group
-bot.houses['tile-8'] = 2; // tile-8 has houses, so tile-6 and tile-9 cannot be mortgaged!
+bot.properties = ['tile-6', 'tile-8', 'tile-9'];
+bot.houses['tile-8'] = 2; // tile-8 has houses, but tile-6 and tile-9 have 0 houses!
 botState.propertyOwnership['tile-6'] = 'p2';
 botState.propertyOwnership['tile-8'] = 'p2';
 botState.propertyOwnership['tile-9'] = 'p2';
 
-// Check bot filter:
 const validForMortgage = bot.properties.filter((id) => canMortgageProperty(bot, id, botState).allowed);
-assert.equal(validForMortgage.length, 0, 'No properties can be mortgaged until tile_8 houses are sold');
+assert.deepEqual(validForMortgage, ['tile-6', 'tile-9'], 'tile-6 and tile-9 are freely mortgagable');
 
-// TEST 10: cannot build houses if any property in group is mortgaged
-console.log('10. Testing cannot build houses when partner in color group is mortgaged...');
+// TEST 10: CAN build houses on property even if partner is mortgaged (No color group block)
+console.log('10. Testing can build houses independently regardless of other properties mortgaged...');
 const s10 = createTestState();
 s10.mortgagedProperties['tile-1'] = true; // tile-1 is mortgaged
 s10.players[0].position = 3; // Standing on tile-3
 s10.players[0].visitedProperties = ['tile-3'];
 const buildCheck = canBuildHouse(s10.players[0], 'tile-3', s10);
-assert.equal(buildCheck.allowed, false);
-assert.match(buildCheck.reason || '', /nhóm màu/);
+assert.equal(buildCheck.allowed, true, 'Can build house on tile-3 without color group restriction');
 
-// TEST 11: cannot build hotel if any property in group is mortgaged
-console.log('11. Testing cannot build hotel when partner in color group is mortgaged...');
+// TEST 11: CAN build hotel on property even if partner is mortgaged
+console.log('11. Testing can build hotel independently regardless of other properties mortgaged...');
 s10.players[0].houses['tile-3'] = 4;
 const hotelCheck = canBuildHotel(s10.players[0], 'tile-3', s10);
-assert.equal(hotelCheck.allowed, false);
-assert.match(hotelCheck.reason || '', /nhóm màu/);
+assert.equal(hotelCheck.allowed, true, 'Can build hotel on tile-3 without color group restriction');
 
-// TEST 12: double rent is disabled if any property in color group is mortgaged
-console.log('12. Testing double rent disabled on unimproved property when partner is mortgaged...');
+// TEST 12: Rent is strictly independent (no double rent for color group)
+console.log('12. Testing rent is strictly independent of color group sets...');
 const s12 = createTestState();
 const tile3 = HOGWARTS_TILES.find((t) => t.id === 'tile-3')!;
-// When not mortgaged: full color set gives double rent (e.g. 20 * 2 = 40)
-const unmortgagedRent = calculateRent(tile3, s12.players[0], 7, s12);
-assert.equal(unmortgagedRent, (tile3.baseRent || 20) * 2);
-
-// When partner tile-1 is mortgaged: double rent must be disabled! Only base rent!
-s12.mortgagedProperties['tile-1'] = true;
-const mortgagedPartnerRent = calculateRent(tile3, s12.players[0], 7, s12);
-assert.equal(mortgagedPartnerRent, tile3.baseRent || 20);
+const rent = calculateRent(tile3, s12.players[0], 7, s12);
+assert.equal(rent, tile3.baseRent || 20, 'Unimproved rent is always standard baseRent');
 
 // TEST 13: cannot unmortgage during bankruptcy phase
 console.log('13. Testing cannot unmortgage while in BANKRUPTCY phase owing debt...');
@@ -208,4 +198,4 @@ s14.propertyOwnership['tile-6'] = 'p2';
 const botAction = getBotAction(s14, botPlayer);
 assert.deepEqual(botAction, { type: 'SELL_HOUSE', propertyId: 'tile-6', playerId: 'p2' });
 
-console.log('\n🎉 ALL 14 MORTGAGE & ANTI-LAG AUDIT TESTS PASSED 100%!\n');
+console.log('\n🎉 ALL 14 INDEPENDENT PROPERTY & ANTI-LAG AUDIT TESTS PASSED 100%!\n');

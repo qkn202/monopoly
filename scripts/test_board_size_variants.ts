@@ -107,7 +107,7 @@ assert(ownsFullColorSet(monopolyState20.players[0], 'BROWN', monopolyState20) ==
 const firstBrownTile = state20.boardTiles.find(t => t.id === brownProps20[0])!;
 const baseRent = firstBrownTile.baseRent || 0;
 const actualRent = calculateRent(firstBrownTile, monopolyState20.players[0], 4, monopolyState20);
-assert(actualRent === baseRent * 2, `Monopoly doubles unimproved rent on 20-tile board (${actualRent} === ${baseRent * 2})`);
+assert(actualRent === baseRent, `Independent unimproved rent on 20-tile board (${actualRent} === ${baseRent})`);
 
 // 8. 3D Coordinates check
 for (const size of [20, 28, 40]) {

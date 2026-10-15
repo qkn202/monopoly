@@ -25,19 +25,8 @@ export function chooseBotDraftProperty(
 
     let score = tile.price || 100;
 
-    // Check if this property completes a color set for the bot
-    if (tile.colorGroup) {
-      const simulatedBot = { ...bot, properties: [...bot.properties, propId] };
-      if (ownsFullColorSet(simulatedBot, tile.colorGroup, state)) {
-        score += 1000; // Top priority: complete monopoly set!
-      } else {
-        const sameGroupOwned = bot.properties.filter((id) => {
-          const t = tiles.find((x) => x.id === id);
-          return t?.colorGroup === tile.colorGroup;
-        }).length;
-        score += sameGroupOwned * 200;
-      }
-    }
+    // Score property by face price + rent potential
+    score = (tile.price || 100) + (tile.baseRent || 10) * 8;
 
     if (score > bestScore) {
       bestScore = score;
@@ -134,9 +123,7 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
       const tiles = state.boardTiles || HOGWARTS_TILES;
       const tile = tiles.find((t) => t.id === auctionTile);
       const facePrice = tile?.price || 100;
-      const completesSet = tile?.colorGroup ? ownsFullColorSet(bot, tile.colorGroup, state) : false;
-
-      const maxValuation = completesSet ? Math.floor(facePrice * 1.4) : Math.floor(facePrice * 0.95);
+      const maxValuation = Math.floor(facePrice * 1.15);
       const nextMinBid = state.auction.currentBid + 25;
       const starterId = state.auction.starterId ?? state.auction.activeBidders[0];
       const isStarter = bot.id === starterId;
@@ -187,25 +174,8 @@ export function getBotAction(state: GameState, bot: Player): GameAction | null {
       }
 
       if (tile && bot.balance >= candidate.cost) {
-        const completesSet = tile.colorGroup
-          ? ownsFullColorSet(
-              { ...bot, properties: [...bot.properties, tile.id] },
-              tile.colorGroup,
-              state
-            )
-          : false;
-
-        const brokeOpponentSet =
-          prevOwner && tile.colorGroup ? ownsFullColorSet(prevOwner, tile.colorGroup, state) : false;
-
         const reserveAfter = bot.balance - candidate.cost;
-        if (completesSet && reserveAfter >= 180) {
-          return { type: 'TAKEOVER_PROPERTY', propertyId: tile.id };
-        }
-        if (brokeOpponentSet && reserveAfter >= 300) {
-          return { type: 'TAKEOVER_PROPERTY', propertyId: tile.id };
-        }
-        if (reserveAfter >= 750) {
+        if (reserveAfter >= 300) {
           return { type: 'TAKEOVER_PROPERTY', propertyId: tile.id };
         }
       }

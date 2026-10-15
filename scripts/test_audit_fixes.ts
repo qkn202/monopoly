@@ -42,12 +42,11 @@ function runTests() {
 
   console.assert(!liquidationRes.isBankrupt, 'Debtor should NOT be bankrupt because assets exceed debt');
   const updatedHarry = liquidationRes.state.players.find(p => p.id === p1.id)!;
-  const updatedDraco = liquidationRes.state.players.find(p => p.id === p2.id)!;
 
   console.assert(updatedHarry.balance >= 0, `Harry balance should be >= 0, got ${updatedHarry.balance}`);
-  console.assert(updatedHarry.hotels[tile1.id] === 0, 'Hotel should have been dismantled');
-  console.assert(updatedDraco.balance === p2.balance + 200, `Draco should receive 200G, got ${updatedDraco.balance}`);
-  console.log('✅ Test 1 Passed: Orderly liquidation successfully raised cash without phantom cash or negative balance.\n');
+  console.assert(liquidationRes.state.turnPhase === 'BANKRUPTCY', 'Debtor should enter BANKRUPTCY phase for manual liquidation');
+  console.assert(liquidationRes.state.bankruptcyInfo?.amount === 200, 'Debt amount recorded in bankruptcyInfo');
+  console.log('✅ Test 1 Passed: Orderly liquidation phase entered without phantom cash or negative balance.\n');
 
   // TEST 2: True Bankruptcy Transfers Cash & Properties to Creditor
   console.log('Test 2: True Bankruptcy Handling...');
@@ -151,9 +150,9 @@ function runTests() {
   };
 
   const dracoOwner = brownGroupState.players[1];
-  // Full color group doubles base rent (15 * 2 = 30), dark curse doubles again (30 * 2 = 60)
+  // Unimproved property collects base rent (15), dark curse doubles to 30 (no color group doubling)
   const calculatedRent = calculateRent(tile3, dracoOwner, 7, brownGroupState);
-  console.assert(calculatedRent === 60, `Calculated rent should be 60G with monopoly + 2x dark curse, got ${calculatedRent}`);
+  console.assert(calculatedRent === 30, `Calculated rent should be 30G with 2x dark curse (color group doubling removed), got ${calculatedRent}`);
 
   // If mortgaged, rent must be strictly 0
   const mortgagedState: GameState = {
@@ -162,7 +161,7 @@ function runTests() {
   };
   const mortgagedRent = calculateRent(tile3, dracoOwner, 7, mortgagedState);
   console.assert(mortgagedRent === 0, `Mortgaged property rent must be 0, got ${mortgagedRent}`);
-  console.log('✅ Test 5 Passed: Rent rules, full set doubling, dark curse 2x, and mortgage exemptions validated.\n');
+  console.log('✅ Test 5 Passed: Independent rent rules, dark curse 2x, and mortgage exemptions validated.\n');
 
   // TEST 6: Timer Tick & Turn Timeout Auto-Play
   console.log('Test 6: Timer Tick & Turn Timeout Execution...');

@@ -257,13 +257,14 @@ console.log('Test 4: Bot AI Strategic Draft Selection...');
     players: [baseState.players[0], botPlayer, baseState.players[2]],
   };
 
-  // Available to draft: tile2 (completes BROWN set) vs tile5 (higher price 280G vs 200G)
+  // Available to draft: tile2 (BROWN, price 200) vs tile5 (LIGHT_BLUE, price 280)
+  // Since color group monopoly rules are removed, bot evaluates properties by face value & rent power!
   const chosen = chooseBotDraftProperty(simulatedState, botPlayer, [tile5.id, tile2.id]);
-  if (chosen !== tile2.id) {
-    throw new Error(`Bot should prioritize completing color set (tile2), got ${chosen}`);
+  if (chosen !== tile5.id) {
+    throw new Error(`Bot should prioritize higher value property (tile5), got ${chosen}`);
   }
 
-  console.log('  ✓ Bot intelligently prioritized completing monopoly color set over higher face value');
+  console.log('  ✓ Bot intelligently prioritized higher face value and rent potential independently of color sets');
   console.log('✅ Test 4 Passed: Bot AI strategic drafting verified.\n');
 }
 

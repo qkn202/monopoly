@@ -45,14 +45,6 @@ export function calculateRent(
     const houseCount = owner.houses[tile.id] || 0;
     if (houseCount > 0) {
       baseRent = tile.rentTiers[houseCount] || tile.baseRent || 0;
-    } else if (tile.colorGroup && ownsFullColorSet(owner, tile.colorGroup, state)) {
-      // If unbuilt but owner has full color group: Double Base Rent (disabled if any property in group is mortgaged)
-      const tiles = state.boardTiles || HOGWARTS_TILES;
-      const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
-      const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
-      if (!anyMortgaged) {
-        baseRent = (tile.baseRent || 0) * 2;
-      }
     }
   }
 
@@ -108,15 +100,6 @@ export function canBuildHouse(
     return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
   }
 
-  // RULE: Cannot develop houses if ANY property in the same color group is mortgaged
-  if (tile.colorGroup) {
-    const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
-    const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
-    if (anyMortgaged) {
-      return { allowed: false, reason: 'Cần chuộc lại toàn bộ đất trong nhóm màu trước khi xây dựng' };
-    }
-  }
-
   const currentHotels = player.hotels[tile.id] || 0;
   if (currentHotels > 0) {
     return { allowed: false, reason: 'Đã xây dựng Lâu Đài tối đa' };
@@ -165,15 +148,6 @@ export function canBuildHotel(
     return { allowed: false, reason: 'Ô đất này đang bị thế chấp, cần chuộc lại trước' };
   }
 
-  // RULE: Cannot build Castle if ANY property in the same color group is mortgaged
-  if (tile.colorGroup) {
-    const groupTiles = tiles.filter((t) => t.type === 'PROPERTY' && t.colorGroup === tile.colorGroup);
-    const anyMortgaged = groupTiles.some((t) => !!state.mortgagedProperties[t.id]);
-    if (anyMortgaged) {
-      return { allowed: false, reason: 'Cần chuộc lại toàn bộ đất trong nhóm màu trước khi nâng cấp Lâu Đài' };
-    }
-  }
-
   const currentHotels = player.hotels[tile.id] || 0;
   if (currentHotels > 0) {
     return { allowed: false, reason: 'Đã có Lâu Đài tối đa' };
@@ -208,7 +182,7 @@ export function canBuildHotel(
  * - Must own the property
  * - Property must have mortgageValue
  * - Property must not already be mortgaged
- * - No property in the same color group may have houses or hotels
+ * - Property itself must not have houses or hotels
  * - Player must not be bankrupt
  */
 export function canMortgageProperty(
@@ -234,15 +208,10 @@ export function canMortgageProperty(
     return { allowed: false, reason: 'Ô đất này đã được thế chấp từ trước' };
   }
 
-  // Check if any property in the same color group has houses or castles
-  if (tile.colorGroup) {
-    const groupTiles = tiles.filter((t) => t.colorGroup === tile.colorGroup);
-    const hasBuildings = groupTiles.some(
-      (t) => (player.houses[t.id] || 0) > 0 || (player.hotels[t.id] || 0) > 0
-    );
-    if (hasBuildings) {
-      return { allowed: false, reason: 'Cần bán hết nhà/lâu đài trong cùng nhóm màu trước khi thế chấp' };
-    }
+  // Must sell any houses/castles on THIS property before mortgaging it
+  const hasBuildings = (player.houses[tile.id] || 0) > 0 || (player.hotels[tile.id] || 0) > 0;
+  if (hasBuildings) {
+    return { allowed: false, reason: 'Cần bán hết nhà/lâu đài trên ô đất này trước khi thế chấp' };
   }
 
   return { allowed: true };
